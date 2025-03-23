@@ -14,7 +14,7 @@ interface PartnerMatchingProps {
 }
 
 const PartnerMatching: React.FC<PartnerMatchingProps> = ({ onViewProfile }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [isMatching, setIsMatching] = useState(false);
   const [matchResults, setMatchResults] = useState<any[]>([]);
@@ -29,7 +29,7 @@ const PartnerMatching: React.FC<PartnerMatchingProps> = ({ onViewProfile }) => {
   };
 
   const findMatches = () => {
-    if (!user) {
+    if (!user || !profile) {
       toast({
         title: "Login required",
         description: "Please login to use the matching feature",
@@ -44,15 +44,15 @@ const PartnerMatching: React.FC<PartnerMatchingProps> = ({ onViewProfile }) => {
     // Simulate API call
     setTimeout(() => {
       // Get matches from our mock function
-      const matches = findMatchingPartners(user.studentId, preferences);
+      const matches = findMatchingPartners(profile.studentId, preferences);
       
       // Filter by preferences if needed
       const filteredMatches = matches.filter(match => {
         // If we require same major and they don't match, filter out
-        if (preferences.sameMajor && match.major !== user.major) return false;
+        if (preferences.sameMajor && match.major !== profile.major) return false;
         
         // If we require same course and they don't match, filter out
-        if (preferences.sameCourse && match.course !== user.course) return false;
+        if (preferences.sameCourse && match.course !== (profile.course || '')) return false;
         
         // Check if match score is high enough
         return match.matchScore >= preferences.compatibility;

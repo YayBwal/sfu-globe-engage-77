@@ -10,7 +10,7 @@ const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, profile, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,9 +94,9 @@ const Header: React.FC = () => {
           {isAuthenticated ? (
             <Link to="/profile">
               <Avatar className="h-9 w-9 border-2 border-white hover:border-sfu-red transition-colors">
-                <AvatarImage src={user?.profilePic} />
+                <AvatarImage src={profile?.profilePic} />
                 <AvatarFallback className="bg-sfu-red text-white">
-                  {user?.name.charAt(0)}
+                  {profile?.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
             </Link>

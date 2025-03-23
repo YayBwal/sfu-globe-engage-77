@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   ThumbsUp, MessageSquare, Share2, BookmarkPlus, 
@@ -123,7 +122,7 @@ const SUGGESTED_USERS = [
 ];
 
 const Newsfeed = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [newPostText, setNewPostText] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   
@@ -191,9 +190,9 @@ const Newsfeed = () => {
               <CardContent className="pt-6">
                 <div className="flex gap-4">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.profilePic} />
+                    <AvatarImage src={profile?.profilePic} />
                     <AvatarFallback className="bg-sfu-red text-white">
-                      {user ? user.name.charAt(0) : 'U'}
+                      {profile ? profile.name.charAt(0) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">

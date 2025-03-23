@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/layout/Header";
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { profile, user, logout } = useAuth();
   
   if (!user) {
     return (
@@ -72,9 +72,9 @@ const Profile = () => {
               <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
                 <div className="relative group">
                   <Avatar className="h-32 w-32 border-4 border-white bg-sfu-lightgray">
-                    <AvatarImage src={user.profilePic} alt={user.name} />
+                    <AvatarImage src={profile?.profilePic} alt={profile?.name} />
                     <AvatarFallback className="text-3xl font-medium bg-sfu-red text-white">
-                      {getInitials(user.name)}
+                      {profile ? getInitials(profile.name) : "U"}
                     </AvatarFallback>
                   </Avatar>
                   <button className="absolute bottom-0 right-0 w-8 h-8 bg-sfu-red text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
@@ -83,21 +83,21 @@ const Profile = () => {
                 </div>
                 
                 <div className="flex-1">
-                  <h1 className="text-2xl font-display font-bold mt-2">{user.name}</h1>
-                  <p className="text-gray-500">{user.email}</p>
+                  <h1 className="text-2xl font-display font-bold mt-2">{profile?.name}</h1>
+                  <p className="text-gray-500">{profile?.email}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {user.major === 'CS' ? 'Computer Science' : 
-                       user.major === 'BBA' ? 'Business Administration' : 
-                       user.major === 'ENG' ? 'Engineering' : 
-                       user.major === 'MED' ? 'Medical Sciences' : 
-                       user.major === 'ART' ? 'Arts & Humanities' : 'Other'}
+                      {profile?.major === 'CS' ? 'Computer Science' : 
+                       profile?.major === 'BBA' ? 'Business Administration' : 
+                       profile?.major === 'ENG' ? 'Engineering' : 
+                       profile?.major === 'MED' ? 'Medical Sciences' : 
+                       profile?.major === 'ART' ? 'Arts & Humanities' : 'Other'}
                     </span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      Batch {user.batch}
+                      Batch {profile?.batch}
                     </span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      ID: {user.studentId}
+                      ID: {profile?.studentId}
                     </span>
                   </div>
                 </div>
