@@ -1,0 +1,667 @@
+
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useClub } from "@/contexts/ClubContext";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  ArrowLeft,
+  Users,
+  Calendar,
+  Bell,
+  Lock,
+  Plus,
+  UserPlus,
+  ImagePlus,
+  Check,
+  X
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Club, ClubActivity, ClubMember, ClubNotification } from "@/types/clubs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const ClubDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { isAuthenticated, user } = useAuth();
+  const { 
+    requestToJoinClub, 
+    isClubManager, 
+    fetchClubMembers, 
+    fetchClubActivities, 
+    fetchClubNotifications,
+    approveClubMember,
+    createClubActivity,
+    createClubNotification
+  } = useClub();
+
+  const [club, setClub] = useState<Club | null>(null);
+  const [members, setMembers] = useState<ClubMember[]>([]);
+  const [activities, setActivities] = useState<ClubActivity[]>([]);
+  const [notifications, setNotifications] = useState<ClubNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [memberLoading, setMemberLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  
+  // Activity form states
+  const [activityTitle, setActivityTitle] = useState("");
+  const [activityContent, setActivityContent] = useState("");
+  const [activityDate, setActivityDate] = useState("");
+  const [activityImage, setActivityImage] = useState<File | null>(null);
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false);
+  
+  // Notification form states
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+
+  // Password dialog states
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [coordinatorPassword, setCoordinatorPassword] = useState("");
+  const [isCoordinatorMode, setIsCoordinatorMode] = useState(false);
+
+  const isManager = id ? isClubManager(id) : false;
+  const pendingMembers = members.filter(m => !m.approved);
+  const approvedMembers = members.filter(m => m.approved);
+
+  useEffect(() => {
+    if (id) {
+      fetchClubDetails();
+      loadClubData();
+      
+      // Set up realtime subscriptions
+      const activitiesChannel = supabase
+        .channel('club-activity-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'club_activities', filter: `club_id=eq.${id}` },
+          () => fetchAndSetActivities()
+        )
+        .subscribe();
+        
+      const membersChannel = supabase
+        .channel('club-member-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'club_members', filter: `club_id=eq.${id}` },
+          () => fetchAndSetMembers()
+        )
+        .subscribe();
+        
+      const notificationsChannel = supabase
+        .channel('club-notification-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'club_notifications', filter: `club_id=eq.${id}` },
+          () => fetchAndSetNotifications()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(activitiesChannel);
+        supabase.removeChannel(membersChannel);
+        supabase.removeChannel(notificationsChannel);
+      };
+    }
+  }, [id]);
+
+  const fetchClubDetails = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('clubs')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setClub(data);
+    } catch (error) {
+      console.error('Error fetching club details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load club details",
+        variant: "destructive",
+      });
+      navigate('/clubs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadClubData = async () => {
+    if (!id) return;
+    fetchAndSetMembers();
+    fetchAndSetActivities();
+    fetchAndSetNotifications();
+  };
+
+  const fetchAndSetMembers = async () => {
+    if (!id) return;
+    setMemberLoading(true);
+    const data = await fetchClubMembers(id);
+    setMembers(data);
+    setMemberLoading(false);
+  };
+
+  const fetchAndSetActivities = async () => {
+    if (!id) return;
+    setActivityLoading(true);
+    const data = await fetchClubActivities(id);
+    setActivities(data);
+    setActivityLoading(false);
+  };
+
+  const fetchAndSetNotifications = async () => {
+    if (!id) return;
+    setNotificationLoading(true);
+    const data = await fetchClubNotifications(id);
+    setNotifications(data);
+    setNotificationLoading(false);
+  };
+
+  const handleJoinRequest = () => {
+    if (id) {
+      requestToJoinClub(id);
+    }
+  };
+
+  const handleApproveMember = async (memberId: string) => {
+    if (!id) return;
+    await approveClubMember(memberId, id);
+    fetchAndSetMembers();
+  };
+
+  const handleSubmitActivity = async () => {
+    if (!id || !user) return;
+    
+    let imageUrl = undefined;
+    
+    // Upload image if exists
+    if (activityImage) {
+      const fileName = `${Date.now()}-${activityImage.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('club-images')
+        .upload(fileName, activityImage);
+        
+      if (uploadError) {
+        toast({
+          title: "Error",
+          description: "Failed to upload image",
+          variant: "destructive",
+        });
+      } else if (uploadData) {
+        const { data } = supabase.storage.from('club-images').getPublicUrl(uploadData.path);
+        imageUrl = data.publicUrl;
+      }
+    }
+    
+    await createClubActivity({
+      club_id: id,
+      title: activityTitle,
+      content: activityContent,
+      image_url: imageUrl,
+      event_date: activityDate || undefined,
+    });
+    
+    // Reset form
+    setActivityTitle("");
+    setActivityContent("");
+    setActivityDate("");
+    setActivityImage(null);
+    setActivityDialogOpen(false);
+    
+    // Reload activities
+    fetchAndSetActivities();
+  };
+
+  const handleSubmitNotification = async () => {
+    if (!id) return;
+    
+    await createClubNotification({
+      club_id: id,
+      message: notificationMessage,
+    });
+    
+    // Reset form
+    setNotificationMessage("");
+    setNotificationDialogOpen(false);
+    
+    // Reload notifications
+    fetchAndSetNotifications();
+  };
+
+  const handleCoordinatorLogin = () => {
+    // In a real app, you would validate this against a database value
+    // For this example, we're using a simple hardcoded password: 'coordinator123'
+    if (coordinatorPassword === 'coordinator123') {
+      setIsCoordinatorMode(true);
+      setPasswordDialogOpen(false);
+      
+      toast({
+        title: "Coordinator Mode Enabled",
+        description: "You now have access to coordinator features",
+      });
+    } else {
+      toast({
+        title: "Invalid Password",
+        description: "The coordinator password is incorrect",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const userMembership = members.find(member => user && member.user_id === user.id);
+  const isMember = !!userMembership?.approved;
+  const hasPendingRequest = !!userMembership && !userMembership.approved;
+
+  if (loading) {
+    return (
+      <div className="container-narrow max-w-4xl mx-auto p-4 mt-24">
+        <div className="text-center py-20">Loading club details...</div>
+      </div>
+    );
+  }
+
+  if (!club) {
+    return (
+      <div className="container-narrow max-w-4xl mx-auto p-4 mt-24">
+        <div className="text-center py-20">Club not found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white pt-24">
+      <div className="container-narrow max-w-4xl mx-auto px-4 pb-16">
+        <div className="mb-6">
+          <Button 
+            variant="ghost" 
+            className="pl-0 mb-2" 
+            onClick={() => navigate('/clubs')}
+          >
+            <ArrowLeft size={16} className="mr-2" />
+            Back to Clubs
+          </Button>
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-display font-bold">{club.name}</h1>
+              <p className="text-gray-600 mt-1 mb-4">{club.description}</p>
+            </div>
+            
+            <div className="flex gap-3">
+              {isAuthenticated ? (
+                isMember ? (
+                  <Button variant="outline" disabled>
+                    <Check size={16} className="mr-2" />
+                    Member
+                  </Button>
+                ) : hasPendingRequest ? (
+                  <Button variant="outline" disabled>
+                    Request Pending
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={handleJoinRequest}>
+                    <UserPlus size={16} className="mr-2" />
+                    Join Club
+                  </Button>
+                )
+              ) : (
+                <Button variant="outline" disabled>
+                  Login to Join
+                </Button>
+              )}
+
+              {(isManager || isMember) && (
+                <Button 
+                  variant={isCoordinatorMode ? "default" : "outline"} 
+                  onClick={() => setPasswordDialogOpen(true)}
+                >
+                  <Lock size={16} className="mr-2" />
+                  {isCoordinatorMode ? "Coordinator Mode" : "Login as Coordinator"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="activities" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="activities">Activities</TabsTrigger>
+            <TabsTrigger value="members">Members</TabsTrigger>
+            {(isManager || isCoordinatorMode) && (
+              <TabsTrigger value="notifications">
+                Notifications
+                {notifications.length > 0 && (
+                  <span className="ml-1 text-xs bg-sfu-red text-white rounded-full w-5 h-5 inline-flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          {/* Activities Tab */}
+          <TabsContent value="activities" className="mt-6">
+            {isManager || isCoordinatorMode ? (
+              <div className="mb-6">
+                <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full md:w-auto">
+                      <Plus size={16} className="mr-2" />
+                      Create New Activity
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Activity</DialogTitle>
+                      <DialogDescription>
+                        Add a new activity or event for your club members.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="activityTitle">Activity Title</Label>
+                        <Input 
+                          id="activityTitle" 
+                          value={activityTitle} 
+                          onChange={(e) => setActivityTitle(e.target.value)} 
+                          placeholder="Enter activity title"
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="activityDate">Date (Optional)</Label>
+                        <Input 
+                          id="activityDate" 
+                          type="datetime-local" 
+                          value={activityDate} 
+                          onChange={(e) => setActivityDate(e.target.value)} 
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="activityContent">Description</Label>
+                        <Textarea 
+                          id="activityContent" 
+                          value={activityContent} 
+                          onChange={(e) => setActivityContent(e.target.value)} 
+                          placeholder="Describe the activity" 
+                          rows={4}
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="activityImage">Image (Optional)</Label>
+                        <Input 
+                          id="activityImage" 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setActivityImage(e.target.files[0]);
+                            }
+                          }} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>Cancel</Button>
+                      <Button 
+                        onClick={handleSubmitActivity} 
+                        disabled={!activityTitle || !activityContent}
+                      >
+                        Create Activity
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null}
+            
+            {activityLoading ? (
+              <div className="text-center py-10">Loading activities...</div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-10 bg-sfu-lightgray rounded-xl">
+                <Calendar size={40} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No activities posted yet</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {activities.map((activity) => (
+                  <Card key={activity.id} className="overflow-hidden">
+                    {activity.image_url && (
+                      <div className="h-48 w-full overflow-hidden">
+                        <img 
+                          src={activity.image_url} 
+                          alt={activity.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    
+                    <CardHeader>
+                      <CardTitle>{activity.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        {activity.event_date && (
+                          <>
+                            <Calendar size={14} />
+                            <span>{new Date(activity.event_date).toLocaleString()}</span>
+                          </>
+                        )}
+                      </CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <p className="whitespace-pre-line">{activity.content}</p>
+                    </CardContent>
+                    
+                    <CardFooter className="text-sm text-gray-500 border-t p-4">
+                      Posted by {activity.poster_name || "Club Coordinator"} 
+                      {activity.created_at && (
+                        <span className="ml-2">
+                          • {new Date(activity.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Members Tab */}
+          <TabsContent value="members" className="mt-6">
+            {memberLoading ? (
+              <div className="text-center py-10">Loading members...</div>
+            ) : (
+              <div className="space-y-6">
+                {(isManager || isCoordinatorMode) && pendingMembers.length > 0 && (
+                  <div className="bg-sfu-lightgray p-4 rounded-lg">
+                    <h3 className="font-semibold mb-3">Pending Requests ({pendingMembers.length})</h3>
+                    <div className="space-y-2">
+                      {pendingMembers.map((member) => (
+                        <div key={member.id} className="flex justify-between items-center bg-white p-3 rounded">
+                          <div>
+                            <div className="font-medium">{member.name}</div>
+                            <div className="text-sm text-gray-500">{member.student_id}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-green-600"
+                              onClick={() => handleApproveMember(member.id)}
+                            >
+                              <Check size={16} />
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-red-600">
+                              <X size={16} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <h3 className="font-semibold mb-3">Members ({approvedMembers.length})</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {approvedMembers.map((member) => (
+                      <div key={member.id} className="flex justify-between items-center border p-3 rounded">
+                        <div>
+                          <div className="font-medium">{member.name}</div>
+                          <div className="text-sm text-gray-500">{member.student_id}</div>
+                        </div>
+                        {member.role !== 'member' && (
+                          <div className="pill bg-sfu-red/10 text-sfu-red text-xs px-2 py-1 rounded-full">
+                            {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Notifications Tab - Only visible to managers or in coordinator mode */}
+          {(isManager || isCoordinatorMode) && (
+            <TabsContent value="notifications" className="mt-6">
+              <div className="mb-6">
+                <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full md:w-auto">
+                      <Plus size={16} className="mr-2" />
+                      Send New Notification
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Send Notification</DialogTitle>
+                      <DialogDescription>
+                        Send an important notification to club coordinators and assistants.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="notificationMessage">Message</Label>
+                        <Textarea 
+                          id="notificationMessage" 
+                          value={notificationMessage} 
+                          onChange={(e) => setNotificationMessage(e.target.value)} 
+                          placeholder="Type your notification message" 
+                          rows={4}
+                        />
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setNotificationDialogOpen(false)}>Cancel</Button>
+                      <Button 
+                        onClick={handleSubmitNotification} 
+                        disabled={!notificationMessage}
+                      >
+                        Send Notification
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              
+              {notificationLoading ? (
+                <div className="text-center py-10">Loading notifications...</div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center py-10 bg-sfu-lightgray rounded-xl">
+                  <Bell size={40} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">No notifications yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <Alert key={notification.id}>
+                      <Bell className="h-4 w-4" />
+                      <AlertTitle>
+                        {notification.created_at && (
+                          <span className="text-xs text-gray-500">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </span>
+                        )}
+                      </AlertTitle>
+                      <AlertDescription>
+                        {notification.message}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
+      
+      {/* Coordinator Password Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Coordinator Access</DialogTitle>
+            <DialogDescription>
+              Enter the coordinator password to access additional features and notifications.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="coordinatorPassword">Coordinator Password</Label>
+              <Input 
+                id="coordinatorPassword" 
+                type="password" 
+                value={coordinatorPassword} 
+                onChange={(e) => setCoordinatorPassword(e.target.value)} 
+                placeholder="Enter password"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCoordinatorLogin}>Login</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default ClubDetail;

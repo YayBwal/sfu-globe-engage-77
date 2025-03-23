@@ -9,6 +9,138 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      club_activities: {
+        Row: {
+          club_id: string
+          content: string
+          created_at: string | null
+          event_date: string | null
+          id: string
+          image_url: string | null
+          posted_by: string
+          title: string
+        }
+        Insert: {
+          club_id: string
+          content: string
+          created_at?: string | null
+          event_date?: string | null
+          id?: string
+          image_url?: string | null
+          posted_by: string
+          title: string
+        }
+        Update: {
+          club_id?: string
+          content?: string
+          created_at?: string | null
+          event_date?: string | null
+          id?: string
+          image_url?: string | null
+          posted_by?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_activities_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_members: {
+        Row: {
+          approved: boolean | null
+          club_id: string
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["club_role"]
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean | null
+          club_id: string
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["club_role"]
+          user_id: string
+        }
+        Update: {
+          approved?: boolean | null
+          club_id?: string
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["club_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_notifications: {
+        Row: {
+          club_id: string
+          created_at: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_notifications_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clubs: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string
+          id: string
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description: string
+          id?: string
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       connections: {
         Row: {
           created_at: string | null
@@ -220,10 +352,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_club_manager: {
+        Args: {
+          club_uuid: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      club_role: "coordinator" | "assistant" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
