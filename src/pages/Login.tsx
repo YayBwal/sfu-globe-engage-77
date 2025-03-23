@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Mail, Lock, ArrowLeft } from "lucide-react";
+import { School, Lock, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  studentId: z.string().min(1, { message: "Student ID is required." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
@@ -29,13 +29,13 @@ const Login = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      studentId: "",
       password: "",
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    login(values.email, values.password);
+    login(values.studentId, values.password);
   }
 
   return (
@@ -58,14 +58,14 @@ const Login = () => {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="email"
+              name="studentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Student ID</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="email" placeholder="name@example.com" className="pl-10" {...field} />
+                      <School className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input type="text" placeholder="Enter your student ID" className="pl-10" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />

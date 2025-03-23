@@ -25,7 +25,7 @@ const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
   major: z.string({ required_error: "Please select your major." }),
-  batch: z.string({ required_error: "Please select your batch." })
+  batch: z.string({ required_error: "Please enter your batch." })
 });
 
 const Register = () => {
@@ -44,7 +44,16 @@ const Register = () => {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    registerUser(values);
+    // The values from the form will always have all fields defined
+    // due to the zod schema validation
+    registerUser({
+      name: values.name,
+      email: values.email,
+      password: values.password,
+      studentId: values.studentId,
+      major: values.major,
+      batch: values.batch,
+    });
   }
 
   return (
@@ -116,12 +125,9 @@ const Register = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="CS">Computer Science</SelectItem>
-                        <SelectItem value="BBA">Business Administration</SelectItem>
-                        <SelectItem value="ENG">Engineering</SelectItem>
-                        <SelectItem value="MED">Medical Sciences</SelectItem>
-                        <SelectItem value="ART">Arts & Humanities</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="DC">DC</SelectItem>
+                        <SelectItem value="DCBM">DCBM</SelectItem>
+                        <SelectItem value="BM">BM</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -135,20 +141,13 @@ const Register = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Batch</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select batch" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="2023">2023</SelectItem>
-                        <SelectItem value="2022">2022</SelectItem>
-                        <SelectItem value="2021">2021</SelectItem>
-                        <SelectItem value="2020">2020</SelectItem>
-                        <SelectItem value="older">Before 2020</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input 
+                        type="text" 
+                        placeholder="e.g. 2023" 
+                        {...field} 
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

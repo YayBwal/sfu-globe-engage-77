@@ -4,18 +4,20 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 // Import components
 import StudentSearch from "@/components/study/StudentSearch";
 import StudentProfile from "@/components/study/StudentProfile";
 import MessagingPanel from "@/components/study/MessagingPanel";
 import StudySessions from "@/components/study/StudySessions";
+import PartnerMatching from "@/components/study/PartnerMatching";
 
 // Import data
 import { allStudentsData, upcomingSessions } from "@/data/StudyData";
 
 const Study = () => {
+  const [activeTab, setActiveTab] = useState("sessions");
   const [studentIdLookup, setStudentIdLookup] = useState("");
   const [matchedStudents, setMatchedStudents] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -84,7 +86,8 @@ const Study = () => {
     // Search for students matching the ID
     setTimeout(() => {
       const results = allStudentsData.filter(student => 
-        student.studentId.toLowerCase().includes(studentIdLookup.toLowerCase())
+        student.studentId.toLowerCase().includes(studentIdLookup.toLowerCase()) ||
+        student.name.toLowerCase().includes(studentIdLookup.toLowerCase())
       );
       
       setMatchedStudents(results);
@@ -93,7 +96,7 @@ const Study = () => {
       if (results.length === 0) {
         toast({
           title: "No matches found",
-          description: "No students match the provided ID",
+          description: "No students match the provided ID or name",
         });
       } else {
         toast({
@@ -107,6 +110,7 @@ const Study = () => {
   const viewStudentProfile = (student: any) => {
     setSelectedStudent(student);
     setShowMessaging(false);
+    setActiveTab("profile");
   };
   
   const sendConnectionRequest = (studentId: string) => {
@@ -158,6 +162,7 @@ const Study = () => {
   const openMessaging = (student: any) => {
     setSelectedStudent(student);
     setShowMessaging(true);
+    setActiveTab("messaging");
     
     // Initialize messages array if it doesn't exist
     if (!messages[student.studentId]) {
@@ -217,6 +222,7 @@ const Study = () => {
   const handleBack = () => {
     setSelectedStudent(null);
     setShowMessaging(false);
+    setActiveTab("sessions");
   };
 
   return (
@@ -250,27 +256,51 @@ const Study = () => {
               user={user}
             />
             
-            {/* Right Side: Student Profile, Messaging or Upcoming Sessions */}
+            {/* Right Side: Content Tabs */}
             <div className="bg-sfu-lightgray p-6 rounded-xl">
-              {showMessaging && selectedStudent ? (
-                <MessagingPanel 
-                  student={selectedStudent}
-                  onBack={handleBack}
-                  messages={messages[selectedStudent.studentId] || []}
-                  onSendMessage={sendMessage}
-                />
-              ) : selectedStudent ? (
-                <StudentProfile 
-                  student={selectedStudent}
-                  onBack={handleBack}
-                  onOpenMessaging={openMessaging}
-                  onSendConnectionRequest={sendConnectionRequest}
-                  isConnected={isConnected}
-                  isPendingConnection={isPendingConnection}
-                />
-              ) : (
-                <StudySessions upcomingSessions={upcomingSessions} />
-              )}
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-3 mb-6">
+                  <TabsTrigger value="sessions">Sessions</TabsTrigger>
+                  <TabsTrigger value="matching">Match AI</TabsTrigger>
+                  {(showMessaging || selectedStudent) && (
+                    <TabsTrigger value={showMessaging ? "messaging" : "profile"}>
+                      {showMessaging ? "Messages" : "Profile"}
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+                
+                <TabsContent value="sessions">
+                  <StudySessions upcomingSessions={upcomingSessions} />
+                </TabsContent>
+                
+                <TabsContent value="matching">
+                  <PartnerMatching onViewProfile={viewStudentProfile} />
+                </TabsContent>
+                
+                <TabsContent value="messaging">
+                  {showMessaging && selectedStudent && (
+                    <MessagingPanel 
+                      student={selectedStudent}
+                      onBack={handleBack}
+                      messages={messages[selectedStudent.studentId] || []}
+                      onSendMessage={sendMessage}
+                    />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="profile">
+                  {selectedStudent && !showMessaging && (
+                    <StudentProfile 
+                      student={selectedStudent}
+                      onBack={handleBack}
+                      onOpenMessaging={openMessaging}
+                      onSendConnectionRequest={sendConnectionRequest}
+                      isConnected={isConnected}
+                      isPendingConnection={isPendingConnection}
+                    />
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>

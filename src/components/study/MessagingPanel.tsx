@@ -1,8 +1,10 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Video, VideoOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MessagingPanelProps {
   student: any;
@@ -18,6 +20,19 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
   onSendMessage
 }) => {
   const [messageText, setMessageText] = useState("");
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [isCallPending, setIsCallPending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
@@ -27,6 +42,39 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const initiateVideoCall = () => {
+    if (!student.online) {
+      toast({
+        title: "User offline",
+        description: `${student.name} is currently offline`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsCallPending(true);
+    
+    // Simulate call acceptance after 2 seconds
+    setTimeout(() => {
+      setIsCallPending(false);
+      setIsVideoCallActive(true);
+      
+      toast({
+        title: "Video call started",
+        description: `Connected with ${student.name}`,
+      });
+    }, 2000);
+  };
+
+  const endVideoCall = () => {
+    setIsVideoCallActive(false);
+    
+    toast({
+      title: "Call ended",
+      description: `Call with ${student.name} has ended`,
+    });
   };
 
   return (
@@ -39,18 +87,54 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             </AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-display font-semibold">{student.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display font-semibold">{student.name}</h2>
+              <span className={`w-2 h-2 rounded-full ${student.online ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+            </div>
             <div className="text-xs text-gray-500">{student.course} • {student.major}</div>
           </div>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onBack}
-        >
-          Back
-        </Button>
+        <div className="flex items-center gap-2">
+          {isVideoCallActive ? (
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={endVideoCall}
+            >
+              <VideoOff className="h-4 w-4 mr-1" />
+              End Call
+            </Button>
+          ) : (
+            <Button 
+              variant={student.online ? "outline" : "ghost"} 
+              size="sm"
+              disabled={isCallPending || !student.online}
+              onClick={initiateVideoCall}
+              className={!student.online ? "opacity-50" : ""}
+            >
+              <Video className="h-4 w-4 mr-1" />
+              {isCallPending ? "Calling..." : "Video Call"}
+            </Button>
+          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onBack}
+          >
+            Back
+          </Button>
+        </div>
       </div>
+      
+      {isVideoCallActive && (
+        <div className="bg-black rounded-lg h-40 mb-4 flex items-center justify-center">
+          <div className="text-white text-center">
+            <p>Video call with {student.name}</p>
+            <p className="text-xs text-gray-400 mt-1">Connected</p>
+            <div className="absolute bottom-2 right-2 bg-gray-800 rounded w-20 h-16"></div>
+          </div>
+        </div>
+      )}
       
       <div className="bg-white rounded-lg h-80 overflow-y-auto mb-4 p-4">
         <div className="space-y-3">
@@ -80,6 +164,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
               <p className="text-xs mt-2">Send a message to start the conversation</p>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
       
@@ -93,7 +178,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
           className="bg-white"
         />
         <Button 
-          variant="message"
+          variant="outline"
           onClick={handleSendMessage}
         >
           Send

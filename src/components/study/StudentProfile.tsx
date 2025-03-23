@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, UserCheck, MessageCircle } from "lucide-react";
+import { UserPlus, UserCheck, MessageCircle, Video } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Card,
@@ -51,7 +51,10 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
               </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle>{student.name}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>{student.name}</CardTitle>
+                <span className={`w-2 h-2 rounded-full ${student.online ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+              </div>
               <CardDescription className="flex flex-col gap-1 mt-1">
                 <span className="text-sfu-red font-medium">{student.studentId}</span>
                 <span>{student.major} - {student.batch}</span>
@@ -84,16 +87,26 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
             </div>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-2">
           {isConnected(student.studentId) ? (
-            <Button 
-              variant="connected" 
-              className="w-full gap-2"
-              onClick={() => onOpenMessaging(student)}
-            >
-              <MessageCircle size={16} />
-              Message {student.name.split(' ')[0]}
-            </Button>
+            <div className="w-full flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 gap-2"
+                onClick={() => onOpenMessaging(student)}
+              >
+                <MessageCircle size={16} />
+                Message
+              </Button>
+              <Button 
+                variant={student.online ? "outline" : "ghost"}
+                className={`flex-1 gap-2 ${!student.online ? "opacity-50" : ""}`}
+                disabled={!student.online}
+              >
+                <Video size={16} />
+                {student.online ? "Video Call" : "Offline"}
+              </Button>
+            </div>
           ) : isPendingConnection(student.studentId) ? (
             <Button 
               disabled 
@@ -104,7 +117,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
             </Button>
           ) : (
             <Button 
-              variant="connect" 
+              variant="default" 
               className="w-full gap-2"
               onClick={() => onSendConnectionRequest(student.studentId)}
             >

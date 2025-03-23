@@ -11,14 +11,19 @@ type User = {
   major: string;
   batch: string;
   profilePic?: string;
+  bio?: string;
+  interests?: string[];
+  availability?: string;
+  online?: boolean;
 };
 
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (studentId: string, password: string) => Promise<void>;
   register: (userData: Omit<User, "id"> & { password: string }) => Promise<void>;
   logout: () => void;
+  updateUserStatus: (online: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,18 +37,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
       setIsAuthenticated(true);
+      
+      // Set online status
+      updateUserStatus(true);
+      
+      // Set offline status when user closes the tab/window
+      window.addEventListener('beforeunload', () => {
+        updateUserStatus(false);
+      });
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (studentId: string, password: string) => {
     // In a real app, this would verify credentials with a backend
     try {
       // Mock login for demo purposes
       const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
       const foundUser = storedUsers.find((u: any) => 
-        u.email === email && u.password === password
+        u.studentId === studentId && u.password === password
       );
       
       if (!foundUser) {
@@ -51,9 +65,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
+      
+      // Add online status
+      const userWithStatus = {
+        ...userWithoutPassword,
+        online: true
+      };
+      
+      setUser(userWithStatus);
       setIsAuthenticated(true);
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword));
+      localStorage.setItem("user", JSON.stringify(userWithStatus));
+      
+      // Update user in users array with online status
+      const updatedUsers = storedUsers.map((u: any) => {
+        if (u.studentId === studentId) {
+          return { ...u, online: true };
+        }
+        return u;
+      });
+      localStorage.setItem("users", JSON.stringify(updatedUsers));
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${foundUser.name}!`,
@@ -75,19 +106,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newUser = {
         ...userData,
         id: Date.now().toString(),
+        online: true,
+        bio: userData.bio || `I'm a ${userData.major} student`,
+        interests: userData.interests || [`${userData.major} studies`],
+        availability: userData.availability || "Weekdays after classes",
       };
       
       // Store user in localStorage (only for demo)
       const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
       
-      // Check if email already exists
-      if (storedUsers.some((u: any) => u.email === userData.email)) {
-        throw new Error("Email already registered");
-      }
-      
       // Check if student ID already exists
       if (storedUsers.some((u: any) => u.studentId === userData.studentId)) {
         throw new Error("Student ID already registered");
+      }
+      
+      // Check if email already exists
+      if (storedUsers.some((u: any) => u.email === userData.email)) {
+        throw new Error("Email already registered");
       }
       
       storedUsers.push(newUser);
@@ -114,10 +149,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserStatus = (online: boolean) => {
+    if (!user) return;
+    
+    // Update current user status
+    const updatedUser = { ...user, online };
+    setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    
+    // Update user in users array
+    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
+    const updatedUsers = storedUsers.map((u: any) => {
+      if (u.studentId === user.studentId) {
+        return { ...u, online };
+      }
+      return u;
+    });
+    localStorage.setItem("users", JSON.stringify(updatedUsers));
+  };
+
   const logout = () => {
+    if (user) {
+      // Set user offline before logging out
+      updateUserStatus(false);
+    }
+    
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("user");
+    
     toast({
       title: "Logged out",
       description: "You have been logged out successfully",
@@ -126,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, updateUserStatus }}>
       {children}
     </AuthContext.Provider>
   );
