@@ -2,8 +2,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
 
-type User = {
+type UserProfile = {
   id: string;
   name: string;
   email: string;
@@ -19,75 +21,124 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
+  profile: UserProfile | null;
+  session: Session | null;
   isAuthenticated: boolean;
   login: (studentId: string, password: string) => Promise<void>;
-  register: (userData: Omit<User, "id"> & { password: string }) => Promise<void>;
-  logout: () => void;
-  updateUserStatus: (online: boolean) => void;
+  register: (userData: Omit<UserProfile, "id"> & { password: string }) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUserStatus: (online: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setIsAuthenticated(true);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setIsAuthenticated(!!currentSession);
+        
+        if (currentSession?.user) {
+          fetchUserProfile(currentSession.user.id);
+          updateUserStatus(true);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsAuthenticated(!!currentSession);
       
-      // Set online status
-      updateUserStatus(true);
-      
-      // Set offline status when user closes the tab/window
-      window.addEventListener('beforeunload', () => {
+      if (currentSession?.user) {
+        fetchUserProfile(currentSession.user.id);
+        updateUserStatus(true);
+      }
+    });
+
+    // Set offline status when user closes the tab/window
+    window.addEventListener('beforeunload', () => {
+      if (user) {
         updateUserStatus(false);
-      });
-    }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (studentId: string, password: string) => {
-    // In a real app, this would verify credentials with a backend
+  const fetchUserProfile = async (userId: string) => {
     try {
-      // Mock login for demo purposes
-      const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      const foundUser = storedUsers.find((u: any) => 
-        u.studentId === studentId && u.password === password
-      );
-      
-      if (!foundUser) {
-        throw new Error("Invalid credentials");
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        throw error;
       }
-      
-      const { password: _, ...userWithoutPassword } = foundUser;
-      
-      // Add online status
-      const userWithStatus = {
-        ...userWithoutPassword,
-        online: true
-      };
-      
-      setUser(userWithStatus);
-      setIsAuthenticated(true);
-      localStorage.setItem("user", JSON.stringify(userWithStatus));
-      
-      // Update user in users array with online status
-      const updatedUsers = storedUsers.map((u: any) => {
-        if (u.studentId === studentId) {
-          return { ...u, online: true };
-        }
-        return u;
+
+      if (data) {
+        const userProfile: UserProfile = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          studentId: data.student_id,
+          major: data.major,
+          batch: data.batch,
+          bio: data.bio,
+          interests: data.interests,
+          availability: data.availability,
+          online: data.online,
+        };
+        setProfile(userProfile);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  const login = async (studentId: string, password: string) => {
+    try {
+      // First, find the user email using the student ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('student_id', studentId)
+        .single();
+
+      if (profileError || !profileData) {
+        throw new Error("Student ID not found");
+      }
+
+      // Then sign in with the email and password
+      const { error } = await supabase.auth.signInWithPassword({
+        email: profileData.email,
+        password,
       });
-      localStorage.setItem("users", JSON.stringify(updatedUsers));
-      
+
+      if (error) {
+        throw error;
+      }
+
       toast({
         title: "Login successful",
-        description: `Welcome back, ${foundUser.name}!`,
+        description: "Welcome back!",
       });
       navigate("/");
     } catch (error) {
@@ -99,46 +150,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (userData: Omit<User, "id"> & { password: string }) => {
+  const register = async (userData: Omit<UserProfile, "id"> & { password: string }) => {
     try {
-      // In a real app, this would send data to a backend
-      // Mock registration for demo purposes
-      const newUser = {
-        ...userData,
-        id: Date.now().toString(),
-        online: true,
-        bio: userData.bio || `I'm a ${userData.major} student`,
-        interests: userData.interests || [`${userData.major} studies`],
-        availability: userData.availability || "Weekdays after classes",
-      };
-      
-      // Store user in localStorage (only for demo)
-      const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      
       // Check if student ID already exists
-      if (storedUsers.some((u: any) => u.studentId === userData.studentId)) {
+      const { data: existingStudentId, error: studentIdError } = await supabase
+        .from('profiles')
+        .select('student_id')
+        .eq('student_id', userData.studentId)
+        .maybeSingle();
+
+      if (!studentIdError && existingStudentId) {
         throw new Error("Student ID already registered");
       }
-      
-      // Check if email already exists
-      if (storedUsers.some((u: any) => u.email === userData.email)) {
-        throw new Error("Email already registered");
+
+      // Sign up with email and password
+      const { error: signUpError, data } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name,
+            studentId: userData.studentId,
+            major: userData.major,
+            batch: userData.batch,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw signUpError;
       }
-      
-      storedUsers.push(newUser);
-      localStorage.setItem("users", JSON.stringify(storedUsers));
-      
-      // Login the user after registration
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword);
-      setIsAuthenticated(true);
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword));
-      
+
+      // The user profile will be created automatically by the database trigger
+
       toast({
         title: "Registration successful",
         description: "Your account has been created",
       });
-      
+
       navigate("/");
     } catch (error) {
       toast({
@@ -149,34 +198,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserStatus = (online: boolean) => {
+  const updateUserStatus = async (online: boolean) => {
     if (!user) return;
-    
-    // Update current user status
-    const updatedUser = { ...user, online };
-    setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    
-    // Update user in users array
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    const updatedUsers = storedUsers.map((u: any) => {
-      if (u.studentId === user.studentId) {
-        return { ...u, online };
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ online })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error("Error updating user status:", error);
       }
-      return u;
-    });
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
+      
+      if (profile) {
+        setProfile({ ...profile, online });
+      }
+    } catch (error) {
+      console.error("Error updating user status:", error);
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (user) {
       // Set user offline before logging out
-      updateUserStatus(false);
+      await updateUserStatus(false);
     }
+
+    const { error } = await supabase.auth.signOut();
     
+    if (error) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUser(null);
+    setProfile(null);
+    setSession(null);
     setIsAuthenticated(false);
-    localStorage.removeItem("user");
     
     toast({
       title: "Logged out",
@@ -186,7 +249,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, updateUserStatus }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      session, 
+      isAuthenticated, 
+      login, 
+      register, 
+      logout, 
+      updateUserStatus 
+    }}>
       {children}
     </AuthContext.Provider>
   );

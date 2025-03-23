@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,8 +43,6 @@ const Register = () => {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // The values from the form will always have all fields defined
-    // due to the zod schema validation
     registerUser({
       name: values.name,
       email: values.email,

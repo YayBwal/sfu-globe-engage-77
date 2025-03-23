@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { UserSearch, MessageCircle, X, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { allStudentsData } from "@/data/StudyData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StudentSearchProps {
   studentIdLookup: string;
@@ -39,6 +40,40 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
   user
 }) => {
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const [connectionProfiles, setConnectionProfiles] = useState<any[]>([]);
+  
+  React.useEffect(() => {
+    if (connections.length > 0) {
+      fetchConnectionProfiles();
+    }
+  }, [connections]);
+  
+  const fetchConnectionProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', connections);
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setConnectionProfiles(data.map(profile => ({
+          id: profile.id,
+          name: profile.name,
+          studentId: profile.student_id,
+          major: profile.major,
+          batch: profile.batch,
+          online: profile.online
+        })));
+      }
+    } catch (error) {
+      console.error("Error fetching connection profiles:", error);
+    }
+  };
   
   return (
     <div className="bg-sfu-lightgray p-6 rounded-xl">
@@ -57,7 +92,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
         <div className="flex-grow">
           <Input 
             type="text" 
-            placeholder="Try: 2024D5963, 2024D5962, etc." 
+            placeholder="Enter student ID" 
             value={studentIdLookup}
             onChange={(e) => setStudentIdLookup(e.target.value)}
             className="bg-white"
@@ -72,12 +107,12 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
         </Button>
       </div>
       
-      {user && (
+      {profile && (
         <div className="mb-4 p-3 bg-white rounded-lg text-sm">
           <div className="flex justify-between items-center mb-2">
             <span className="text-gray-500">Your student ID:</span>
             <span className="font-mono text-xs font-semibold bg-sfu-red/10 text-sfu-red px-2 py-1 rounded">
-              {user.studentId}
+              {profile.studentId}
             </span>
           </div>
           <p className="text-xs text-gray-500">
@@ -90,41 +125,42 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
         <div className="mb-4 p-3 bg-white rounded-lg">
           <h3 className="font-medium text-sm mb-2">Your Connections ({connections.length})</h3>
           <div className="space-y-2">
-            {connections.map(studentId => {
-              const student = allStudentsData.find(s => s.studentId === studentId);
-              if (!student) return null;
-              
-              return (
-                <div key={student.id} className="flex items-center justify-between text-sm p-2 hover:bg-gray-50 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-blue-100 text-blue-600">
-                        {student.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+            {connectionProfiles.map(student => (
+              <div key={student.id} className="flex items-center justify-between text-sm p-2 hover:bg-gray-50 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="bg-blue-100 text-blue-600">
+                      {student.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
                     <span>{student.name}</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0"
-                      onClick={() => onOpenMessaging(student)}
-                    >
-                      <MessageCircle size={16} />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0 text-red-500"
-                      onClick={() => onRemoveConnection(student.studentId)}
-                    >
-                      <X size={16} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <span className={`w-2 h-2 rounded-full ${student.online ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      <span className="text-xs text-gray-500">{student.online ? 'Online' : 'Offline'}</span>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => onOpenMessaging(student)}
+                  >
+                    <MessageCircle size={16} />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 text-red-500"
+                    onClick={() => onRemoveConnection(student.id)}
+                  >
+                    <X size={16} />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -154,8 +190,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
                 </div>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-xs font-medium text-sfu-red">{student.course}</span>
-                <span className="text-xs text-gray-500">{student.studentId}</span>
+                <span className="text-xs text-gray-500">{student.studentId || student.student_id}</span>
                 <div className="flex gap-2 mt-1">
                   <Button 
                     variant="ghost" 
@@ -166,7 +201,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
                     View Profile
                   </Button>
                   
-                  {isConnected(student.studentId) ? (
+                  {isConnected(student.id) ? (
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -176,14 +211,14 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
                       <MessageCircle size={12} />
                       Message
                     </Button>
-                  ) : isPendingConnection(student.studentId) ? (
+                  ) : isPendingConnection(student.id) ? (
                     <span className="text-xs text-orange-500">Request Sent</span>
                   ) : (
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       className="text-xs p-0 h-auto text-indigo-600 flex items-center gap-1"
-                      onClick={() => onSendConnectionRequest(student.studentId)}
+                      onClick={() => onSendConnectionRequest(student.id)}
                     >
                       <UserPlus size={12} />
                       Connect

@@ -5,6 +5,7 @@ import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 
 // Import components
 import StudentSearch from "@/components/study/StudentSearch";
@@ -14,7 +15,7 @@ import StudySessions from "@/components/study/StudySessions";
 import PartnerMatching from "@/components/study/PartnerMatching";
 
 // Import data
-import { allStudentsData, upcomingSessions } from "@/data/StudyData";
+import { upcomingSessions } from "@/data/StudyData";
 
 const Study = () => {
   const [activeTab, setActiveTab] = useState("sessions");
@@ -27,49 +28,111 @@ const Study = () => {
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<{[key: string]: {text: string, sender: string, timestamp: Date}[]}>({});
   const [showMessaging, setShowMessaging] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
-  // Load connections from localStorage on component mount
+  // Load connections from Supabase on component mount
   useEffect(() => {
-    const savedConnections = localStorage.getItem("connections");
-    if (savedConnections) {
-      setConnections(JSON.parse(savedConnections));
+    if (user) {
+      fetchConnections();
+      fetchPendingRequests();
+      fetchMessages();
     }
-    
-    const savedPendingRequests = localStorage.getItem("pendingRequests");
-    if (savedPendingRequests) {
-      setPendingRequests(JSON.parse(savedPendingRequests));
-    }
-    
-    const savedMessages = localStorage.getItem("messages");
-    if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
-    }
-  }, []);
+  }, [user]);
 
-  // Save connections to localStorage whenever they change
-  useEffect(() => {
-    if (connections.length > 0) {
-      localStorage.setItem("connections", JSON.stringify(connections));
+  const fetchConnections = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all accepted connections where the user is either the sender or receiver
+      const { data, error } = await supabase
+        .from('connections')
+        .select('user_id, friend_id')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Extract the IDs of the connected users (excluding the current user)
+        const connectionIds = data.map(conn => 
+          conn.user_id === user.id ? conn.friend_id : conn.user_id
+        );
+        
+        setConnections(connectionIds);
+      }
+    } catch (error) {
+      console.error("Error fetching connections:", error);
     }
-  }, [connections]);
+  };
   
-  // Save pending requests to localStorage whenever they change
-  useEffect(() => {
-    if (pendingRequests.length > 0) {
-      localStorage.setItem("pendingRequests", JSON.stringify(pendingRequests));
+  const fetchPendingRequests = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all pending connection requests sent by the current user
+      const { data, error } = await supabase
+        .from('connections')
+        .select('friend_id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setPendingRequests(data.map(req => req.friend_id));
+      }
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
     }
-  }, [pendingRequests]);
+  };
   
-  // Save messages to localStorage whenever they change
-  useEffect(() => {
-    if (Object.keys(messages).length > 0) {
-      localStorage.setItem("messages", JSON.stringify(messages));
+  const fetchMessages = async () => {
+    if (!user) return;
+    
+    try {
+      // Get messages where the user is either the sender or receiver
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: true });
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Group messages by conversation
+        const messagesByConversation: {[key: string]: {text: string, sender: string, timestamp: Date}[]} = {};
+        
+        data.forEach(msg => {
+          // Determine the conversation partner
+          const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+          
+          if (!messagesByConversation[partnerId]) {
+            messagesByConversation[partnerId] = [];
+          }
+          
+          messagesByConversation[partnerId].push({
+            text: msg.text,
+            sender: msg.sender_id,
+            timestamp: new Date(msg.created_at)
+          });
+        });
+        
+        setMessages(messagesByConversation);
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error);
     }
-  }, [messages]);
+  };
 
-  const findStudentById = () => {
+  const findStudentById = async () => {
     if (!studentIdLookup.trim()) {
       toast({
         title: "Input required",
@@ -83,17 +146,35 @@ const Study = () => {
     setSelectedStudent(null);
     setShowMessaging(false);
     
-    // Search for students matching the ID
-    setTimeout(() => {
-      const results = allStudentsData.filter(student => 
-        student.studentId.toLowerCase().includes(studentIdLookup.toLowerCase()) ||
-        student.name.toLowerCase().includes(studentIdLookup.toLowerCase())
-      );
+    try {
+      // Search for students by ID or name
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`student_id.ilike.%${studentIdLookup}%,name.ilike.%${studentIdLookup}%`);
+        
+      if (error) {
+        throw error;
+      }
       
-      setMatchedStudents(results);
+      // Filter out the current user
+      const filteredResults = data.filter(student => student.id !== user?.id);
+      
+      setMatchedStudents(filteredResults.map(student => ({
+        id: student.id,
+        name: student.name,
+        studentId: student.student_id,
+        major: student.major,
+        batch: student.batch,
+        online: student.online,
+        bio: student.bio,
+        interests: student.interests || [],
+        availability: student.availability,
+      })));
+      
       setIsSearching(false);
       
-      if (results.length === 0) {
+      if (filteredResults.length === 0) {
         toast({
           title: "No matches found",
           description: "No students match the provided ID or name",
@@ -101,10 +182,18 @@ const Study = () => {
       } else {
         toast({
           title: "Students found",
-          description: `Found ${results.length} student(s) matching your search`,
+          description: `Found ${filteredResults.length} student(s) matching your search`,
         });
       }
-    }, 800);
+    } catch (error) {
+      setIsSearching(false);
+      console.error("Error searching for students:", error);
+      toast({
+        title: "Search error",
+        description: "An error occurred while searching for students",
+        variant: "destructive",
+      });
+    }
   };
 
   const viewStudentProfile = (student: any) => {
@@ -113,7 +202,7 @@ const Study = () => {
     setActiveTab("profile");
   };
   
-  const sendConnectionRequest = (studentId: string) => {
+  const sendConnectionRequest = async (studentId: string) => {
     if (!user) {
       toast({
         title: "Login required",
@@ -123,40 +212,95 @@ const Study = () => {
       return;
     }
     
-    // In a real app, this would send a request to the backend
-    // For demo purposes, we'll just add it to pendingRequests
-    setPendingRequests(prev => [...prev, studentId]);
-    
-    toast({
-      title: "Connection request sent",
-      description: `Your connection request has been sent to student ID: ${studentId}`,
-    });
-    
-    // For demo purposes, auto-accept after 2 seconds
-    setTimeout(() => {
-      acceptConnection(studentId);
-    }, 2000);
+    try {
+      // Insert the connection request
+      const { error } = await supabase
+        .from('connections')
+        .insert({
+          user_id: user.id,
+          friend_id: studentId,
+          status: 'pending'
+        });
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setPendingRequests(prev => [...prev, studentId]);
+      
+      toast({
+        title: "Connection request sent",
+        description: "Your connection request has been sent",
+      });
+      
+      // For demo purposes, auto-accept after 2 seconds
+      setTimeout(() => {
+        acceptConnection(studentId);
+      }, 2000);
+    } catch (error) {
+      console.error("Error sending connection request:", error);
+      toast({
+        title: "Request failed",
+        description: "Failed to send connection request",
+        variant: "destructive",
+      });
+    }
   };
   
-  const acceptConnection = (studentId: string) => {
-    // Add to connections list
-    setConnections(prev => [...prev, studentId]);
-    // Remove from pending requests
-    setPendingRequests(prev => prev.filter(id => id !== studentId));
+  const acceptConnection = async (studentId: string) => {
+    if (!user) return;
     
-    toast({
-      title: "Connection accepted",
-      description: `You are now connected with student ID: ${studentId}`,
-    });
+    try {
+      // Find and update the connection request
+      const { error } = await supabase
+        .from('connections')
+        .update({ status: 'accepted' })
+        .eq('user_id', user.id)
+        .eq('friend_id', studentId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setPendingRequests(prev => prev.filter(id => id !== studentId));
+      setConnections(prev => [...prev, studentId]);
+      
+      toast({
+        title: "Connection accepted",
+        description: "You are now connected",
+      });
+    } catch (error) {
+      console.error("Error accepting connection:", error);
+    }
   };
   
-  const removeConnection = (studentId: string) => {
-    setConnections(prev => prev.filter(id => id !== studentId));
+  const removeConnection = async (studentId: string) => {
+    if (!user) return;
     
-    toast({
-      title: "Connection removed",
-      description: `You have removed the connection with student ID: ${studentId}`,
-    });
+    try {
+      // Delete the connection in both directions
+      await supabase
+        .from('connections')
+        .delete()
+        .or(`and(user_id.eq.${user.id},friend_id.eq.${studentId}),and(user_id.eq.${studentId},friend_id.eq.${user.id})`);
+      
+      // Update local state
+      setConnections(prev => prev.filter(id => id !== studentId));
+      
+      toast({
+        title: "Connection removed",
+        description: "Connection has been removed",
+      });
+    } catch (error) {
+      console.error("Error removing connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove connection",
+        variant: "destructive",
+      });
+    }
   };
   
   const openMessaging = (student: any) => {
@@ -165,50 +309,82 @@ const Study = () => {
     setActiveTab("messaging");
     
     // Initialize messages array if it doesn't exist
-    if (!messages[student.studentId]) {
-      setMessages(prev => ({ ...prev, [student.studentId]: [] }));
+    if (!messages[student.id]) {
+      setMessages(prev => ({ ...prev, [student.id]: [] }));
     }
   };
   
-  const sendMessage = (text: string) => {
-    if (!text.trim() || !selectedStudent) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || !selectedStudent || !user) return;
     
-    const newMessage = {
-      text: text,
-      sender: "me",
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => ({
-      ...prev,
-      [selectedStudent.studentId]: [...(prev[selectedStudent.studentId] || []), newMessage]
-    }));
-    
-    // Simulate a reply after 2 seconds
-    setTimeout(() => {
-      const replies = [
-        "Sure, that works for me!",
-        "When would you like to meet?",
-        "Thanks for reaching out!",
-        "I'm also studying for that exam.",
-        "Let's meet at the library.",
-        "I have class until 3pm, can we meet after?",
-        "That's a great idea!",
-      ];
+    try {
+      // Store message in the database
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          receiver_id: selectedStudent.id,
+          text: text
+        });
+        
+      if (error) {
+        throw error;
+      }
       
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
-      
-      const replyMessage = {
-        text: randomReply,
-        sender: selectedStudent.studentId,
+      // Update local state
+      const newMessage = {
+        text: text,
+        sender: user.id,
         timestamp: new Date()
       };
       
       setMessages(prev => ({
         ...prev,
-        [selectedStudent.studentId]: [...(prev[selectedStudent.studentId] || []), replyMessage]
+        [selectedStudent.id]: [...(prev[selectedStudent.id] || []), newMessage]
       }));
-    }, 2000);
+      
+      // Simulate a reply after 2 seconds
+      setTimeout(async () => {
+        const replies = [
+          "Sure, that works for me!",
+          "When would you like to meet?",
+          "Thanks for reaching out!",
+          "I'm also studying for that exam.",
+          "Let's meet at the library.",
+          "I have class until 3pm, can we meet after?",
+          "That's a great idea!",
+        ];
+        
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        
+        // Store the reply in the database
+        await supabase
+          .from('messages')
+          .insert({
+            sender_id: selectedStudent.id,
+            receiver_id: user.id,
+            text: randomReply
+          });
+        
+        const replyMessage = {
+          text: randomReply,
+          sender: selectedStudent.id,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => ({
+          ...prev,
+          [selectedStudent.id]: [...(prev[selectedStudent.id] || []), replyMessage]
+        }));
+      }, 2000);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Message failed",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
   };
   
   const isConnected = (studentId: string) => {
@@ -253,7 +429,7 @@ const Study = () => {
               isConnected={isConnected}
               isPendingConnection={isPendingConnection}
               connections={connections}
-              user={user}
+              user={profile}
             />
             
             {/* Right Side: Content Tabs */}
@@ -282,7 +458,7 @@ const Study = () => {
                     <MessagingPanel 
                       student={selectedStudent}
                       onBack={handleBack}
-                      messages={messages[selectedStudent.studentId] || []}
+                      messages={messages[selectedStudent.id] || []}
                       onSendMessage={sendMessage}
                     />
                   )}

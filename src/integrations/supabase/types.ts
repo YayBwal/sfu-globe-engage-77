@@ -9,7 +9,212 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      connections: {
+        Row: {
+          created_at: string | null
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connections_friend_id_fkey"
+            columns: ["friend_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          read: boolean | null
+          receiver_id: string
+          sender_id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          read?: boolean | null
+          receiver_id: string
+          sender_id: string
+          text: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          read?: boolean | null
+          receiver_id?: string
+          sender_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          availability: string | null
+          batch: string
+          bio: string | null
+          created_at: string | null
+          email: string
+          id: string
+          interests: string[] | null
+          major: string
+          name: string
+          online: boolean | null
+          student_id: string
+        }
+        Insert: {
+          availability?: string | null
+          batch: string
+          bio?: string | null
+          created_at?: string | null
+          email: string
+          id: string
+          interests?: string[] | null
+          major: string
+          name: string
+          online?: boolean | null
+          student_id: string
+        }
+        Update: {
+          availability?: string | null
+          batch?: string
+          bio?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          interests?: string[] | null
+          major?: string
+          name?: string
+          online?: boolean | null
+          student_id?: string
+        }
+        Relationships: []
+      }
+      session_participants: {
+        Row: {
+          id: string
+          joined_at: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "study_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sessions: {
+        Row: {
+          created_at: string | null
+          date: string
+          description: string | null
+          host_id: string
+          id: string
+          location: string | null
+          max_participants: number | null
+          password: string | null
+          subject: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          description?: string | null
+          host_id: string
+          id?: string
+          location?: string | null
+          max_participants?: number | null
+          password?: string | null
+          subject: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          host_id?: string
+          id?: string
+          location?: string | null
+          max_participants?: number | null
+          password?: string | null
+          subject?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
