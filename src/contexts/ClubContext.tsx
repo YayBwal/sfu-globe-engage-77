@@ -143,19 +143,21 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('club_members')
         .select(`
           *,
-          profiles:user_id(name, email, student_id)
+          profiles(name, email, student_id)
         `)
         .eq('club_id', clubId);
 
       if (error) throw error;
       
       // Transform the data to include profile information
-      return (data || []).map(item => ({
+      const members: ClubMember[] = (data || []).map(item => ({
         ...item,
         name: item.profiles?.name,
         email: item.profiles?.email,
         student_id: item.profiles?.student_id
       }));
+      
+      return members;
     } catch (error) {
       console.error('Error fetching club members:', error);
       toast({
@@ -174,7 +176,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('club_activities')
         .select(`
           *,
-          profiles:posted_by(name)
+          profiles(name)
         `)
         .eq('club_id', clubId)
         .order('created_at', { ascending: false });
@@ -182,10 +184,12 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       // Transform the data to include profile information
-      return (data || []).map(item => ({
+      const activities: ClubActivity[] = (data || []).map(item => ({
         ...item,
         poster_name: item.profiles?.name
       }));
+      
+      return activities;
     } catch (error) {
       console.error('Error fetching club activities:', error);
       toast({
@@ -238,10 +242,12 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       // Transform the data to include sender information
-      return (data || []).map(item => ({
+      const messages: ClubMessage[] = (data || []).map(item => ({
         ...item,
         sender_name: item.profiles?.name
       }));
+      
+      return messages;
     } catch (error) {
       console.error('Error fetching club messages:', error);
       toast({

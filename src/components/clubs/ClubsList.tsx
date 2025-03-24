@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Search, Filter, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,20 +60,16 @@ const ClubsList = () => {
     try {
       const { data, error } = await supabase
         .from('club_members')
-        .select('club_id, count')
+        .select('club_id, count(*)')
         .eq('approved', true)
         .in('club_id', clubs.map(club => club.id))
-        .select(`
-          club_id,
-          count:count()
-        `, { count: 'exact' })
         .group('club_id');
 
       if (error) throw error;
       
       const counts: Record<string, number> = {};
       data.forEach(item => {
-        counts[item.club_id] = item.count;
+        counts[item.club_id] = parseInt(item.count);
       });
       
       setMembersCount(counts);
