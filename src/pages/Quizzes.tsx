@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Clock, HelpCircle, CheckCircle, XCircle, Award, ChevronRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Quizzes = () => {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
@@ -13,6 +15,8 @@ const Quizzes = () => {
   const [timeLeft, setTimeLeft] = useState(60); // 60 seconds per question
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [timerActive, setTimerActive] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   // Sample quizzes data
   const quizzesData = [
@@ -99,20 +103,95 @@ const Quizzes = () => {
     setTimerActive(true);
   };
 
-  // Handle option selection
-  const handleOptionClick = (index: number) => {
-    if (selectedOption !== null) return; // Already selected
-    
-    setSelectedOption(index);
-    
-    // Check if answer is correct
-    if (activeQuiz && index === activeQuiz.questions[currentQuestion].correctAnswer) {
-      setScore(score + 1);
+  // Function to save quiz result to Supabase
+  const saveQuizResult = async () => {
+    if (!activeQuiz || !user) {
+      console.error('No active quiz or user found');
+      return;
+    }
+
+    try {
+      console.log('Starting to save quiz result...');
+      console.log('Quiz data:', {
+        title: activeQuiz.title,
+        description: activeQuiz.category,
+        total_questions: activeQuiz.questions.length,
+        created_by: user.id
+      });
+
+      // First, create or get the quiz in the database
+      const { data: quizData, error: quizError } = await supabase
+        .from('quizzes')
+        .upsert({
+          title: activeQuiz.title,
+          description: activeQuiz.category,
+          total_questions: activeQuiz.questions.length,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (quizError) {
+        console.error('Error creating/updating quiz:', quizError);
+        throw quizError;
+      }
+
+      console.log('Quiz created/updated successfully:', quizData);
+
+      // Calculate the score
+      const correctAnswers = activeQuiz.questions.filter((q, index) => 
+        q.options[q.correctOption] === selectedOption
+      ).length;
+
+      const finalScore = Math.round((correctAnswers / activeQuiz.questions.length) * 100);
+
+      // Save the quiz result
+      const resultData = {
+        user_id: user.id,
+        quiz_id: quizData.id,
+        score: correctAnswers, // Save raw score (number of correct answers)
+        total_questions: activeQuiz.questions.length,
+        completed_at: new Date().toISOString()
+      };
+
+      console.log('Saving quiz result with data:', resultData);
+
+      const { error: resultError } = await supabase
+        .from('quiz_results')
+        .insert(resultData);
+
+      if (resultError) {
+        console.error('Error saving quiz result:', resultError);
+        throw resultError;
+      }
+
+      console.log('Quiz result saved successfully');
+      toast({
+        title: "Success",
+        description: `Your quiz result has been saved! Score: ${finalScore}% (${correctAnswers}/${activeQuiz.questions.length} correct)`,
+      });
+
+      // Reset quiz state
+      setActiveQuiz(null);
+      setCurrentQuestion(0);
+      setSelectedOption(null);
+      setScore(0);
+      setTimeLeft(60);
+      setQuizCompleted(false);
+      setTimerActive(false);
+
+    } catch (error) {
+      console.error('Error in saveQuizResult:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your quiz result. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   // Handle next question
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (!activeQuiz) return;
     
     if (currentQuestion < activeQuiz.questions.length - 1) {
@@ -122,6 +201,19 @@ const Quizzes = () => {
     } else {
       setQuizCompleted(true);
       setTimerActive(false);
+      await saveQuizResult(); // Save the result when quiz is completed
+    }
+  };
+
+  // Handle option selection
+  const handleOptionSelect = (optionIndex: number) => {
+    setSelectedOption(optionIndex);
+    // Check if the answer is correct
+    const isCorrect = activeQuiz?.questions[currentQuestion].options[optionIndex] === 
+                     activeQuiz?.questions[currentQuestion].options[activeQuiz.questions[currentQuestion].correctOption];
+    
+    if (isCorrect) {
+      setScore(score + 1);
     }
   };
 
@@ -302,7 +394,7 @@ const Quizzes = () => {
                                 : 'border-red-500 bg-red-50'
                               : 'border-gray-200 hover:border-sfu-red/50'
                           }`}
-                          onClick={() => handleOptionClick(index)}
+                          onClick={() => handleOptionSelect(index)}
                         >
                           <div className="flex items-center justify-between">
                             <span>{option}</span>

@@ -18,14 +18,13 @@ interface ClubCardProps {
 }
 
 const ClubCard: React.FC<ClubCardProps> = ({ club, memberCount = 0, nextActivity }) => {
-  const { requestToJoinClub, userClubs, isClubManager } = useClub();
+  const { requestToJoinClub, userClubs } = useClub();
   const { isAuthenticated } = useAuth();
   
   // Check if the user is already a member or has a pending request
   const userMembership = userClubs.find(membership => membership.club_id === club.id);
   const isMember = !!userMembership?.approved;
   const hasPendingRequest = !!userMembership && !userMembership.approved;
-  const isManager = isClubManager(club.id);
 
   const handleJoinRequest = () => {
     requestToJoinClub(club.id);
@@ -72,12 +71,7 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, memberCount = 0, nextActivity
       
       <CardFooter className="flex justify-between items-center pt-2 border-t">
         {isAuthenticated ? (
-          isManager ? (
-            <Button variant="outline" size="sm" className="text-sfu-red">
-              <Users size={14} className="mr-1" />
-              Manager
-            </Button>
-          ) : isMember ? (
+          isMember ? (
             <Button variant="outline" size="sm" disabled>Already a Member</Button>
           ) : hasPendingRequest ? (
             <Button variant="outline" size="sm" disabled>Request Pending</Button>

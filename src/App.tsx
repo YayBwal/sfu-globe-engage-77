@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +16,7 @@ import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import ChatBot from "@/components/chat/ChatBot";
 
 function App() {
   // Create storage buckets if they don't exist
@@ -64,6 +64,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
+          <ChatBot />
         </div>
       </AuthProvider>
     </Router>

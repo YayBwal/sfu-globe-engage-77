@@ -85,41 +85,6 @@ export type Database = {
           },
         ]
       }
-      club_messages: {
-        Row: {
-          club_id: string
-          created_at: string | null
-          id: string
-          message: string
-          read: boolean | null
-          user_id: string
-        }
-        Insert: {
-          club_id: string
-          created_at?: string | null
-          id?: string
-          message: string
-          read?: boolean | null
-          user_id: string
-        }
-        Update: {
-          club_id?: string
-          created_at?: string | null
-          id?: string
-          message?: string
-          read?: boolean | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "club_messages_club_id_fkey"
-            columns: ["club_id"]
-            isOneToOne: false
-            referencedRelation: "clubs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       club_notifications: {
         Row: {
           club_id: string

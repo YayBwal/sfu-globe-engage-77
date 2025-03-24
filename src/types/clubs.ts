@@ -1,4 +1,7 @@
 
+import { club_role } from "@/integrations/supabase/types";
+import { User } from "@supabase/supabase-js";
+
 export type Club = {
   id: string;
   name: string;
@@ -12,7 +15,7 @@ export type ClubMember = {
   id: string;
   user_id: string;
   club_id: string;
-  role: 'coordinator' | 'assistant' | 'member';
+  role: club_role;
   approved: boolean;
   created_at?: string;
   // Additional profile fields through joins
@@ -39,15 +42,4 @@ export type ClubNotification = {
   club_id: string;
   message: string;
   created_at?: string;
-};
-
-export type ClubMessage = {
-  id: string;
-  club_id: string;
-  user_id: string;
-  message: string;
-  created_at?: string;
-  read: boolean;
-  // User details from joins
-  sender_name?: string;
 };

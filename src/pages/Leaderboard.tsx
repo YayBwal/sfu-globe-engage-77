@@ -1,53 +1,26 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Trophy, ArrowUp, Crown, Award, Calendar, Search, Filter, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { QuizResult } from "@/types/quiz";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Leaderboard = () => {
-  const [filter, setFilter] = useState("week");
+  const [filter, setFilter] = useState("all");
   const [category, setCategory] = useState("all");
   const [animatedScores, setAnimatedScores] = useState<{[key: number]: number}>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState<{
+    all: QuizResult[];
+    [key: string]: QuizResult[];
+  }>({
+    all: []
+  });
+  const [categories, setCategories] = useState<string[]>([]);
+  const { user } = useAuth();
   
-  // Sample leaderboard data
-  const leaderboardData = {
-    week: [
-      { rank: 1, name: "Sophia Chen", points: 1250, progress: "+28", avatar: "" },
-      { rank: 2, name: "David Kim", points: 1198, progress: "+15", avatar: "" },
-      { rank: 3, name: "Emily Wong", points: 1145, progress: "+21", avatar: "" },
-      { rank: 4, name: "Michael Patel", points: 1089, progress: "+18", avatar: "" },
-      { rank: 5, name: "Sarah Johnson", points: 1056, progress: "+12", avatar: "" },
-      { rank: 6, name: "Jason Lee", points: 1022, progress: "+9", avatar: "" },
-      { rank: 7, name: "Emma Thompson", points: 986, progress: "+14", avatar: "" },
-      { rank: 8, name: "Ryan Garcia", points: 954, progress: "+7", avatar: "" },
-      { rank: 9, name: "Lisa Wang", points: 921, progress: "+16", avatar: "" },
-      { rank: 10, name: "Alex Martinez", points: 897, progress: "+11", avatar: "" },
-      { rank: 11, name: "Kevin Brown", points: 865, progress: "+8", avatar: "" },
-      { rank: 12, name: "Mia Wilson", points: 842, progress: "+10", avatar: "" },
-      { rank: 13, name: "Daniel Jackson", points: 818, progress: "+6", avatar: "" },
-      { rank: 14, name: "Olivia Davis", points: 795, progress: "+9", avatar: "" },
-      { rank: 15, name: "James Miller", points: 772, progress: "+7", avatar: "" },
-    ],
-    month: [
-      { rank: 1, name: "David Kim", points: 3450, progress: "+120", avatar: "" },
-      { rank: 2, name: "Sophia Chen", points: 3280, progress: "+95", avatar: "" },
-      { rank: 3, name: "Emily Wong", points: 3145, progress: "+87", avatar: "" },
-      { rank: 4, name: "Michael Patel", points: 2920, progress: "+76", avatar: "" },
-      { rank: 5, name: "Sarah Johnson", points: 2850, progress: "+68", avatar: "" },
-      // Additional data...
-    ],
-    allTime: [
-      { rank: 1, name: "Emily Wong", points: 12450, progress: "+350", avatar: "" },
-      { rank: 2, name: "David Kim", points: 11980, progress: "+280", avatar: "" },
-      { rank: 3, name: "Sophia Chen", points: 11450, progress: "+210", avatar: "" },
-      { rank: 4, name: "Michael Patel", points: 10890, progress: "+190", avatar: "" },
-      { rank: 5, name: "Sarah Johnson", points: 10560, progress: "+170", avatar: "" },
-      // Additional data...
-    ]
-  };
-
   // Ref for animation
   const animationFrameRef = useRef<number>();
 
@@ -60,12 +33,157 @@ const Leaderboard = () => {
     { name: "Diamond", points: "3501+", icon: <Crown size={20} className="text-purple-500" /> },
   ];
 
-  // Get user's rank (for demo, we'll assume the user is at rank 12 in the weekly data)
-  const userRank = 12;
-  const userData = leaderboardData.week.find(user => user.rank === userRank);
+  // Function to fetch leaderboard data
+  const fetchLeaderboardData = async () => {
+    try {
+      setIsLoading(true);
+      
+      console.log('Fetching quiz results...');
+      
+      // Fetch quiz results
+      const { data: results, error } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching quiz results:', error);
+        throw error;
+      }
+
+      console.log('Raw quiz results:', results);
+
+      // Process the results
+      const processedResults = results.map(result => ({
+        ...result,
+        user_name: result.user_name || 'Unknown User',
+        quiz_title: result.quiz_title || 'Unknown Quiz'
+      }));
+
+      console.log('Processed results:', processedResults);
+
+      // Get unique categories from quiz titles
+      const uniqueCategories = Array.from(new Set(processedResults.map(r => r.quiz_title)));
+      setCategories(['all', ...uniqueCategories]);
+
+      // Calculate scores for each category
+      const categoryScores: { [key: string]: { [key: string]: { score: number; name: string; attempts: number; total_questions: number } } } = {
+        all: {}
+      };
+
+      // Initialize category scores
+      uniqueCategories.forEach(cat => {
+        categoryScores[cat] = {};
+      });
+
+      // Process each result
+      processedResults.forEach(result => {
+        const userId = result.user_id;
+        const quizTitle = result.quiz_title;
+
+        // Process all-time scores
+        if (!categoryScores.all[userId]) {
+          categoryScores.all[userId] = {
+            score: 0,
+            name: result.user_name,
+            attempts: 0,
+            total_questions: 0
+          };
+        }
+        categoryScores.all[userId].score += result.score;
+        categoryScores.all[userId].attempts += 1;
+        categoryScores.all[userId].total_questions += result.total_questions;
+
+        // Process category-specific scores
+        if (!categoryScores[quizTitle][userId]) {
+          categoryScores[quizTitle][userId] = {
+            score: 0,
+            name: result.user_name,
+            attempts: 0,
+            total_questions: 0
+          };
+        }
+        categoryScores[quizTitle][userId].score += result.score;
+        categoryScores[quizTitle][userId].attempts += 1;
+        categoryScores[quizTitle][userId].total_questions += result.total_questions;
+      });
+
+      // Calculate average scores for each category
+      Object.keys(categoryScores).forEach(cat => {
+        Object.keys(categoryScores[cat]).forEach(userId => {
+          const userData = categoryScores[cat][userId];
+          // Calculate percentage score
+          userData.score = Math.round((userData.score / userData.total_questions) * 100);
+        });
+      });
+
+      // Convert scores to leaderboard format
+      const convertToLeaderboard = (scores: { [key: string]: { score: number; name: string; attempts: number; total_questions: number } }) => {
+        return Object.entries(scores)
+          .map(([userId, data]) => ({
+            rank: 0,
+            name: data.name,
+            points: data.score,
+            progress: `${data.attempts} attempts`,
+            avatar: '',
+            user_id: userId
+          }))
+          .sort((a, b) => b.points - a.points)
+          .map((item, index) => ({
+            ...item,
+            rank: index + 1
+          }));
+      };
+
+      // Create leaderboard data for each category
+      const newLeaderboardData: { [key: string]: QuizResult[] } = {};
+      Object.keys(categoryScores).forEach(cat => {
+        newLeaderboardData[cat] = convertToLeaderboard(categoryScores[cat]);
+      });
+
+      console.log('Final leaderboard data:', newLeaderboardData);
+      setLeaderboardData(newLeaderboardData);
+
+    } catch (error) {
+      console.error('Error fetching leaderboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect to fetch data and start animation
+  useEffect(() => {
+    fetchLeaderboardData();
+    
+    // Set up real-time subscription for quiz results
+    const channel = supabase
+      .channel('quiz-results-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'quiz_results' 
+        }, 
+        () => {
+          fetchLeaderboardData();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Effect to animate scores when data changes
+  useEffect(() => {
+    if (!isLoading) {
+      animateScores(leaderboardData[filter]);
+    }
+  }, [filter, leaderboardData, isLoading]);
 
   // Function to animate the score counting
-  const animateScores = (data: typeof leaderboardData.week) => {
+  const animateScores = (data: typeof leaderboardData.all) => {
     const finalScores: {[key: number]: number} = {};
     data.forEach((user) => {
       finalScores[user.rank] = user.points;
@@ -100,23 +218,6 @@ const Leaderboard = () => {
     animationFrameRef.current = requestAnimationFrame(step);
   };
 
-  // Effect to simulate loading data and start animation
-  useEffect(() => {
-    setIsLoading(true);
-    
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      animateScores(leaderboardData[filter as keyof typeof leaderboardData]);
-    }, 800);
-    
-    return () => {
-      clearTimeout(timer);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [filter]);
-
   // Function to get the correct badge for a rank
   const getRankBadge = (rank: number) => {
     if (rank === 1) return <Crown size={16} className="text-yellow-500" />;
@@ -124,6 +225,10 @@ const Leaderboard = () => {
     if (rank === 3) return <Crown size={16} className="text-amber-700" />;
     return rank;
   };
+
+  // Get user's rank
+  const userRank = user ? leaderboardData[filter].find(u => u.user_id === user.id)?.rank : null;
+  const userData = userRank ? leaderboardData[filter].find(u => u.rank === userRank) : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -154,20 +259,10 @@ const Leaderboard = () => {
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                     >
-                      <option value="week">This Week</option>
-                      <option value="month">This Month</option>
-                      <option value="allTime">All Time</option>
-                    </select>
-                    
-                    <select 
-                      className="text-xs bg-white/20 border border-white/10 rounded-md px-2 py-1"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                    >
                       <option value="all">All Categories</option>
-                      <option value="academic">Academic</option>
-                      <option value="social">Social</option>
-                      <option value="athletic">Athletic</option>
+                      {categories.filter(cat => cat !== 'all').map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -176,7 +271,6 @@ const Leaderboard = () => {
                   <div className="w-16 text-center">Rank</div>
                   <div className="flex-grow">Student</div>
                   <div className="w-24 text-right">Points</div>
-                  <div className="w-16 text-right">Change</div>
                 </div>
 
                 {isLoading ? (
@@ -186,11 +280,11 @@ const Leaderboard = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {leaderboardData[filter as keyof typeof leaderboardData].map((user) => (
+                    {leaderboardData[filter].map((user) => (
                       <div 
-                        key={user.rank}
+                        key={user.user_id}
                         className={`flex items-center p-4 hover:bg-gray-50 transition-colors duration-150 ${
-                          user.rank === userRank ? 'bg-sfu-red/5 border-l-4 border-sfu-red' : ''
+                          user.user_id === user?.id ? 'bg-sfu-red/5 border-l-4 border-sfu-red' : ''
                         }`}
                       >
                         <div className="w-16 flex justify-center">
@@ -221,12 +315,7 @@ const Leaderboard = () => {
                         </div>
                         
                         <div className="w-24 text-right font-mono font-bold text-gray-800">
-                          {animatedScores[user.rank] !== undefined ? animatedScores[user.rank].toLocaleString() : 0}
-                        </div>
-                        
-                        <div className="w-16 text-right text-green-500 flex items-center justify-end gap-1">
-                          <ArrowUp size={12} />
-                          <span>{user.progress}</span>
+                          {animatedScores[user.rank] !== undefined ? `${animatedScores[user.rank]}%` : '0%'}
                         </div>
                       </div>
                     ))}
@@ -240,7 +329,7 @@ const Leaderboard = () => {
                   </Button>
                   
                   <div className="text-sm text-gray-500">
-                    Showing 1-15 of 120 students
+                    Showing {leaderboardData[filter].length} students
                   </div>
                 </div>
               </div>
@@ -248,105 +337,53 @@ const Leaderboard = () => {
             
             {/* Sidebar */}
             <div className="w-full md:w-1/3 space-y-6">
-              {/* User Card */}
+              {/* Rank Levels */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-display font-semibold mb-4">Rank Levels</h3>
+                <div className="space-y-3">
+                  {rankLevels.map((level) => (
+                    <div key={level.name} className="flex items-center gap-3">
+                      {level.icon}
+                      <div>
+                        <div className="font-medium">{level.name}</div>
+                        <div className="text-sm text-gray-500">{level.points} points</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* User Stats */}
               {userData && (
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-gradient-to-r from-sfu-red to-sfu-red/80 text-white p-4">
-                    <h3 className="font-display font-semibold">Your Ranking</h3>
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="font-display font-semibold mb-4">Your Stats</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Trophy size={20} className="text-yellow-500" />
                       <div>
-                        <div className="font-medium text-lg">{userData.name}</div>
-                        <div className="text-sm text-gray-500">Rank #{userData.rank}</div>
+                        <div className="font-medium">Current Rank</div>
+                        <div className="text-sm text-gray-500">#{userData.rank}</div>
                       </div>
                     </div>
-                    
-                    <div className="mb-4">
-                      <div className="flex justify-between mb-1">
-                        <div className="text-sm text-gray-500">Level Progress</div>
-                        <div className="text-sm font-medium">Silver</div>
-                      </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="w-4/5 h-full bg-sfu-red rounded-full"></div>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        158 points to Gold Level
+                    <div className="flex items-center gap-3">
+                      <Award size={20} className="text-blue-500" />
+                      <div>
+                        <div className="font-medium">Total Points</div>
+                        <div className="text-sm text-gray-500">{userData.points.toLocaleString()}</div>
                       </div>
                     </div>
-                    
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Calendar size={20} className="text-green-500" />
                       <div>
-                        <div className="text-2xl font-bold">{animatedScores[userData.rank] || 0}</div>
-                        <div className="text-xs text-gray-500">Total Points</div>
-                      </div>
-                      <div>
-                        <div className="text-green-500 flex items-center justify-end gap-1">
-                          <ArrowUp size={12} />
-                          <span className="font-medium">{userData.progress}</span>
+                        <div className="font-medium">Last Updated</div>
+                        <div className="text-sm text-gray-500">
+                          {new Date().toLocaleDateString()}
                         </div>
-                        <div className="text-xs text-gray-500">This {filter}</div>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-              
-              {/* Rank Levels */}
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="bg-sfu-black text-white p-4">
-                  <h3 className="font-display font-semibold">Ranking Levels</h3>
-                </div>
-                
-                <div className="p-4 space-y-3">
-                  {rankLevels.map((level, index) => (
-                    <div 
-                      key={index} 
-                      className={`flex items-center justify-between p-3 rounded-lg ${
-                        index === 2 ? 'bg-white border border-yellow-200' : 'bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {level.icon}
-                        <span className="font-medium">{level.name}</span>
-                      </div>
-                      <span className="text-sm text-gray-500">{level.points} pts</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Ways to Earn Points */}
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="bg-sfu-black text-white p-4">
-                  <h3 className="font-display font-semibold">Ways to Earn Points</h3>
-                </div>
-                
-                <div className="p-4 space-y-3">
-                  {[
-                    { activity: 'Complete quizzes', points: '5-25' },
-                    { activity: 'Attend events', points: '10-50' },
-                    { activity: 'Study group sessions', points: '15-30' },
-                    { activity: 'Help other students', points: '5-20' },
-                    { activity: 'Perfect attendance', points: '50' },
-                    { activity: 'Win competitions', points: '25-100' }
-                  ].map((item, i) => (
-                    <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <div className="w-5 h-5 rounded-full bg-sfu-red/10 text-sfu-red flex items-center justify-center">
-                          <ArrowUp size={14} />
-                        </div>
-                        {item.activity}
-                      </div>
-                      <div className="text-sm font-medium">
-                        {item.points} pts
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>
