@@ -15,10 +15,12 @@ import {
   UserPlus,
   ImagePlus,
   Check,
-  X
+  X,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Club, ClubActivity, ClubMember, ClubNotification } from "@/types/clubs";
+import { Club, ClubActivity, ClubMember, ClubNotification, ClubMessage } from "@/types/clubs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -41,6 +43,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ClubDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -49,23 +55,30 @@ const ClubDetail = () => {
   const { isAuthenticated, user } = useAuth();
   const { 
     requestToJoinClub, 
-    isClubManager, 
+    isClubManager,
+    isClubCoordinator,
     fetchClubMembers, 
     fetchClubActivities, 
     fetchClubNotifications,
+    fetchClubMessages,
+    sendClubMessage,
+    markMessageAsRead,
     approveClubMember,
     createClubActivity,
-    createClubNotification
+    createClubNotification,
+    userCanCreateClub
   } = useClub();
 
   const [club, setClub] = useState<Club | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
   const [activities, setActivities] = useState<ClubActivity[]>([]);
   const [notifications, setNotifications] = useState<ClubNotification[]>([]);
+  const [messages, setMessages] = useState<ClubMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberLoading, setMemberLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
   const [notificationLoading, setNotificationLoading] = useState(true);
+  const [messageLoading, setMessageLoading] = useState(true);
   
   // Activity form states
   const [activityTitle, setActivityTitle] = useState("");
@@ -78,14 +91,19 @@ const ClubDetail = () => {
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
 
+  // Message form state
+  const [messageText, setMessageText] = useState("");
+
   // Password dialog states
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [coordinatorPassword, setCoordinatorPassword] = useState("");
   const [isCoordinatorMode, setIsCoordinatorMode] = useState(false);
 
   const isManager = id ? isClubManager(id) : false;
+  const isCoordinator = id ? isClubCoordinator(id) : false;
   const pendingMembers = members.filter(m => !m.approved);
   const approvedMembers = members.filter(m => m.approved);
+  const unreadMessages = messages.filter(m => !m.read).length;
 
   useEffect(() => {
     if (id) {
@@ -120,10 +138,20 @@ const ClubDetail = () => {
         )
         .subscribe();
 
+      const messagesChannel = supabase
+        .channel('club-message-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'club_messages', filter: `club_id=eq.${id}` },
+          () => fetchAndSetMessages()
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(activitiesChannel);
         supabase.removeChannel(membersChannel);
         supabase.removeChannel(notificationsChannel);
+        supabase.removeChannel(messagesChannel);
       };
     }
   }, [id]);
@@ -159,6 +187,7 @@ const ClubDetail = () => {
     fetchAndSetMembers();
     fetchAndSetActivities();
     fetchAndSetNotifications();
+    fetchAndSetMessages();
   };
 
   const fetchAndSetMembers = async () => {
@@ -183,6 +212,14 @@ const ClubDetail = () => {
     const data = await fetchClubNotifications(id);
     setNotifications(data);
     setNotificationLoading(false);
+  };
+
+  const fetchAndSetMessages = async () => {
+    if (!id) return;
+    setMessageLoading(true);
+    const data = await fetchClubMessages(id);
+    setMessages(data);
+    setMessageLoading(false);
   };
 
   const handleJoinRequest = () => {
@@ -256,6 +293,26 @@ const ClubDetail = () => {
     fetchAndSetNotifications();
   };
 
+  const handleSubmitMessage = async () => {
+    if (!id || !messageText.trim()) return;
+    
+    await sendClubMessage(id, messageText);
+    setMessageText("");
+    
+    // Reload messages
+    fetchAndSetMessages();
+  };
+
+  const handleMarkMessageAsRead = async (messageId: string) => {
+    await markMessageAsRead(messageId);
+    // Update local state
+    setMessages(prevMessages => 
+      prevMessages.map(msg => 
+        msg.id === messageId ? { ...msg, read: true } : msg
+      )
+    );
+  };
+
   const handleCoordinatorLogin = () => {
     // In a real app, you would validate this against a database value
     // For this example, we're using a simple hardcoded password: 'coordinator123'
@@ -326,7 +383,7 @@ const ClubDetail = () => {
                   <Button variant="outline" disabled>
                     Request Pending
                   </Button>
-                ) : (
+                ) : !isManager && (
                   <Button variant="outline" onClick={handleJoinRequest}>
                     <UserPlus size={16} className="mr-2" />
                     Join Club
@@ -338,7 +395,7 @@ const ClubDetail = () => {
                 </Button>
               )}
 
-              {(isManager || isMember) && (
+              {(isManager) && (
                 <Button 
                   variant={isCoordinatorMode ? "default" : "outline"} 
                   onClick={() => setPasswordDialogOpen(true)}
@@ -352,9 +409,19 @@ const ClubDetail = () => {
         </div>
 
         <Tabs defaultValue="activities" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="activities">Activities</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            {(isCoordinator || isCoordinatorMode) && (
+              <TabsTrigger value="messages" className="relative">
+                Messages
+                {unreadMessages > 0 && (
+                  <Badge variant="destructive" className="ml-2 px-1.5 py-0 text-[10px] absolute -top-1 -right-1">
+                    {unreadMessages}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
             {(isManager || isCoordinatorMode) && (
               <TabsTrigger value="notifications">
                 Notifications
@@ -369,7 +436,7 @@ const ClubDetail = () => {
 
           {/* Activities Tab */}
           <TabsContent value="activities" className="mt-6">
-            {isManager || isCoordinatorMode ? (
+            {(isManager || isCoordinatorMode) ? (
               <div className="mb-6">
                 <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
                   <DialogTrigger asChild>
@@ -448,7 +515,24 @@ const ClubDetail = () => {
             ) : null}
             
             {activityLoading ? (
-              <div className="text-center py-10">Loading activities...</div>
+              <div className="space-y-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <div className="h-48 w-full">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-2/3 mb-2" />
+                      <Skeleton className="h-4 w-1/3" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : activities.length === 0 ? (
               <div className="text-center py-10 bg-sfu-lightgray rounded-xl">
                 <Calendar size={40} className="mx-auto text-gray-400 mb-4" />
@@ -501,7 +585,14 @@ const ClubDetail = () => {
           {/* Members Tab */}
           <TabsContent value="members" className="mt-6">
             {memberLoading ? (
-              <div className="text-center py-10">Loading members...</div>
+              <div className="space-y-6">
+                <Skeleton className="h-32 w-full mb-4" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="space-y-6">
                 {(isManager || isCoordinatorMode) && pendingMembers.length > 0 && (
@@ -555,6 +646,60 @@ const ClubDetail = () => {
             )}
           </TabsContent>
 
+          {/* Messages Tab - Only visible to club coordinators */}
+          {(isCoordinator || isCoordinatorMode) && (
+            <TabsContent value="messages" className="mt-6">
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 p-3 border-b">
+                  <h3 className="font-semibold">Club Messages</h3>
+                  <p className="text-xs text-gray-500">Messages from members to the club coordinator</p>
+                </div>
+                
+                <ScrollArea className="h-[400px] p-4">
+                  {messageLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-1/3" />
+                            <Skeleton className="h-16 w-full" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center py-10">
+                      <MessageSquare size={40} className="mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-500">No messages yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((message) => (
+                        <div 
+                          key={message.id} 
+                          className={`p-3 rounded-lg ${!message.read ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'}`}
+                          onClick={() => !message.read && handleMarkMessageAsRead(message.id)}
+                        >
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="font-medium">{message.sender_name || 'Unknown member'}</div>
+                            <div className="text-xs text-gray-500">
+                              {message.created_at && new Date(message.created_at).toLocaleString()}
+                              {!message.read && (
+                                <Badge variant="secondary" className="ml-2">New</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-gray-700">{message.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            </TabsContent>
+          )}
+
           {/* Notifications Tab - Only visible to managers or in coordinator mode */}
           {(isManager || isCoordinatorMode) && (
             <TabsContent value="notifications" className="mt-6">
@@ -601,7 +746,11 @@ const ClubDetail = () => {
               </div>
               
               {notificationLoading ? (
-                <div className="text-center py-10">Loading notifications...</div>
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
               ) : notifications.length === 0 ? (
                 <div className="text-center py-10 bg-sfu-lightgray rounded-xl">
                   <Bell size={40} className="mx-auto text-gray-400 mb-4" />
@@ -629,6 +778,28 @@ const ClubDetail = () => {
             </TabsContent>
           )}
         </Tabs>
+
+        {/* Message Input - Visible to all members */}
+        {isMember && !isManager && (
+          <div className="mt-8">
+            <Separator className="my-4" />
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium">Send Message to Club Coordinator</h3>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type your message to the club coordinator..."
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleSubmitMessage} disabled={!messageText.trim()}>
+                  <Send size={16} className="mr-2" />
+                  Send
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Coordinator Password Dialog */}

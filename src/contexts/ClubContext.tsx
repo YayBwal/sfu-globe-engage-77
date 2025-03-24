@@ -3,21 +3,26 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Club, ClubMember, ClubActivity, ClubNotification } from "@/types/clubs";
+import { Club, ClubMember, ClubActivity, ClubNotification, ClubMessage } from "@/types/clubs";
 
 type ClubContextType = {
   clubs: Club[];
   loading: boolean;
   userClubs: ClubMember[];
   isClubManager: (clubId: string) => boolean;
+  isClubCoordinator: (clubId: string) => boolean;
   fetchClubMembers: (clubId: string) => Promise<ClubMember[]>;
   fetchClubActivities: (clubId: string) => Promise<ClubActivity[]>;
   fetchClubNotifications: (clubId: string) => Promise<ClubNotification[]>;
+  fetchClubMessages: (clubId: string) => Promise<ClubMessage[]>;
+  sendClubMessage: (clubId: string, message: string) => Promise<void>;
+  markMessageAsRead: (messageId: string) => Promise<void>;
   requestToJoinClub: (clubId: string) => Promise<void>;
   approveClubMember: (memberId: string, clubId: string) => Promise<void>;
   createClub: (club: Omit<Club, "id" | "created_at" | "created_by">) => Promise<Club | null>;
   createClubActivity: (activity: Omit<ClubActivity, "id" | "created_at" | "posted_by" | "poster_name">) => Promise<void>;
   createClubNotification: (notification: Omit<ClubNotification, "id" | "created_at">) => Promise<void>;
+  userCanCreateClub: boolean;
 };
 
 const ClubContext = createContext<ClubContextType | undefined>(undefined);
@@ -26,6 +31,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [clubs, setClubs] = useState<Club[]>([]);
   const [userClubs, setUserClubs] = useState<ClubMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userCanCreateClub, setUserCanCreateClub] = useState(true);
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -58,6 +64,16 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, user]);
 
+  // Check if user is already a coordinator
+  useEffect(() => {
+    if (userClubs.length > 0) {
+      const isCoordinator = userClubs.some(club => club.role === 'coordinator' && club.approved);
+      setUserCanCreateClub(!isCoordinator);
+    } else {
+      setUserCanCreateClub(true);
+    }
+  }, [userClubs]);
+
   // Fetch all clubs
   const fetchClubs = async () => {
     try {
@@ -88,10 +104,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('club_members')
-        .select(`
-          *,
-          clubs:club_id(name)
-        `)
+        .select('*, clubs:club_id(name)')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -108,6 +121,17 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       membership => 
         membership.club_id === clubId && 
         ['coordinator', 'assistant'].includes(membership.role) && 
+        membership.approved
+    );
+  };
+
+  // Check if the current user is specifically a coordinator of a club
+  const isClubCoordinator = (clubId: string): boolean => {
+    if (!user || !userClubs.length) return false;
+    return userClubs.some(
+      membership => 
+        membership.club_id === clubId && 
+        membership.role === 'coordinator' && 
         membership.approved
     );
   };
@@ -194,6 +218,89 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
       return [];
+    }
+  };
+
+  // Fetch messages of a specific club
+  const fetchClubMessages = async (clubId: string): Promise<ClubMessage[]> => {
+    if (!user) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('club_messages')
+        .select(`
+          *,
+          profiles:user_id(name)
+        `)
+        .eq('club_id', clubId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform the data to include sender information
+      return (data || []).map(item => ({
+        ...item,
+        sender_name: item.profiles?.name
+      }));
+    } catch (error) {
+      console.error('Error fetching club messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load club messages",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  // Send a message to a club
+  const sendClubMessage = async (clubId: string, message: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to send messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('club_messages')
+        .insert({
+          club_id: clubId,
+          user_id: user.id,
+          message,
+          read: false
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Message Sent",
+        description: "Your message has been sent to the club",
+      });
+    } catch (error) {
+      console.error('Error sending club message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Mark a message as read
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('club_messages')
+        .update({ read: true })
+        .eq('id', messageId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking message as read:', error);
     }
   };
 
@@ -296,6 +403,16 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast({
         title: "Authentication Required",
         description: "Please login to create a club",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // Check if user is already a coordinator
+    if (!userCanCreateClub) {
+      toast({
+        title: "Permission Denied",
+        description: "You are already a coordinator for another club",
         variant: "destructive",
       });
       return null;
@@ -423,14 +540,19 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading,
       userClubs,
       isClubManager,
+      isClubCoordinator,
       fetchClubMembers,
       fetchClubActivities,
       fetchClubNotifications,
+      fetchClubMessages,
+      sendClubMessage,
+      markMessageAsRead,
       requestToJoinClub,
       approveClubMember,
       createClub,
       createClubActivity,
-      createClubNotification
+      createClubNotification,
+      userCanCreateClub
     }}>
       {children}
     </ClubContext.Provider>
