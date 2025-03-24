@@ -104,7 +104,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('club_members')
-        .select('*, clubs:club_id(name)')
+        .select('*, clubs(name)')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -139,23 +139,31 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fetch members of a specific club
   const fetchClubMembers = async (clubId: string): Promise<ClubMember[]> => {
     try {
+      // First, get club members
       const { data, error } = await supabase
         .from('club_members')
-        .select(`
-          *,
-          profiles(name, email, student_id)
-        `)
+        .select('*')
         .eq('club_id', clubId);
 
       if (error) throw error;
       
-      // Transform the data to include profile information
-      const members: ClubMember[] = (data || []).map(item => ({
-        ...item,
-        name: item.profiles?.name,
-        email: item.profiles?.email,
-        student_id: item.profiles?.student_id
-      }));
+      // For each member, get their profile info
+      const members: ClubMember[] = [];
+      
+      for (const member of data || []) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name, email, student_id')
+          .eq('id', member.user_id)
+          .single();
+          
+        members.push({
+          ...member,
+          name: profileData?.name,
+          email: profileData?.email,
+          student_id: profileData?.student_id
+        });
+      }
       
       return members;
     } catch (error) {
@@ -172,22 +180,30 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fetch activities of a specific club
   const fetchClubActivities = async (clubId: string): Promise<ClubActivity[]> => {
     try {
+      // First, get the activities
       const { data, error } = await supabase
         .from('club_activities')
-        .select(`
-          *,
-          profiles(name)
-        `)
+        .select('*')
         .eq('club_id', clubId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Transform the data to include profile information
-      const activities: ClubActivity[] = (data || []).map(item => ({
-        ...item,
-        poster_name: item.profiles?.name
-      }));
+      // For each activity, get the poster's name
+      const activities: ClubActivity[] = [];
+      
+      for (const activity of data || []) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', activity.posted_by)
+          .single();
+          
+        activities.push({
+          ...activity,
+          poster_name: profileData?.name
+        });
+      }
       
       return activities;
     } catch (error) {
@@ -230,22 +246,30 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return [];
     
     try {
+      // First, get the messages
       const { data, error } = await supabase
         .from('club_messages')
-        .select(`
-          *,
-          profiles:user_id(name)
-        `)
+        .select('*')
         .eq('club_id', clubId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Transform the data to include sender information
-      const messages: ClubMessage[] = (data || []).map(item => ({
-        ...item,
-        sender_name: item.profiles?.name
-      }));
+      // For each message, get the sender's name
+      const messages: ClubMessage[] = [];
+      
+      for (const message of data || []) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', message.user_id)
+          .single();
+          
+        messages.push({
+          ...message,
+          sender_name: profileData?.name
+        });
+      }
       
       return messages;
     } catch (error) {
