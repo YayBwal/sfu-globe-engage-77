@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -7,7 +8,7 @@ import {
   Camera, Edit2, Calendar, Book, Users, Award, Gamepad, 
   Clock, ArrowLeft, Upload, User, Image, School, 
   FileText, Briefcase, MapPin, Mail, Hash, Save,
-  Circle, UserCheck, UserPlus, UserX, MessageSquare
+  Circle, UserCheck, UserPlus, UserX, MessageSquare, LogOut
 } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
@@ -261,6 +262,7 @@ const Profile = () => {
   const [clubs, setClubs] = useState<UserClub[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [activeTab, setActiveTab] = useState("activity");
+  const [showUserMenu, setShowUserMenu] = useState(false);
   
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -770,6 +772,19 @@ const Profile = () => {
     );
   }
   
+  const handleLogout = () => {
+    logout();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+  };
+
+  const handleEditProfile = () => {
+    setIsEditMode(true);
+    setShowUserMenu(false);
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
@@ -909,3 +924,298 @@ const Profile = () => {
                               <FormMessage />
                             </FormItem>
                           )}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => setIsEditMode(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit">
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Changes
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{profile?.name}</h1>
+                        <div className="relative">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-sm"
+                            onClick={() => setShowUserMenu(!showUserMenu)}
+                          >
+                            <User className="h-4 w-4 mr-2" />
+                            Actions
+                          </Button>
+                          
+                          {showUserMenu && (
+                            <div className="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 p-1 z-50">
+                              <div className="py-1" role="menu">
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                  onClick={handleEditProfile}
+                                >
+                                  <Edit2 className="h-4 w-4 mr-2" />
+                                  Edit Profile
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                                  onClick={handleLogout}
+                                >
+                                  <LogOut className="h-4 w-4 mr-2" />
+                                  Sign Out
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-1 flex flex-wrap gap-2 items-center justify-center md:justify-start">
+                        {profile?.student_id && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                            <Hash className="h-3 w-3 mr-1" />
+                            {profile.student_id}
+                          </span>
+                        )}
+                        {profile?.major && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                            <School className="h-3 w-3 mr-1" />
+                            {profile.major}
+                          </span>
+                        )}
+                        {profile?.batch && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Batch {profile.batch}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <p className="text-gray-600 mt-4 max-w-2xl">
+                        {profile?.bio || "No bio added yet."}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Stats Section */}
+            {!isEditMode && renderStats()}
+            
+            {/* Tabs Section */}
+            {!isEditMode && (
+              <Tabs value={activeTab} className="mt-8" onValueChange={setActiveTab}>
+                <TabsList className="w-full md:w-auto border rounded-lg p-1 bg-gray-50">
+                  <TabsTrigger value="activity" className="text-xs md:text-sm">
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="courses" className="text-xs md:text-sm">
+                    Courses
+                  </TabsTrigger>
+                  <TabsTrigger value="quizzes" className="text-xs md:text-sm">
+                    Quizzes
+                  </TabsTrigger>
+                  <TabsTrigger value="clubs" className="text-xs md:text-sm">
+                    Clubs
+                  </TabsTrigger>
+                  <TabsTrigger value="friends" className="text-xs md:text-sm">
+                    Friends
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="activity" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Activity</CardTitle>
+                      <CardDescription>Your recent actions and activities</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {activities.length > 0 ? (
+                        <div className="space-y-4">
+                          {activities.map((activity) => (
+                            <div key={activity.id} className="p-3 rounded-lg bg-gray-50">
+                              {renderActivityDetails(activity)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No activities found.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="courses" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>My Courses</CardTitle>
+                      <CardDescription>Courses you are enrolled in</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {userCourses.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Course Name</TableHead>
+                              <TableHead>Enrollment Date</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {userCourses.map((course) => (
+                              <TableRow key={course.id}>
+                                <TableCell className="font-medium">
+                                  {course.course_name}
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(course.enrollment_date)}
+                                </TableCell>
+                                <TableCell>
+                                  {course.completed ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                      Completed
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                      In Progress
+                                    </span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No courses found.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="quizzes" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>My Quizzes</CardTitle>
+                      <CardDescription>Quizzes you have completed</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {userQuizzes.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Quiz Title</TableHead>
+                              <TableHead>Score</TableHead>
+                              <TableHead>Completed</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {userQuizzes.map((quiz) => (
+                              <TableRow key={quiz.id}>
+                                <TableCell className="font-medium">
+                                  {quiz.quiz_title}
+                                </TableCell>
+                                <TableCell>
+                                  {quiz.score}/{quiz.total_questions}
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(quiz.completed_at)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No quizzes found.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="clubs" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>My Clubs</CardTitle>
+                      <CardDescription>Clubs you are a member of</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {clubs.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {clubs.map((club) => (
+                            <Card key={club.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                              <div className={`h-2 ${club.approved ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <Avatar className="h-10 w-10">
+                                    {club.logo_url ? (
+                                      <AvatarImage src={club.logo_url} alt={club.name} />
+                                    ) : (
+                                      <AvatarFallback>{club.name.charAt(0)}</AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <div>
+                                    <h4 className="font-semibold">{club.name}</h4>
+                                    <p className="text-xs text-gray-500">Role: {club.role}</p>
+                                  </div>
+                                </div>
+                                <div className="text-xs">
+                                  <span className={`inline-block px-2 py-1 rounded ${
+                                    club.approved 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {club.approved ? 'Approved' : 'Pending Approval'}
+                                  </span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No clubs found.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="friends" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>My Friends</CardTitle>
+                      <CardDescription>People you are connected with</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {friends.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {friends.map((friend) => (
+                            <FriendCard 
+                              key={friend.id}
+                              friend={friend}
+                              onRemove={removeFriend}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-gray-500 py-8">No friends found.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Profile;
