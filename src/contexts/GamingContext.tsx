@@ -39,10 +39,20 @@ export interface GameScore {
   createdAt: string;
 }
 
+export interface LeaderboardUser {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  totalScore: number;
+  quizCount: number;
+  gameCount: number;
+}
+
 interface GamingContextType {
   quizzes: any[];
   quizScores: QuizScore[];
   gameScores: GameScore[];
+  leaderboard: LeaderboardUser[];
   fetchQuizzes: () => Promise<void>;
   fetchLeaderboards: () => Promise<void>;
   saveQuizScore: (quizId: string, quizName: string, score: number, timeTaken: number) => Promise<void>;
@@ -56,6 +66,7 @@ const GamingContext = createContext<GamingContextType>({
   quizzes: [],
   quizScores: [],
   gameScores: [],
+  leaderboard: [],
   fetchQuizzes: async () => {},
   fetchLeaderboards: async () => {},
   saveQuizScore: async () => {},
@@ -71,6 +82,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [quizScores, setQuizScores] = useState<QuizScore[]>([]);
   const [gameScores, setGameScores] = useState<GameScore[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const { user, profile } = useAuth();
@@ -137,8 +149,52 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: item.created_at
       }));
       
+      // Calculate leaderboard data
+      const userScores = new Map<string, LeaderboardUser>();
+      
+      // Process quiz scores
+      mappedQuizScores.forEach(score => {
+        if (!userScores.has(score.userId)) {
+          userScores.set(score.userId, {
+            userId: score.userId,
+            userName: score.userName,
+            profilePic: score.profilePic,
+            totalScore: 0,
+            quizCount: 0,
+            gameCount: 0
+          });
+        }
+        
+        const userData = userScores.get(score.userId)!;
+        userData.totalScore += score.score;
+        userData.quizCount += 1;
+      });
+      
+      // Process game scores
+      mappedGameScores.forEach(score => {
+        if (!userScores.has(score.userId)) {
+          userScores.set(score.userId, {
+            userId: score.userId,
+            userName: score.userName,
+            profilePic: score.profilePic,
+            totalScore: 0,
+            quizCount: 0,
+            gameCount: 0
+          });
+        }
+        
+        const userData = userScores.get(score.userId)!;
+        userData.totalScore += score.score;
+        userData.gameCount += 1;
+      });
+      
+      // Convert to array and sort by total score
+      const leaderboardArray = Array.from(userScores.values())
+        .sort((a, b) => b.totalScore - a.totalScore);
+      
       setQuizScores(mappedQuizScores);
       setGameScores(mappedGameScores);
+      setLeaderboard(leaderboardArray);
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
@@ -166,10 +222,10 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const mappedQuestions = data.map(item => ({
         id: item.id,
         question: item.question,
-        options: Array.isArray(item.options) ? item.options : JSON.parse(item.options),
+        options: Array.isArray(item.options) ? item.options : JSON.parse(String(item.options)),
         correctAnswer: item.correct_answer,
         category: item.category,
-        difficulty: item.difficulty,
+        difficulty: item.difficulty as 'easy' | 'medium' | 'hard',
         created_at: item.created_at
       }));
       
@@ -274,6 +330,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quizzes, 
         quizScores, 
         gameScores, 
+        leaderboard,
         fetchQuizzes, 
         fetchLeaderboards, 
         saveQuizScore, 

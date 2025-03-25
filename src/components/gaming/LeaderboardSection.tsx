@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, Filter, Clock, Gamepad, BookOpen, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -7,11 +7,18 @@ import { useGaming } from '@/contexts/GamingContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const LeaderboardSection: React.FC = () => {
-  const { leaderboard, quizScores, gameScores, isLoading } = useGaming();
+  const { leaderboard = [], quizScores = [], gameScores = [], isLoading, fetchLeaderboards } = useGaming();
   const [timeFilter, setTimeFilter] = useState<'all' | 'week' | 'month'>('all');
+  
+  // Fetch leaderboard data when component mounts
+  useEffect(() => {
+    fetchLeaderboards();
+  }, [fetchLeaderboards]);
   
   // Filter scores by time
   const getFilteredScores = (scoresList: any[], filter: 'all' | 'week' | 'month') => {
+    if (!scoresList || !scoresList.length) return [];
+    
     if (filter === 'all') return scoresList;
     
     const now = new Date();
@@ -25,14 +32,14 @@ const LeaderboardSection: React.FC = () => {
       cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
     
-    return scoresList.filter(score => new Date(score.created_at) > cutoffDate);
+    return scoresList.filter(score => new Date(score.createdAt) > cutoffDate);
   };
   
   const filteredQuizScores = getFilteredScores(quizScores, timeFilter);
   const filteredGameScores = getFilteredScores(gameScores, timeFilter);
   
   const getTopScore = (scores: any[]) => {
-    if (scores.length === 0) return null;
+    if (!scores || scores.length === 0) return null;
     return scores.reduce((prev, current) => (prev.score > current.score) ? prev : current);
   };
   
@@ -102,45 +109,51 @@ const LeaderboardSection: React.FC = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    {leaderboard.slice(0, 5).map((player, index) => (
-                      <motion.div 
-                        key={player.userId}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center"
-                      >
-                        <div className="w-6 text-center font-bold">
-                          {index < 3 ? (
-                            <Medal size={16} className={getMedalColor(index)} />
-                          ) : (
-                            <span className="text-sm text-gray-500">{index + 1}</span>
-                          )}
-                        </div>
-                        
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center">
-                            <Avatar className="h-8 w-8 mr-2">
-                              <AvatarImage src={player.profilePic} />
-                              <AvatarFallback className="bg-sfu-red/10 text-sfu-red">
-                                {player.userName.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            
-                            <div className="overflow-hidden">
-                              <p className="text-sm font-medium truncate">{player.userName}</p>
-                              <p className="text-xs text-gray-500">
-                                {player.quizCount} quizzes • {player.gameCount} games
-                              </p>
+                    {leaderboard && leaderboard.length > 0 ? (
+                      leaderboard.slice(0, 5).map((player, index) => (
+                        <motion.div 
+                          key={player.userId}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-center"
+                        >
+                          <div className="w-6 text-center font-bold">
+                            {index < 3 ? (
+                              <Medal size={16} className={getMedalColor(index)} />
+                            ) : (
+                              <span className="text-sm text-gray-500">{index + 1}</span>
+                            )}
+                          </div>
+                          
+                          <div className="ml-3 flex-1">
+                            <div className="flex items-center">
+                              <Avatar className="h-8 w-8 mr-2">
+                                <AvatarImage src={player.profilePic} />
+                                <AvatarFallback className="bg-sfu-red/10 text-sfu-red">
+                                  {player.userName.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              
+                              <div className="overflow-hidden">
+                                <p className="text-sm font-medium truncate">{player.userName}</p>
+                                <p className="text-xs text-gray-500">
+                                  {player.quizCount} quizzes • {player.gameCount} games
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="ml-2 text-right">
-                          <p className="text-sm font-semibold text-sfu-red">{player.totalScore}</p>
-                        </div>
-                      </motion.div>
-                    ))}
+                          
+                          <div className="ml-2 text-right">
+                            <p className="text-sm font-semibold text-sfu-red">{player.totalScore}</p>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="py-4 text-center text-gray-500">
+                        No leaderboard data available yet
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -170,10 +183,10 @@ const LeaderboardSection: React.FC = () => {
                           
                           <div className="ml-3 flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate">
-                              {score.user_name}
+                              {score.userName}
                             </p>
                             <p className="text-xs text-gray-500 truncate">
-                              {score.quiz_name}
+                              {score.quizName}
                             </p>
                           </div>
                           
@@ -181,7 +194,7 @@ const LeaderboardSection: React.FC = () => {
                             <p className="text-sm font-semibold text-sfu-red">{score.score}</p>
                             <p className="text-xs text-gray-500">
                               <Clock size={10} className="inline mr-1" />
-                              {Math.floor(score.time_taken / 60)}:{(score.time_taken % 60).toString().padStart(2, '0')}
+                              {Math.floor(score.timeTaken / 60)}:{(score.timeTaken % 60).toString().padStart(2, '0')}
                             </p>
                           </div>
                         </motion.div>
@@ -216,10 +229,10 @@ const LeaderboardSection: React.FC = () => {
                           
                           <div className="ml-3 flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate">
-                              {score.user_name}
+                              {score.userName}
                             </p>
                             <p className="text-xs text-gray-500 truncate">
-                              {score.game_name}
+                              {score.gameName}
                             </p>
                           </div>
                           
@@ -325,28 +338,28 @@ const LeaderboardSection: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <Avatar className="h-8 w-8 mr-2">
-                                <AvatarImage src={score.profile_pic} />
+                                <AvatarImage src={score.profilePic} />
                                 <AvatarFallback className="bg-sfu-red/10 text-sfu-red">
-                                  {score.user_name.charAt(0).toUpperCase()}
+                                  {score.userName.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm font-medium">{score.user_name}</span>
+                              <span className="text-sm font-medium">{score.userName}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm">{score.quiz_name}</span>
+                            <span className="text-sm">{score.quizName}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm font-semibold text-sfu-red">{score.score}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm text-gray-600">
-                              {Math.floor(score.time_taken / 60)}:{(score.time_taken % 60).toString().padStart(2, '0')}
+                              {Math.floor(score.timeTaken / 60)}:{(score.timeTaken % 60).toString().padStart(2, '0')}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm text-gray-600">
-                              {new Date(score.created_at).toLocaleDateString()}
+                              {new Date(score.createdAt).toLocaleDateString()}
                             </span>
                           </td>
                         </motion.tr>
@@ -406,16 +419,16 @@ const LeaderboardSection: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <Avatar className="h-8 w-8 mr-2">
-                                <AvatarImage src={score.profile_pic} />
+                                <AvatarImage src={score.profilePic} />
                                 <AvatarFallback className="bg-sfu-red/10 text-sfu-red">
-                                  {score.user_name.charAt(0).toUpperCase()}
+                                  {score.userName.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm font-medium">{score.user_name}</span>
+                              <span className="text-sm font-medium">{score.userName}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm">{score.game_name}</span>
+                            <span className="text-sm">{score.gameName}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm font-semibold text-sfu-red">{score.score}</span>
@@ -425,7 +438,7 @@ const LeaderboardSection: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm text-gray-600">
-                              {new Date(score.created_at).toLocaleDateString()}
+                              {new Date(score.createdAt).toLocaleDateString()}
                             </span>
                           </td>
                         </motion.tr>
