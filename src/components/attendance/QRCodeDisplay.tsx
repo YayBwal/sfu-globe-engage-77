@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { QrCode, Clock, X, RefreshCw } from 'lucide-react';
+import { QrCode, Clock, X, RefreshCw, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { Slider } from '@/components/ui/slider';
 
 interface QRCodeDisplayProps {
   sessionId: string;
@@ -13,10 +14,27 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [loading, setLoading] = useState(false);
-  const { generateQRCode } = useAttendance();
+  const [locationRadius, setLocationRadius] = useState(50); // Default radius: 50 meters
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  const { generateQRCode, updateSessionLocation } = useAttendance();
 
   useEffect(() => {
     generateNewQRCode();
+
+    // Get current location if available
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+        }
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -35,12 +53,28 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
     return () => clearInterval(interval);
   }, [qrCode]);
 
+  useEffect(() => {
+    if (currentLocation) {
+      updateSessionLocation(sessionId, currentLocation.lat, currentLocation.lng, locationRadius);
+    }
+  }, [currentLocation, locationRadius, sessionId, updateSessionLocation]);
+
   const generateNewQRCode = async () => {
     setLoading(true);
     try {
       const code = await generateQRCode(sessionId);
       setQrCode(code);
       setTimeLeft(300); // Reset timer to 5 minutes
+      
+      // Update location constraints if available
+      if (currentLocation) {
+        await updateSessionLocation(
+          sessionId, 
+          currentLocation.lat, 
+          currentLocation.lng, 
+          locationRadius
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -102,6 +136,36 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
               {formatTime(timeLeft)} remaining
             </span>
           </div>
+
+          {/* Location settings */}
+          {currentLocation && (
+            <div className="w-full mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+              <div className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                <MapPin className="h-4 w-4 mr-2 text-sfu-red" />
+                <span>Location Validation</span>
+              </div>
+              
+              <div className="mb-1 flex justify-between text-xs text-gray-500">
+                <span>Distance Required: {locationRadius} meters</span>
+                <span>{locationRadius === 0 ? 'Disabled' : 'Enabled'}</span>
+              </div>
+              
+              <Slider
+                value={[locationRadius]}
+                min={0}
+                max={200}
+                step={10}
+                onValueChange={(value) => setLocationRadius(value[0])}
+                className="my-2"
+              />
+              
+              <p className="text-xs text-gray-500 mt-1">
+                {locationRadius === 0 
+                  ? 'Location validation is disabled. Students can scan from anywhere.' 
+                  : `Students must be within ${locationRadius} meters of this location to mark attendance.`}
+              </p>
+            </div>
+          )}
 
           <div className="text-gray-600 text-sm text-center mb-4">
             <p>Ask students to scan this QR code to mark attendance</p>

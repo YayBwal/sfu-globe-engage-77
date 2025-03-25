@@ -1,8 +1,28 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+
+// Helper function to calculate distance between two points using Haversine formula
+const calculateDistance = (
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number
+): number => {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // Distance in meters
+};
 
 type AttendanceContextType = {
   classes: any[];
@@ -23,6 +43,8 @@ type AttendanceContextType = {
   userAttendance: any[];
   userEnrollments: any[];
   fetchUserEnrollments: () => Promise<void>;
+  updateSessionLocation: (sessionId: string, lat: number, lng: number, radius: number) => Promise<boolean>;
+  checkLocationValidity: (sessionId: string, userLocation: { lat: number, lng: number }) => Promise<boolean | null>;
 };
 
 const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined);
@@ -305,6 +327,81 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateSessionLocation = async (
+    sessionId: string, 
+    lat: number, 
+    lng: number, 
+    radius: number
+  ) => {
+    if (!user || !isTeacher) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('class_sessions')
+        .update({
+          location: `${lat},${lng}`,
+          location_radius: radius
+        })
+        .eq('id', sessionId);
+      
+      if (error) throw error;
+      
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Error updating location",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const checkLocationValidity = async (
+    sessionId: string,
+    userLocation: { lat: number, lng: number }
+  ) => {
+    try {
+      // Get the session details
+      const { data: sessionData, error } = await supabase
+        .from('class_sessions')
+        .select('location, location_radius')
+        .eq('id', sessionId)
+        .single();
+      
+      if (error) throw error;
+      
+      // If no location constraints set, return true
+      if (!sessionData.location || !sessionData.location_radius) {
+        return true;
+      }
+      
+      // If location radius is 0, it means location validation is disabled
+      if (sessionData.location_radius === 0) {
+        return true;
+      }
+      
+      // Parse the stored location
+      const [sessionLat, sessionLng] = sessionData.location.split(',').map(Number);
+      
+      // Calculate distance between user and session location
+      const distance = calculateDistance(
+        userLocation.lat, 
+        userLocation.lng, 
+        sessionLat, 
+        sessionLng
+      );
+      
+      // Check if user is within the allowed radius
+      return distance <= sessionData.location_radius;
+      
+    } catch (error: any) {
+      console.error("Error checking location validity:", error);
+      // If there's an error, we'll return null to indicate we couldn't validate
+      return null;
+    }
+  };
+
   const generateQRCode = async (sessionId: string) => {
     if (!user || !isTeacher) return null;
     
@@ -334,6 +431,21 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return false;
     
     try {
+      // If we have location, check validity first
+      if (location) {
+        const isLocationValid = await checkLocationValidity(sessionId, location);
+        
+        // If location is invalid, show a message and prevent attendance marking
+        if (isLocationValid === false) {
+          toast({
+            title: "Location validation failed",
+            description: "You are not within the required distance from the classroom.",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+      
       const { data, error } = await supabase
         .rpc('verify_attendance_qr', { 
           session_uuid: sessionId, 
@@ -424,6 +536,8 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     userAttendance,
     userEnrollments,
     fetchUserEnrollments,
+    updateSessionLocation,
+    checkLocationValidity,
   };
 
   return (

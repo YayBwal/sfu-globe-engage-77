@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { QrCode, Camera, X, RefreshCcw } from 'lucide-react';
+import { QrCode, Camera, X, RefreshCcw, MapPin, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { Progress } from '@/components/ui/progress';
 
 interface QRScannerProps {
   sessionId: string;
@@ -15,21 +16,39 @@ const QRScanner: React.FC<QRScannerProps> = ({ sessionId, onSuccess, onClose }) 
   const [scanning, setScanning] = useState(false);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'checking' | 'approved' | 'denied'>('checking');
   const { toast } = useToast();
-  const { verifyAttendance } = useAttendance();
+  const { verifyAttendance, checkLocationValidity } = useAttendance();
 
   useEffect(() => {
     // Request location if available
     if (navigator.geolocation) {
+      setLocationStatus('checking');
+      
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
+        async (position) => {
+          const currentLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          
+          setLocation(currentLocation);
+          
+          // Check if location is valid for this session
+          const isValidLocation = await checkLocationValidity(sessionId, currentLocation);
+          
+          if (isValidLocation === false) {
+            setLocationStatus('denied');
+            setLocationError('You are not within the required distance from the classroom');
+          } else {
+            setLocationStatus('approved');
+            setLocationError(null);
+          }
         },
         (error) => {
           console.log('Geolocation error:', error);
+          setLocationError('We cannot verify your location. This might affect attendance validation.');
           toast({
             title: 'Location not available',
             description: 'We cannot verify your location. This might affect attendance validation.',
@@ -38,13 +57,23 @@ const QRScanner: React.FC<QRScannerProps> = ({ sessionId, onSuccess, onClose }) 
         }
       );
     }
-  }, [toast]);
+  }, [sessionId, toast, checkLocationValidity]);
 
   const startScanner = async () => {
     try {
       // Check if browser supports the Web API
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Your browser does not support camera access');
+      }
+
+      // Check if location is valid before starting scanner
+      if (locationStatus === 'denied') {
+        toast({
+          title: 'Location validation failed',
+          description: locationError || 'You are not in the approved location for this class',
+          variant: 'destructive',
+        });
+        return;
       }
 
       // Request camera permission
@@ -92,6 +121,45 @@ const QRScanner: React.FC<QRScannerProps> = ({ sessionId, onSuccess, onClose }) 
         </div>
 
         <div className="flex flex-col items-center justify-center">
+          {/* Location status indicator */}
+          <div className={`w-full mb-4 p-3 border rounded-lg 
+            ${locationStatus === 'approved' ? 'bg-green-50 border-green-200' : 
+              locationStatus === 'denied' ? 'bg-red-50 border-red-200' : 
+              'bg-gray-50 border-gray-200'}`}>
+            
+            <div className="flex items-center mb-1">
+              <MapPin className={`h-4 w-4 mr-2 
+                ${locationStatus === 'approved' ? 'text-green-600' : 
+                  locationStatus === 'denied' ? 'text-red-600' : 'text-amber-500'}`} />
+              
+              <span className={`text-sm font-medium
+                ${locationStatus === 'approved' ? 'text-green-600' : 
+                  locationStatus === 'denied' ? 'text-red-600' : 'text-amber-500'}`}>
+                {locationStatus === 'approved' ? 'Location Verified' : 
+                  locationStatus === 'denied' ? 'Location Invalid' : 'Checking Location...'}
+              </span>
+            </div>
+            
+            {locationStatus === 'checking' && (
+              <Progress className="h-1 mb-2" value={50} />
+            )}
+            
+            {locationError ? (
+              <div className="flex items-start mt-1 text-xs text-red-600">
+                <AlertTriangle className="h-3 w-3 mr-1 mt-0.5" />
+                <p>{locationError}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">
+                {locationStatus === 'approved' 
+                  ? 'You are in the correct location to mark attendance' 
+                  : locationStatus === 'denied'
+                  ? 'You must be physically present in the classroom'
+                  : 'Verifying your location...'}
+              </p>
+            )}
+          </div>
+
           {!scanning ? (
             <>
               <div className="w-32 h-32 bg-gray-100 rounded-lg mb-6 flex items-center justify-center">
@@ -100,10 +168,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ sessionId, onSuccess, onClose }) 
               <p className="text-gray-600 mb-4 text-center">
                 Click the button below to scan the attendance QR code shown by your teacher
               </p>
-              <Button onClick={startScanner} className="flex items-center gap-2 bg-sfu-red hover:bg-sfu-red/90">
+              <Button 
+                onClick={startScanner} 
+                className="flex items-center gap-2 bg-sfu-red hover:bg-sfu-red/90"
+                disabled={locationStatus === 'denied'}
+              >
                 <Camera className="h-4 w-4" />
                 Start Scanning
               </Button>
+              
+              {locationStatus === 'denied' && (
+                <p className="text-xs text-red-500 mt-2 text-center">
+                  You must be within the required distance from the classroom to mark attendance
+                </p>
+              )}
             </>
           ) : (
             <>
