@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ThumbsUp, MessageSquare, Share2, MoreHorizontal, Trash2, 
@@ -26,7 +27,7 @@ export interface Post {
   user_id: string;
   content: string;
   media_url?: string | null;
-  media_type?: 'image' | 'video' | 'none' | string; // Added string to fix TS error
+  media_type?: 'image' | 'video' | 'none' | string;
   view_count: number;
   created_at: string;
   updated_at: string;
@@ -86,7 +87,7 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
           .select('reaction_type')
           .eq('post_id', post.id)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
           console.error("Error checking reaction:", error);
@@ -123,27 +124,30 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
     }
   };
   
-  // Function to fetch reaction counts - FIXED SQL GROUP BY error
+  // Function to fetch reaction counts - FIXED SQL query
   const fetchReactionCounts = async () => {
     try {
+      // First fetch all reactions for this post
       const { data, error } = await supabase
         .from('post_reactions')
-        .select('reaction_type, count')
-        .eq('post_id', post.id)
-        .group('reaction_type');
+        .select('reaction_type')
+        .eq('post_id', post.id);
       
       if (error) {
         console.error("Error fetching reactions:", error);
         return;
       }
       
+      // Count reactions by type manually
       const newReactions = { 
         like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 
       };
       
-      if (data) {
+      if (data && data.length > 0) {
         data.forEach((item: any) => {
-          newReactions[item.reaction_type as keyof typeof newReactions] = parseInt(item.count);
+          if (item.reaction_type in newReactions) {
+            newReactions[item.reaction_type as keyof typeof newReactions] += 1;
+          }
         });
       }
       
@@ -449,6 +453,11 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
               src={post.media_url} 
               alt="Post image" 
               className="w-full h-auto object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/placeholder.svg';
+                console.error("Failed to load image:", post.media_url);
+              }}
             />
           </div>
         )}
@@ -461,6 +470,9 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
               controls
               className="w-full h-auto"
               onPlay={handleVideoView}
+              onError={(e) => {
+                console.error("Failed to load video:", post.media_url);
+              }}
             />
             {videoViews > 0 && (
               <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center">

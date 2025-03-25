@@ -60,6 +60,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           throw commentsError;
         }
         
+        if (!commentsData || commentsData.length === 0) {
+          setComments([]);
+          setIsLoading(false);
+          return;
+        }
+        
         // Fetch user profiles separately
         const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
         
@@ -74,9 +80,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         
         // Create a profiles lookup
         const profilesLookup: Record<string, any> = {};
-        profilesData.forEach(profile => {
-          profilesLookup[profile.id] = profile;
-        });
+        if (profilesData) {
+          profilesData.forEach(profile => {
+            profilesLookup[profile.id] = profile;
+          });
+        }
         
         // Add user data to comments
         const formattedComments = commentsData.map(comment => {
@@ -111,29 +119,36 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const fetchComment = async () => {
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('name, profile_pic')
-                .eq('id', payload.new.user_id)
-                .single();
-                
-              if (profileError) {
-                console.error("Error fetching user for comment:", profileError);
-                return;
-              }
-              
-              const newComment = {
-                id: payload.new.id,
-                user_id: payload.new.user_id,
-                content: payload.new.content,
-                created_at: payload.new.created_at,
-                user: {
-                  name: profileData.name,
-                  profile_pic: profileData.profile_pic
+              try {
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('name, profile_pic')
+                  .eq('id', payload.new.user_id)
+                  .maybeSingle();
+                  
+                if (profileError && profileError.code !== 'PGRST116') {
+                  console.error("Error fetching user for comment:", profileError);
+                  return;
                 }
-              };
-              
-              setComments(prev => [...prev, newComment]);
+                
+                const newComment = {
+                  id: payload.new.id,
+                  user_id: payload.new.user_id,
+                  content: payload.new.content,
+                  created_at: payload.new.created_at,
+                  user: profileData ? {
+                    name: profileData.name,
+                    profile_pic: profileData.profile_pic
+                  } : {
+                    name: 'Anonymous',
+                    profile_pic: undefined
+                  }
+                };
+                
+                setComments(prev => [...prev, newComment]);
+              } catch (error) {
+                console.error("Error handling new comment:", error);
+              }
             };
             
             fetchComment();
