@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, Gamepad, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
+import { Menu, X, User, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -63,7 +63,6 @@ const Header: React.FC = () => {
     { name: 'Home', path: '/' },
     { name: 'Study', path: '/study' },
     { name: 'Clubs', path: '/clubs' },
-    { name: 'Gaming Hub', path: '/gaming-hub' },
     { name: 'Attendance', path: '/attendance' },
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Newsfeed', path: '/newsfeed' },
@@ -210,12 +209,6 @@ const Header: React.FC = () => {
               className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
             >
               <Radio size={20} />
-            </Link>
-            <Link 
-              to="/games" 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <Gamepad size={20} />
             </Link>
             <Link 
               to="/attendance" 
