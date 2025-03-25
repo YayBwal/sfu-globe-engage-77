@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -847,4 +848,19 @@ const Attendance = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button
+            <Button 
+              onClick={handlePasscodeSubmit}
+              className="bg-sfu-red hover:bg-sfu-red/90"
+            >
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Footer />
+    </div>
+  );
+};
+
+export default Attendance;
