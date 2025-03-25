@@ -15,6 +15,7 @@ import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
+import AIChatBubble from '@/components/AIChatBubble';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +55,9 @@ function App() {
     createStorageBuckets();
   }, []);
   
+  // Replace this with your actual API key when available
+  const aiApiKey = "your-ai-api-key";
+  
   return (
     <Router>
       <AuthProvider>
@@ -75,6 +79,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
+            <AIChatBubble apiKey={aiApiKey} />
           </div>
         </ClubProvider>
       </AuthProvider>
