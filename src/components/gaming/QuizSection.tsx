@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -10,12 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Add other imports as needed
-
 const QuizSection: React.FC = () => {
   const { questions, fetchQuestions, saveQuizScore, isLoading } = useGaming();
   
-  // Add your state variables and functions here
   const [activeQuiz, setActiveQuiz] = useState<boolean>(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number | null>(null);
@@ -58,6 +54,19 @@ const QuizSection: React.FC = () => {
   const categories = questions ? 
     Array.from(new Set(questions.map(q => q.category))).sort() : 
     [];
+  
+  // Function to get limited questions by difficulty
+  const getLimitedQuestionsByDifficulty = (difficulty: string, limit = 3) => {
+    if (!filteredQuestions.length) return [];
+    
+    let questionsForDifficulty = filteredQuestions;
+    
+    if (difficulty !== 'all') {
+      questionsForDifficulty = filteredQuestions.filter(q => q.difficulty === difficulty);
+    }
+    
+    return questionsForDifficulty.slice(0, limit);
+  };
   
   // Start quiz
   const startQuiz = () => {
@@ -251,30 +260,41 @@ const QuizSection: React.FC = () => {
                 No questions available for the selected filters. Try different criteria.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredQuestions.slice(0, 6).map((question, index) => (
-                  <motion.div
-                    key={question.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-gray-50 rounded-lg p-4 overflow-hidden"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant={
-                        question.difficulty === 'easy' 
-                          ? 'outline' 
-                          : question.difficulty === 'medium' 
-                            ? 'secondary' 
-                            : 'destructive'
-                      }>
-                        {question.difficulty.toUpperCase()}
-                      </Badge>
-                      <Badge variant="outline">{question.category}</Badge>
+              <div>
+                {['easy', 'medium', 'hard'].map((difficulty) => {
+                  const questionsForDifficulty = getLimitedQuestionsByDifficulty(difficulty, 3);
+                  
+                  return questionsForDifficulty.length > 0 ? (
+                    <div key={difficulty} className="mb-6">
+                      <h3 className="text-lg font-medium mb-3 capitalize">{difficulty} Questions</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {questionsForDifficulty.map((question, index) => (
+                          <motion.div
+                            key={question.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="bg-gray-50 rounded-lg p-4 overflow-hidden"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <Badge variant={
+                                question.difficulty === 'easy' 
+                                  ? 'outline' 
+                                  : question.difficulty === 'medium' 
+                                    ? 'secondary' 
+                                    : 'destructive'
+                              }>
+                                {question.difficulty.toUpperCase()}
+                              </Badge>
+                              <Badge variant="outline">{question.category}</Badge>
+                            </div>
+                            <p className="text-sm font-medium line-clamp-3 h-12">{question.question}</p>
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-sm font-medium line-clamp-3 h-12">{question.question}</p>
-                  </motion.div>
-                ))}
+                  ) : null;
+                })}
               </div>
             )}
           </div>
