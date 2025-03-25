@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ export const ChatBubble = () => {
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   const handleTabChange = (value: string) => {
@@ -41,6 +43,8 @@ export const ChatBubble = () => {
     
     // Add user message to chat
     setChatHistory([...chatHistory, { role: 'user', content: message }]);
+    const userMessage = message;
+    setMessage('');
     setIsLoading(true);
     
     try {
@@ -53,7 +57,13 @@ export const ChatBubble = () => {
         systemMessage = "You are a career guidance assistant. Provide helpful advice on career development, job searching, resume building, and professional growth. Offer practical tips and resources that can help users advance in their careers.";
       }
       
-      // Call OpenAI API
+      // Call OpenAI API with exponential backoff for rate limiting
+      const delay = retryCount > 0 ? Math.min(2 ** retryCount * 1000, 10000) : 0;
+      
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -65,16 +75,29 @@ export const ChatBubble = () => {
           messages: [
             { role: 'system', content: systemMessage },
             ...chatHistory.map(msg => ({ role: msg.role, content: msg.content })),
-            { role: 'user', content: message }
+            { role: 'user', content: userMessage }
           ],
           max_tokens: 300,
           temperature: 0.7
         })
       });
       
+      if (response.status === 429) {
+        // Rate limit exceeded
+        if (retryCount < 3) {
+          setRetryCount(retryCount + 1);
+          throw new Error('Rate limit exceeded. Retrying...');
+        } else {
+          throw new Error('API is currently busy. Please try again later.');
+        }
+      }
+      
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
       }
+      
+      // Reset retry count on success
+      setRetryCount(0);
       
       const data = await response.json();
       const aiResponse = data.choices[0].message.content;
@@ -83,11 +106,23 @@ export const ChatBubble = () => {
       setChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (error) {
       console.error('Error generating AI response:', error);
+      
+      let errorMessage = 'Failed to get AI response. Please try again later.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Rate limit')) {
+          errorMessage = 'The AI service is currently busy. Please wait a moment and try again.';
+        } else if (error.message.includes('API is currently busy')) {
+          errorMessage = 'The AI service is experiencing high demand. Please try again in a few minutes.';
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to get AI response. Please try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
       // Fallback response
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
@@ -95,7 +130,6 @@ export const ChatBubble = () => {
       }]);
     } finally {
       setIsLoading(false);
-      setMessage('');
     }
   };
 
@@ -153,6 +187,7 @@ export const ChatBubble = () => {
                       handleSendMessage();
                     }
                   }}
+                  disabled={isLoading}
                 />
                 <Button 
                   className={cn(
