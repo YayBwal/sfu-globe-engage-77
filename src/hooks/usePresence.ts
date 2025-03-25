@@ -32,7 +32,7 @@ export const usePresence = () => {
     // Event listeners for page unload/close
     const handleBeforeUnload = () => {
       // Use synchronous approach for unload events
-      const url = `${supabase.getUrl()}/rest/v1/profiles?id=eq.${user.id}`;
+      const url = `${supabase.getURL()}/rest/v1/profiles?id=eq.${user.id}`;
       navigator.sendBeacon(
         url,
         JSON.stringify({ online: false })

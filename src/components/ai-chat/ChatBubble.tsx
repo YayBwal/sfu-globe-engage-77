@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useToast } from '@/hooks/use-toast';
 
 type ChatCategory = 'mental-health' | 'career-guide';
 
@@ -19,12 +20,16 @@ const CATEGORY_HEADERS = {
   'career-guide': 'Career Guidance',
 };
 
+// OpenAI API Key - in production, this should be stored securely
+const OPENAI_API_KEY = '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';
+
 export const ChatBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<ChatCategory>('mental-health');
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleTabChange = (value: string) => {
     setCurrentCategory(value as ChatCategory);
@@ -40,22 +45,55 @@ export const ChatBubble = () => {
     setIsLoading(true);
     
     try {
-      // For now, let's use some mock responses
-      let response = '';
+      // Prepare system message based on category
+      let systemMessage = '';
       
       if (currentCategory === 'mental-health') {
-        response = "I'm here to support your mental wellbeing. Remember that it's okay to seek help when needed. Is there something specific you'd like to talk about?";
+        systemMessage = "You are a supportive mental health assistant. Provide empathetic, thoughtful responses to users seeking mental health support. Do not provide medical diagnoses or replace professional help. Always encourage users to seek professional help for serious concerns.";
       } else {
-        response = "I can help with career guidance and professional development. Whether you're exploring options or need advice on specific paths, feel free to ask.";
+        systemMessage = "You are a career guidance assistant. Provide helpful advice on career development, job searching, resume building, and professional growth. Offer practical tips and resources that can help users advance in their careers.";
       }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call OpenAI API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemMessage },
+            ...chatHistory.map(msg => ({ role: msg.role, content: msg.content })),
+            { role: 'user', content: message }
+          ],
+          max_tokens: 300,
+          temperature: 0.7
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const aiResponse = data.choices[0].message.content;
       
       // Add AI response to chat
-      setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (error) {
       console.error('Error generating AI response:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI response. Please try again later.",
+        variant: "destructive",
+      });
+      // Fallback response
+      setChatHistory(prev => [...prev, { 
+        role: 'assistant', 
+        content: "I'm sorry, I'm having trouble connecting right now. Please try again later." 
+      }]);
     } finally {
       setIsLoading(false);
       setMessage('');
