@@ -17,6 +17,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -43,9 +44,11 @@ const Attendance = () => {
     classes, sessions, attendanceRecords, isTeacher, isLoading,
     fetchClasses, fetchSessions, fetchAttendanceRecords, 
     fetchUserAttendance, userAttendance, userEnrollments,
-    fetchUserEnrollments
+    fetchUserEnrollments, markAttendance
   } = useAttendance();
 
+  const [autoAttendanceEnabled, setAutoAttendanceEnabled] = useState(true);
+  
   // Teacher passcode - in a real app, this would be stored in the database or environment variables
   const TEACHER_PASSCODE = "123456";
 
@@ -191,6 +194,62 @@ const Attendance = () => {
         {dateCells}
       </div>
     );
+  };
+
+  // Helper function to automatically mark absent students
+  const markAbsentStudents = async (sessionId: string) => {
+    if (!isTeacher || !autoAttendanceEnabled) return;
+    
+    try {
+      // Get all students enrolled in the class
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+      
+      // Get the class id from the session
+      const classId = session.class_id;
+      
+      // Get all students enrolled in this class
+      const { data: enrolledStudents, error: enrollmentError } = await supabase
+        .from('class_enrollments')
+        .select('student_id')
+        .eq('class_id', classId)
+        .eq('status', 'active');
+      
+      if (enrollmentError) throw enrollmentError;
+      
+      // Get all attendance records for this session
+      const { data: existingRecords, error: recordsError } = await supabase
+        .from('attendance_records')
+        .select('student_id')
+        .eq('session_id', sessionId);
+      
+      if (recordsError) throw recordsError;
+      
+      // Find students who don't have an attendance record yet
+      const absentStudentIds = enrolledStudents
+        .filter(enrollment => !existingRecords.some(record => record.student_id === enrollment.student_id))
+        .map(enrollment => enrollment.student_id);
+      
+      // Mark these students as absent
+      for (const studentId of absentStudentIds) {
+        await markAttendance(sessionId, studentId, 'absent', 'Automatically marked as absent');
+      }
+      
+      toast({
+        title: "Attendance Updated",
+        description: `Marked ${absentStudentIds.length} students as absent automatically.`,
+      });
+      
+      // Refresh attendance records
+      fetchAttendanceRecords(sessionId);
+      
+    } catch (error: any) {
+      toast({
+        title: "Error marking absent students",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   // Student view components
@@ -411,6 +470,9 @@ const Attendance = () => {
               : record
           )
         );
+        
+        // Also update in the database
+        markAttendance(activeSessionId, studentId, status);
       }
     };
     
@@ -463,9 +525,33 @@ const Attendance = () => {
                         }}
                       >
                         <Redo className="h-4 w-4 mr-1" />
-                        Refresh
+                        Generate QR
                       </Button>
                     </div>
+                    
+                    <div className="flex items-center justify-center mb-4">
+                      <Switch 
+                        id="auto-attendance" 
+                        checked={autoAttendanceEnabled}
+                        onCheckedChange={setAutoAttendanceEnabled}
+                        className="mr-2"
+                      />
+                      <Label htmlFor="auto-attendance" className="text-sm text-gray-600">
+                        Auto-mark absent students
+                      </Label>
+                    </div>
+
+                    {todaySessions[0] && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mb-4"
+                        onClick={() => markAbsentStudents(todaySessions[0].id)}
+                      >
+                        <XCircle className="h-4 w-4 mr-1 text-red-500" />
+                        Mark all absent
+                      </Button>
+                    )}
                     
                     <p className="text-sm text-gray-500">
                       Students must scan this code in class to mark attendance
@@ -623,18 +709,31 @@ const Attendance = () => {
                                 {new Date(session.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </div>
                             </div>
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedSession(session.id);
-                                setShowQRCode(true);
-                              }}
-                            >
-                              <QrCode className="h-4 w-4 mr-1" />
-                              Generate QR
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAbsentStudents(session.id);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-1 text-red-500" />
+                                Mark Absent
+                              </Button>
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSession(session.id);
+                                  setShowQRCode(true);
+                                }}
+                              >
+                                <QrCode className="h-4 w-4 mr-1" />
+                                Generate QR
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -750,26 +849,4 @@ const Attendance = () => {
             <Button 
               variant="outline" 
               onClick={() => {
-                setShowPasscodeDialog(false);
-                setPasscode("");
-                setPasscodeError(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handlePasscodeSubmit}
-              className="bg-sfu-red hover:bg-sfu-red/90"
-            >
-              Access Teacher View
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Footer />
-    </div>
-  );
-};
-
-export default Attendance;
+                setShowPasscodeDialog

@@ -108,6 +108,13 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
 
   // Function to generate QR code SVG (this is just a placeholder)
   const renderQRCode = (data: string) => {
+    // Get today's date for the QR code generation
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    // Append date to QR data to make it change day by day
+    const qrDataWithDate = `${data}-${dateString}`;
+    
     return (
       <motion.div 
         className="flex flex-col items-center"
@@ -116,7 +123,7 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
         transition={{ duration: 0.3 }}
       >
         <motion.img 
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`} 
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrDataWithDate)}`} 
           alt="QR Code"
           className="w-64 h-64 border-2 border-gray-200 rounded-lg"
           whileHover={{ scale: 1.02 }}
