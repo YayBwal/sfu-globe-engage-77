@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import FriendMessageModal from "@/components/profile/FriendMessageModal";
 
 interface Friend {
   id: string;
@@ -22,6 +22,8 @@ export const FriendsListSection = () => {
   const { toast } = useToast();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeChat, setActiveChat] = useState<{ id: string, name: string } | null>(null);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
   // Fetch friends list
   useEffect(() => {
@@ -170,6 +172,15 @@ export const FriendsListSection = () => {
     }
   };
 
+  // Handle message
+  const handleMessage = (friend: Friend) => {
+    setActiveChat({
+      id: friend.id,
+      name: friend.name
+    });
+    setIsMessageModalOpen(true);
+  };
+
   // If user is not logged in, don't show anything
   if (!user) {
     return null;
@@ -216,6 +227,8 @@ export const FriendsListSection = () => {
                     size="sm" 
                     variant="ghost"
                     className="text-gray-600 h-8 w-8 p-0"
+                    onClick={() => handleMessage(friend)}
+                    title="Message"
                   >
                     <MessageSquare className="h-4 w-4" />
                   </Button>
@@ -239,6 +252,21 @@ export const FriendsListSection = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Message modal */}
+      {activeChat && isMessageModalOpen && (
+        <FriendMessageModal
+          isOpen={isMessageModalOpen}
+          onClose={() => {
+            setIsMessageModalOpen(false);
+            setActiveChat(null);
+          }}
+          friend={{
+            id: activeChat.id,
+            name: activeChat.name
+          }}
+        />
+      )}
     </Card>
   );
 };

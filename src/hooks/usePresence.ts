@@ -3,59 +3,84 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export const usePresence = () => {
-  const { user } = useAuth();
+export function usePresence() {
+  const { user, profile } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) return;
 
-    // Set user as online when they log in
-    const updateUserOnlineStatus = async (isOnline: boolean) => {
+    // Update user online status when they come online
+    const updateOnlineStatus = async () => {
       try {
         await supabase
           .from('profiles')
-          .update({ online: isOnline })
+          .update({ online: true })
           .eq('id', user.id);
       } catch (error) {
         console.error('Error updating online status:', error);
       }
     };
 
-    // Update to online when component mounts (user becomes active)
-    updateUserOnlineStatus(true);
+    updateOnlineStatus();
 
-    // Event listeners for tab/window visibility changes
-    const handleVisibilityChange = () => {
-      updateUserOnlineStatus(!document.hidden);
+    // Create a Presence channel for real-time online status
+    const channel = supabase.channel('online-users');
+    
+    const userStatus = {
+      user_id: user.id,
+      username: profile.name,
+      online_at: new Date().toISOString(),
     };
 
-    // Event listeners for page unload/close
-    const handleBeforeUnload = () => {
-      // Use synchronous approach for unload events
-      const url = `${supabase.getURL()}/rest/v1/profiles?id=eq.${user.id}`;
-      navigator.sendBeacon(
-        url,
-        JSON.stringify({ online: false })
-      );
+    // Setup presence tracking
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        // You can get all present users with channel.presenceState()
+        console.log('Online users:', channel.presenceState());
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('User joined:', key, newPresences);
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        console.log('User left:', key, leftPresences);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track(userStatus);
+        }
+      });
+
+    // Update user offline status when they leave
+    const handleBeforeUnload = async () => {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ online: false })
+          .eq('id', user.id);
+      } catch (error) {
+        console.error('Error updating offline status:', error);
+      }
     };
 
-    // Add event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Set up heartbeat to maintain online status
-    const heartbeatInterval = setInterval(() => {
-      if (!document.hidden) {
-        updateUserOnlineStatus(true);
-      }
-    }, 60000); // Update every minute
-
-    // Clean up
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      clearInterval(heartbeatInterval);
-      updateUserOnlineStatus(false);
+      supabase.removeChannel(channel);
+      
+      // Also update user status to offline on component unmount
+      const updateOfflineStatus = async () => {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ online: false })
+            .eq('id', user.id);
+        } catch (error) {
+          console.error('Error updating offline status:', error);
+        }
+      };
+      
+      updateOfflineStatus();
     };
-  }, [user]);
-};
+  }, [user, profile]);
+}

@@ -6,6 +6,7 @@ import { FindFriendSection } from "@/components/newsfeed/FindFriendSection";
 import { FriendRequestsSection } from "@/components/newsfeed/FriendRequestsSection";
 import { FriendsListSection } from "@/components/newsfeed/FriendsListSection";
 import { FriendSuggestionsSection } from "@/components/newsfeed/FriendSuggestionsSection";
+import { MessagesSection } from "@/components/newsfeed/MessagesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,8 +23,9 @@ const Friends = () => {
           <h1 className="text-2xl font-bold mb-6">Friends</h1>
           
           <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-4">
               <TabsTrigger value="my-friends">My Friends</TabsTrigger>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
               <TabsTrigger value="requests">Requests</TabsTrigger>
               <TabsTrigger value="discover">Discover</TabsTrigger>
             </TabsList>
@@ -31,6 +33,10 @@ const Friends = () => {
             <div className="space-y-6 mt-6">
               <TabsContent value="my-friends">
                 <FriendsListSection />
+              </TabsContent>
+              
+              <TabsContent value="messages">
+                <MessagesSection />
               </TabsContent>
               
               <TabsContent value="requests">
