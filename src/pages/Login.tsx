@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   studentId: z.string().min(1, { message: "Student ID is required." }),
@@ -25,6 +26,7 @@ const formSchema = z.object({
 
 const Login = () => {
   const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -34,8 +36,24 @@ const Login = () => {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    login(values.studentId, values.password);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      await login(values.studentId, values.password);
+      toast({
+        title: "Login successful",
+        description: "You have been logged in successfully",
+      });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login failed",
+        description: error.message || "There was a problem logging in",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -90,8 +108,12 @@ const Login = () => {
               )}
             />
             
-            <Button type="submit" className="w-full bg-sfu-red hover:bg-sfu-red/90">
-              Sign In
+            <Button 
+              type="submit" 
+              className="w-full bg-sfu-red hover:bg-sfu-red/90"
+              disabled={isLoading}
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
         </Form>
