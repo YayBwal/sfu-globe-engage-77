@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+src/components/clubs/ClubCard.tsx
+src/components/clubs/ClubsList.tsx
+src/components/clubs/ClubDetail.tsx
+src/contexts/ClubContext.tsx
 
 # Editor directories and files
 .vscode/*
