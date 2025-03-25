@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import OverviewPanel from './OverviewPanel';
 import ScoresTable from './ScoresTable';
 import LoadingSpinner from './LoadingSpinner';
@@ -21,7 +22,7 @@ const TabContent: React.FC<TabContentProps> = ({
   filteredGameScores
 }) => {
   return (
-    <>
+    <Tabs value={activeTab} className="w-full">
       <TabsContent value="overview" className="mt-0">
         <OverviewPanel 
           isLoading={isLoading}
@@ -46,7 +47,7 @@ const TabContent: React.FC<TabContentProps> = ({
           <ScoresTable scores={filteredGameScores} type="game" />
         )}
       </TabsContent>
-    </>
+    </Tabs>
   );
 };
 
