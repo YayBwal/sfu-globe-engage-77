@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Redo, Copy, Star } from "lucide-react";
+import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Redo, Copy, Star, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAttendance } from "@/contexts/AttendanceContext";
@@ -12,6 +11,8 @@ import QRCodeDisplay from "@/components/attendance/QRCodeDisplay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -27,8 +28,10 @@ const Attendance = () => {
   const [showQRCode, setShowQRCode] = useState(false);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [unauthorizedAttempt, setUnauthorizedAttempt] = useState(false);
 
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const { 
     classes, sessions, attendanceRecords, isTeacher, isLoading,
     fetchClasses, fetchSessions, fetchAttendanceRecords, 
@@ -49,6 +52,23 @@ const Attendance = () => {
       }
     }
   }, [user, isTeacher]);
+
+  // Handle tab change with authorization check
+  const handleViewModeChange = (value: string) => {
+    if (value === 'teacher' && !isTeacher) {
+      setUnauthorizedAttempt(true);
+      toast({
+        title: "Access Denied",
+        description: "Only teachers can access the Teacher View",
+        variant: "destructive",
+      });
+      // Keep the student in Student View
+      return;
+    }
+    
+    setUnauthorizedAttempt(false);
+    setViewMode(value as 'student' | 'teacher');
+  };
 
   // Calendar functions
   const getDaysInMonth = (date: Date) => {
@@ -610,23 +630,44 @@ const Attendance = () => {
             </p>
           </div>
 
+          {unauthorizedAttempt && (
+            <Alert variant="destructive" className="mb-6">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Access Denied</AlertTitle>
+              <AlertDescription>
+                You don't have permission to access the Teacher View. Only verified teachers can access this section.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Tabs 
             defaultValue={isTeacher ? "teacher" : "student"} 
             value={viewMode}
-            onValueChange={(value) => setViewMode(value as 'student' | 'teacher')}
+            onValueChange={handleViewModeChange}
             className="mb-8"
           >
             <div className="flex justify-center">
               <TabsList className="grid grid-cols-2 w-[400px]">
                 <TabsTrigger value="student">Student View</TabsTrigger>
-                <TabsTrigger value="teacher">Teacher View</TabsTrigger>
+                <TabsTrigger value="teacher" disabled={!isTeacher}>Teacher View</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="student">
               <StudentView />
             </TabsContent>
             <TabsContent value="teacher">
-              <TeacherView />
+              {isTeacher ? (
+                <TeacherView />
+              ) : (
+                <div className="bg-white rounded-xl shadow-md p-8 text-center">
+                  <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-sfu-red" />
+                  <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+                  <p className="text-gray-600 mb-4">
+                    The Teacher View is only accessible to authorized teachers. 
+                    As a student, you can use the Student View to scan attendance QR codes and view your own attendance records.
+                  </p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
