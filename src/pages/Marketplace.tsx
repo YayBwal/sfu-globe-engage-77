@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Filter, Search, ShoppingBag, Tag, ArrowUpDown, Grid, List } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Filter, Search, ShoppingBag, Tag, ArrowUpDown, Grid, List, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,78 +8,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-
-// Sample marketplace items
-const MARKETPLACE_ITEMS = [
-  {
-    id: 1,
-    title: "Calculus Textbook - 5th Edition",
-    price: 45,
-    category: "Books",
-    condition: "Good",
-    image: "https://images.unsplash.com/photo-1550399105-c4db5fb85c18?q=80&w=1000&auto=format&fit=crop",
-    seller: "Alex Wong",
-    postedDate: "2 days ago"
-  },
-  {
-    id: 2,
-    title: "Scientific Calculator - Texas Instruments",
-    price: 35,
-    category: "Electronics",
-    condition: "Like New",
-    image: "https://images.unsplash.com/photo-1564466809058-bf4114d55352?q=80&w=1000&auto=format&fit=crop",
-    seller: "Sarah Johnson",
-    postedDate: "3 days ago"
-  },
-  {
-    id: 3,
-    title: "Computer Science Notes Bundle",
-    price: 25,
-    category: "Notes",
-    condition: "N/A",
-    image: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=1000&auto=format&fit=crop",
-    seller: "Mike Chen",
-    postedDate: "1 week ago"
-  },
-  {
-    id: 4,
-    title: "Study Desk - Adjustable Height",
-    price: 80,
-    category: "Furniture",
-    condition: "Used",
-    image: "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?q=80&w=1000&auto=format&fit=crop",
-    seller: "David Kim",
-    postedDate: "5 days ago"
-  },
-  {
-    id: 5,
-    title: "USB Flash Drive - 128GB",
-    price: 18,
-    category: "Electronics",
-    condition: "New",
-    image: "https://images.unsplash.com/photo-1497864149936-d3163f0c0f4b?q=80&w=1000&auto=format&fit=crop",
-    seller: "Emma Liu",
-    postedDate: "Yesterday"
-  },
-  {
-    id: 6,
-    title: "Modern Physics by Serway - 4th Edition",
-    price: 50,
-    category: "Books",
-    condition: "Like New",
-    image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop",
-    seller: "James Wilson",
-    postedDate: "4 days ago"
-  }
-];
+import PostItemForm from "@/components/marketplace/PostItemForm";
+import ItemDetailView from "@/components/marketplace/ItemDetailView";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Marketplace = () => {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isPostItemOpen, setIsPostItemOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const filteredItems = MARKETPLACE_ITEMS.filter(item => {
+  // Fetch marketplace items
+  useEffect(() => {
+    const fetchMarketplaceItems = async () => {
+      setIsLoading(true);
+      try {
+        let query = supabase
+          .from('marketplace_items')
+          .select('*')
+          .eq('is_available', true);
+          
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching marketplace items:", error);
+          return;
+        }
+        
+        setMarketplaceItems(data || []);
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchMarketplaceItems();
+  }, []);
+  
+  // Filter items
+  const filteredItems = marketplaceItems.filter(item => {
     // Filter by search term
     if (searchTerm && !item.title.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
@@ -100,8 +74,38 @@ const Marketplace = () => {
     }
     
     // Default: newest
-    return a.id < b.id ? 1 : -1;
+    return new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime();
   });
+  
+  const handlePostItem = (newItem: any) => {
+    setMarketplaceItems(prev => [newItem, ...prev]);
+  };
+  
+  const handleDeleteItem = () => {
+    setMarketplaceItems(prev => prev.filter(item => item.id !== selectedItem.id));
+    setSelectedItem(null);
+  };
+  
+  const formatPostedDate = (dateString: string) => {
+    const postedDate = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - postedDate.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return "Today";
+    } else if (diffDays === 1) {
+      return "Yesterday";
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+    } else {
+      const months = Math.floor(diffDays / 30);
+      return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -116,7 +120,10 @@ const Marketplace = () => {
                 <p className="text-gray-500">Buy and sell items with fellow students</p>
               </div>
               
-              <Button className="bg-sfu-red hover:bg-sfu-red/90">
+              <Button 
+                className="bg-sfu-red hover:bg-sfu-red/90"
+                onClick={() => setIsPostItemOpen(true)}
+              >
                 <ShoppingBag className="mr-2 h-4 w-4" />
                 Post an Item
               </Button>
@@ -146,6 +153,7 @@ const Marketplace = () => {
                     <SelectItem value="Notes">Notes</SelectItem>
                     <SelectItem value="Furniture">Furniture</SelectItem>
                     <SelectItem value="Clothing">Clothing</SelectItem>
+                    <SelectItem value="Services">Services</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -177,7 +185,12 @@ const Marketplace = () => {
               </div>
             </div>
             
-            {filteredItems.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 text-sfu-red animate-spin mb-4" />
+                <p className="text-gray-500">Loading marketplace items...</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                 <h3 className="font-medium text-gray-800 mb-2">No items found</h3>
@@ -196,28 +209,42 @@ const Marketplace = () => {
                 {filteredItems.map((item) => (
                   <Card 
                     key={item.id} 
-                    className={`overflow-hidden transition-all hover:shadow-md ${viewMode === "list" ? "flex flex-col md:flex-row" : ""}`}
+                    className={`overflow-hidden transition-all hover:shadow-md ${viewMode === "list" ? "flex flex-col md:flex-row" : ""} cursor-pointer`}
+                    onClick={() => setSelectedItem(item)}
                   >
                     <div 
                       className={`${viewMode === "list" ? "md:w-1/3" : "w-full"} h-48 bg-cover bg-center`}
-                      style={{ backgroundImage: `url(${item.image})` }}
-                    />
+                      style={{ 
+                        backgroundImage: item.image_url ? `url(${item.image_url})` : 'none',
+                        backgroundColor: !item.image_url ? '#f4f4f4' : 'transparent',
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      {!item.image_url && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <p className="text-gray-400">No image</p>
+                        </div>
+                      )}
+                    </div>
                     <CardContent className={`p-4 ${viewMode === "list" ? "md:w-2/3" : ""}`}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-lg line-clamp-1">{item.title}</h3>
-                        <span className="font-bold text-sfu-red">${item.price}</span>
+                        <span className="font-bold text-sfu-red">{item.price} {item.currency}</span>
                       </div>
                       <div className="flex flex-wrap gap-2 mb-3">
                         <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
                           {item.category}
                         </span>
-                        <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
-                          {item.condition}
-                        </span>
+                        {item.condition && (
+                          <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                            {item.condition}
+                          </span>
+                        )}
                       </div>
                       <div className="flex justify-between items-center text-sm text-gray-500">
-                        <span>{item.seller}</span>
-                        <span>{item.postedDate}</span>
+                        <span>{item.seller_name}</span>
+                        <span>{formatPostedDate(item.posted_date)}</span>
                       </div>
                       <Button variant="outline" className="w-full mt-4">
                         View Details
@@ -232,6 +259,23 @@ const Marketplace = () => {
       </main>
       
       <Footer />
+      
+      {/* Post Item Dialog */}
+      <PostItemForm 
+        isOpen={isPostItemOpen}
+        onClose={() => setIsPostItemOpen(false)}
+        onItemPosted={handlePostItem}
+      />
+      
+      {/* Item Detail Dialog */}
+      {selectedItem && (
+        <ItemDetailView 
+          item={selectedItem}
+          isOpen={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onItemDeleted={handleDeleteItem}
+        />
+      )}
     </div>
   );
 };
