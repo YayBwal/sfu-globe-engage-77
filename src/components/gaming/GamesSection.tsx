@@ -138,15 +138,13 @@ const GamesSection: React.FC = () => {
           setFlippedCards([]);
           setMatchedPairs(matchedPairs + 1);
           
-          // Check if all pairs are matched
+          // Check if game is completed
           if (matchedPairs + 1 === 8) {
             setGameCompleted(true);
-            setGameStarted(false);
             
             // Save score if user is logged in
             if (user) {
-              const finalTime = gameTime + 1; // Add 1 second for the delay
-              const score = Math.max(1000 - (moves * 10) - (finalTime * 5), 100);
+              const score = Math.max(1000 - (moves * 10) - (gameTime * 2), 100);
               
               addGameScore({
                 userId: user.id,
@@ -158,7 +156,7 @@ const GamesSection: React.FC = () => {
               });
             }
           }
-        }, 600);
+        }, 500);
       } else {
         // No match
         setTimeout(() => {
@@ -171,7 +169,7 @@ const GamesSection: React.FC = () => {
       }
     }
   };
-
+  
   // ----------------
   // Reaction Game Logic
   // ----------------
@@ -179,8 +177,8 @@ const GamesSection: React.FC = () => {
     setReactionState('waiting');
     setReactionTime(null);
     
-    // Random delay between 2-6 seconds
-    const delay = Math.floor(Math.random() * 4000) + 2000;
+    // Random delay between 1-5 seconds
+    const delay = Math.floor(Math.random() * 4000) + 1000;
     
     const timeoutId = setTimeout(() => {
       setReactionState('ready');
@@ -197,20 +195,17 @@ const GamesSection: React.FC = () => {
         clearTimeout(reactionTimeoutId);
       }
       setReactionState('clicked');
-      setTimeout(() => {
-        startReactionGame();
-      }, 1500);
     } else if (reactionState === 'ready') {
-      // Measure reaction time
+      // Good click, calculate time
       const endTime = Date.now();
-      const reactionTimeMs = reactionTimestamp ? endTime - reactionTimestamp : 0;
-      setReactionTime(reactionTimeMs);
+      const time = reactionTimestamp ? endTime - reactionTimestamp : 0;
+      setReactionTime(time);
       setReactionState('results');
       
       // Save score if user is logged in
       if (user) {
-        // Convert reaction time to a score (faster = higher score)
-        const score = Math.max(1000 - reactionTimeMs, 100);
+        // Convert reaction time to score (faster = higher score)
+        const score = Math.max(1000 - time, 100);
         
         addGameScore({
           userId: user.id,
@@ -221,10 +216,12 @@ const GamesSection: React.FC = () => {
           level: 1
         });
       }
-    } else if (reactionState === 'results') {
-      // Start a new round
-      startReactionGame();
     }
+  };
+  
+  // Return to game list
+  const returnToList = () => {
+    setGameState('list');
   };
 
   return (
@@ -234,44 +231,42 @@ const GamesSection: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="max-w-3xl mx-auto"
         >
           <div className="text-center mb-8">
             <div className="w-20 h-20 rounded-full bg-sfu-red/10 text-sfu-red flex items-center justify-center mx-auto mb-6">
               <Gamepad size={32} />
             </div>
-            <h2 className="text-2xl font-display font-bold mb-2">Brain Training Games</h2>
-            <p className="text-gray-600">Take a study break with these fun, brain-stimulating mini-games designed to sharpen your cognitive skills.</p>
+            <h2 className="text-2xl font-display font-bold mb-2">Mini Games</h2>
+            <p className="text-gray-600">Take a break and have fun with these brain-training games.</p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {gamesData.map(game => (
               <motion.div 
                 key={game.id}
-                whileHover={{ y: -5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-300"
               >
-                <div className="bg-gradient-to-br from-sfu-red/10 to-sfu-red/5 p-6">
-                  <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center mb-4 text-sfu-red">
+                <div className="p-5">
+                  <div className="w-12 h-12 rounded-full bg-sfu-red/10 text-sfu-red flex items-center justify-center mb-4">
                     {game.icon}
                   </div>
+                  
                   <h3 className="font-display font-semibold text-lg mb-2">{game.name}</h3>
-                  <p className="text-sm text-gray-600 mb-4">{game.description}</p>
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Gamepad size={14} />
-                      <span>{game.difficulty}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} />
-                      <span>{game.timeToComplete}</span>
+                  <p className="text-gray-600 text-sm mb-4">{game.description}</p>
+                  
+                  <div className="flex items-center justify-between mb-4 text-xs text-gray-500">
+                    <div>Difficulty: {game.difficulty}</div>
+                    <div className="flex items-center">
+                      <Clock size={12} className="mr-1" />
+                      {game.timeToComplete}
                     </div>
                   </div>
-                </div>
-                
-                <div className="p-4">
+                  
                   <Button 
-                    className="w-full bg-sfu-red hover:bg-sfu-red/90 text-white"
+                    className="w-full bg-sfu-red text-white hover:bg-sfu-red/90"
                     onClick={() => startGame(game.id)}
                   >
                     Play Now
@@ -279,33 +274,6 @@ const GamesSection: React.FC = () => {
                 </div>
               </motion.div>
             ))}
-          </div>
-          
-          <div className="mt-12 bg-sfu-lightgray/30 rounded-xl p-6">
-            <h2 className="text-2xl font-display font-semibold mb-4">Benefits of Brain Games</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  title: "Cognitive Enhancement",
-                  description: "Improve memory, attention, reaction time, and problem-solving skills."
-                },
-                {
-                  title: "Stress Reduction",
-                  description: "Take a break from studying and reduce mental fatigue with fun activities."
-                },
-                {
-                  title: "Skill Building",
-                  description: "Develop skills that are transferable to academic and professional settings."
-                }
-              ].map((benefit, index) => (
-                <div key={index} className="bg-white p-5 rounded-lg shadow-sm">
-                  <h3 className="font-medium text-lg mb-2">{benefit.title}</h3>
-                  <p className="text-gray-600 text-sm">
-                    {benefit.description}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </motion.div>
       )}
@@ -315,13 +283,17 @@ const GamesSection: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="max-w-2xl mx-auto"
+          className="max-w-3xl mx-auto"
         >
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="bg-sfu-black text-white p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Brain size={20} className="text-sfu-red" />
-                <h2 className="font-display font-semibold">Memory Match</h2>
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div className="text-sm">Memory Match</div>
               </div>
               
               <div className="flex items-center gap-4">
@@ -330,101 +302,101 @@ const GamesSection: React.FC = () => {
                   <span>{formatTime(gameTime)}</span>
                 </div>
                 
-                <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs">
-                  <Zap size={14} />
-                  <span>Moves: {moves}</span>
+                <div className="px-2 py-1 bg-white/10 rounded text-xs">
+                  Moves: {moves}
                 </div>
               </div>
             </div>
             
-            {gameCompleted ? (
-              <div className="p-8 text-center">
-                <motion.div 
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", duration: 0.5 }}
-                  className="w-20 h-20 bg-sfu-red/10 rounded-full flex items-center justify-center text-sfu-red mx-auto mb-6"
-                >
-                  <Trophy size={32} />
-                </motion.div>
-                
-                <h2 className="text-2xl font-display font-bold mb-4">Well Done!</h2>
-                
-                <div className="grid grid-cols-2 gap-6 max-w-xs mx-auto mb-6">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-gray-500 text-sm mb-1">Time</div>
-                    <div className="text-2xl font-bold">{formatTime(gameTime)}</div>
+            <div className="p-6">
+              {!gameCompleted ? (
+                <>
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-500">
+                        Pairs: {matchedPairs}/8
+                      </span>
+                      <span className="text-sm font-medium text-gray-500">
+                        Moves: {moves}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-sfu-red transition-all duration-300" 
+                        style={{ width: `${(matchedPairs / 8) * 100}%` }}
+                      ></div>
+                    </div>
                   </div>
                   
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <div className="text-gray-500 text-sm mb-1">Moves</div>
-                    <div className="text-2xl font-bold">{moves}</div>
+                  <div className="grid grid-cols-4 gap-3 mb-6">
+                    {memoryGrid.map((card, index) => (
+                      <motion.div
+                        key={index}
+                        whileHover={{ scale: card.flipped || card.matched ? 1 : 1.05 }}
+                        whileTap={{ scale: card.flipped || card.matched ? 1 : 0.95 }}
+                        className={`aspect-square rounded-lg cursor-pointer flex items-center justify-center text-xl font-bold transition-colors duration-300 ${
+                          card.matched ? 'bg-green-100 text-green-600 border-2 border-green-300' : 
+                          card.flipped ? 'bg-sfu-red text-white' : 
+                          'bg-white border-2 border-gray-200 text-transparent hover:border-sfu-red/50'
+                        }`}
+                        onClick={() => handleCardFlip(index)}
+                      >
+                        {card.flipped || card.matched ? card.value : '?'}
+                      </motion.div>
+                    ))}
                   </div>
-                </div>
-                
-                <div className="flex flex-col md:flex-row gap-4 justify-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={initMemoryGame}
-                  >
-                    Play Again
-                  </Button>
                   
-                  <Button 
-                    className="bg-sfu-red text-white hover:bg-sfu-red/90"
-                    onClick={() => setGameState('list')}
-                  >
-                    Back to Games
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6">
-                {!gameStarted && (
-                  <div className="mb-4 text-center text-sm text-gray-600">
-                    Click any card to begin the game. Find all matching pairs to win!
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-4 gap-3">
-                  {memoryGrid.map((card, index) => (
-                    <motion.div 
-                      key={index}
-                      whileHover={{ scale: card.flipped || card.matched ? 1 : 1.05 }}
-                      whileTap={{ scale: card.flipped || card.matched ? 1 : 0.95 }}
-                      className={`aspect-square rounded-lg cursor-pointer transition-all duration-300 ${
-                        card.flipped || card.matched 
-                          ? 'bg-white border-2 border-gray-200 text-gray-800' 
-                          : 'bg-gradient-to-br from-sfu-red/80 to-sfu-red hover:from-sfu-red hover:to-sfu-red/90'
-                      } ${card.matched ? 'opacity-70' : 'opacity-100'}`}
-                      onClick={() => handleCardFlip(index)}
+                  <div className="flex justify-center">
+                    <Button 
+                      variant="outline"
+                      onClick={returnToList}
                     >
-                      <div className="w-full h-full flex items-center justify-center">
-                        {(card.flipped || card.matched) && (
-                          <span className="text-2xl font-bold">{card.value}</span>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 flex justify-between">
-                  <Button 
-                    variant="outline" 
-                    onClick={initMemoryGame}
-                  >
-                    Reset Game
-                  </Button>
+                      Exit Game
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-20 h-20 bg-sfu-red/10 rounded-full flex items-center justify-center text-sfu-red mx-auto mb-6">
+                    <Trophy size={32} />
+                  </div>
                   
-                  <Button 
-                    variant="outline"
-                    onClick={() => setGameState('list')}
-                  >
-                    Exit Game
-                  </Button>
+                  <h2 className="text-2xl font-display font-bold mb-4">Congratulations!</h2>
+                  
+                  <p className="text-gray-600 mb-8">
+                    You completed the memory game! 
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-6 max-w-xs mx-auto mb-8">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="text-gray-500 text-sm mb-1">Moves</div>
+                      <div className="text-3xl font-bold">{moves}</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="text-gray-500 text-sm mb-1">Time</div>
+                      <div className="text-3xl font-bold">{formatTime(gameTime)}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row gap-4 justify-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={initMemoryGame}
+                    >
+                      Play Again
+                    </Button>
+                    
+                    <Button 
+                      className="bg-sfu-red text-white hover:bg-sfu-red/90"
+                      onClick={returnToList}
+                    >
+                      Back to Games
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </motion.div>
       )}
@@ -434,124 +406,99 @@ const GamesSection: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="max-w-2xl mx-auto"
+          className="max-w-3xl mx-auto"
         >
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="bg-sfu-black text-white p-3 flex items-center gap-3">
-              <Zap size={20} className="text-sfu-red" />
-              <h2 className="font-display font-semibold">Reaction Time</h2>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-sfu-black text-white p-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div className="text-sm">Reaction Time</div>
+              </div>
             </div>
             
-            <div className="p-8">
+            <div className="p-6">
               {reactionState === 'waiting' && (
                 <div 
-                  className="h-64 bg-gray-500 rounded-lg flex items-center justify-center cursor-pointer"
+                  className="bg-red-500 h-60 flex items-center justify-center rounded-lg cursor-pointer text-white"
                   onClick={handleReactionClick}
                 >
-                  <div className="text-center text-white">
-                    <p className="text-xl font-medium mb-2">Wait for green...</p>
-                    <p className="text-sm">Click as soon as the color changes</p>
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold mb-2">Wait for green...</h3>
+                    <p>Click when the color changes</p>
                   </div>
                 </div>
               )}
               
               {reactionState === 'ready' && (
                 <div 
-                  className="h-64 bg-green-500 rounded-lg flex items-center justify-center cursor-pointer"
+                  className="bg-green-500 h-60 flex items-center justify-center rounded-lg cursor-pointer text-white animate-pulse"
                   onClick={handleReactionClick}
                 >
-                  <div className="text-center text-white">
-                    <p className="text-3xl font-bold mb-2">CLICK NOW!</p>
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold mb-2">CLICK NOW!</h3>
                   </div>
                 </div>
               )}
               
               {reactionState === 'clicked' && (
-                <div className="h-64 bg-red-500 rounded-lg flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <p className="text-xl font-medium mb-2">Too early!</p>
-                    <p className="text-sm">Wait for the green color next time</p>
+                <div className="bg-yellow-500 h-60 flex items-center justify-center rounded-lg text-white">
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold mb-2">Too early!</h3>
+                    <p className="mb-4">You clicked before the color changed.</p>
+                    <Button
+                      className="bg-white text-yellow-500 hover:bg-white/90"
+                      onClick={startReactionGame}
+                    >
+                      Try Again
+                    </Button>
                   </div>
                 </div>
               )}
               
-              {reactionState === 'results' && reactionTime !== null && (
-                <div className="h-64 flex flex-col items-center justify-center">
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", duration: 0.5 }}
-                    className="w-20 h-20 bg-sfu-red/10 rounded-full flex items-center justify-center text-sfu-red mb-6"
-                  >
-                    <Zap size={32} />
-                  </motion.div>
-                  
-                  <h3 className="text-2xl font-bold mb-2">Your reaction time</h3>
-                  <p className="text-4xl font-bold text-sfu-red mb-6">{reactionTime} ms</p>
-                  
-                  <div className="text-sm text-gray-500 mb-6">
-                    {reactionTime < 200 
-                      ? "Incredible reflexes!" 
-                      : reactionTime < 300 
-                        ? "Great reaction time!" 
-                        : reactionTime < 500 
-                          ? "Good reaction time"
-                          : "Keep practicing to improve"}
+              {reactionState === 'results' && (
+                <div className="bg-blue-500 h-60 flex items-center justify-center rounded-lg text-white">
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold mb-2">Your reaction time</h3>
+                    <p className="text-4xl font-bold mb-4">{reactionTime}ms</p>
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        className="bg-white text-blue-500 hover:bg-white/90"
+                        onClick={startReactionGame}
+                      >
+                        Try Again
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-white text-white hover:bg-white/10"
+                        onClick={returnToList}
+                      >
+                        Exit
+                      </Button>
+                    </div>
                   </div>
-                  
+                </div>
+              )}
+              
+              <div className="mt-6 text-center">
+                <p className="text-gray-500 text-sm mb-4">
+                  The average reaction time is between 200-250 milliseconds.
+                </p>
+                
+                {reactionState !== 'results' && (
                   <Button 
-                    className="bg-sfu-red text-white hover:bg-sfu-red/90"
-                    onClick={handleReactionClick}
+                    variant="outline"
+                    onClick={returnToList}
+                    className="mt-2"
                   >
-                    Try Again
+                    Exit Game
                   </Button>
-                </div>
-              )}
-              
-              <div className="mt-6 flex justify-end">
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    if (reactionTimeoutId) {
-                      clearTimeout(reactionTimeoutId);
-                    }
-                    setGameState('list');
-                  }}
-                >
-                  Back to Games
-                </Button>
+                )}
               </div>
             </div>
-          </div>
-        </motion.div>
-      )}
-      
-      {gameState === 'word' && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className="max-w-2xl mx-auto text-center"
-        >
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="w-20 h-20 bg-sfu-red/10 rounded-full flex items-center justify-center text-sfu-red mx-auto mb-6">
-              <History size={32} />
-            </div>
-            
-            <h2 className="text-2xl font-display font-bold mb-4">
-              Word Scramble
-            </h2>
-            
-            <p className="text-gray-600 mb-6">
-              Coming soon! We're still developing this exciting brain training game.
-            </p>
-            
-            <Button 
-              className="bg-sfu-red text-white hover:bg-sfu-red/90"
-              onClick={() => setGameState('list')}
-            >
-              Back to Games
-            </Button>
           </div>
         </motion.div>
       )}

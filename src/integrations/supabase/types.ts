@@ -429,6 +429,42 @@ export type Database = {
           },
         ]
       }
+      game_scores: {
+        Row: {
+          created_at: string
+          game_id: string
+          game_name: string
+          id: string
+          level: number
+          profile_pic: string | null
+          score: number
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          game_name: string
+          id?: string
+          level: number
+          profile_pic?: string | null
+          score: number
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          game_name?: string
+          id?: string
+          level?: number
+          profile_pic?: string | null
+          score?: number
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       marketplace_items: {
         Row: {
           category: string
@@ -701,7 +737,9 @@ export type Database = {
           name: string
           online: boolean | null
           profile_pic: string | null
+          role: string | null
           student_id: string
+          user_role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
           availability?: string | null
@@ -716,7 +754,9 @@ export type Database = {
           name: string
           online?: boolean | null
           profile_pic?: string | null
+          role?: string | null
           student_id: string
+          user_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
           availability?: string | null
@@ -731,7 +771,39 @@ export type Database = {
           name?: string
           online?: boolean | null
           profile_pic?: string | null
+          role?: string | null
           student_id?: string
+          user_role?: Database["public"]["Enums"]["user_role"] | null
+        }
+        Relationships: []
+      }
+      quiz_questions: {
+        Row: {
+          category: string
+          correct_answer: number
+          created_at: string
+          difficulty: string
+          id: string
+          options: Json
+          question: string
+        }
+        Insert: {
+          category: string
+          correct_answer: number
+          created_at?: string
+          difficulty: string
+          id?: string
+          options: Json
+          question: string
+        }
+        Update: {
+          category?: string
+          correct_answer?: number
+          created_at?: string
+          difficulty?: string
+          id?: string
+          options?: Json
+          question?: string
         }
         Relationships: []
       }
@@ -775,6 +847,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quiz_scores: {
+        Row: {
+          created_at: string
+          id: string
+          profile_pic: string | null
+          quiz_id: string
+          quiz_name: string
+          score: number
+          time_taken: number
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_pic?: string | null
+          quiz_id: string
+          quiz_name: string
+          score: number
+          time_taken: number
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_pic?: string | null
+          quiz_id?: string
+          quiz_name?: string
+          score?: number
+          time_taken?: number
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
       }
       quizzes: {
         Row: {
@@ -956,6 +1064,7 @@ export type Database = {
     }
     Enums: {
       club_role: "coordinator" | "assistant" | "member"
+      user_role: "student" | "teacher"
     }
     CompositeTypes: {
       [_ in never]: never
