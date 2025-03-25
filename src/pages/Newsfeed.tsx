@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,18 +13,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/components/newsfeed/PostItem";
 import { FriendRequestsSection } from "@/components/newsfeed/FriendRequestsSection";
-import { FriendsListSection } from "@/components/newsfeed/FriendsListSection";
-import { FriendSuggestionsSection } from "@/components/newsfeed/FriendSuggestionsSection";
-import { FindFriendSection } from "@/components/newsfeed/FindFriendSection";
+import { Link, useNavigate } from "react-router-dom";
 
 const Newsfeed = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("feed");
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   
   // Fetch posts and related data
   useEffect(() => {
@@ -137,6 +138,20 @@ const Newsfeed = () => {
         });
         
         setPosts(formattedPosts);
+        
+        // Check for pending requests count if user is logged in
+        if (user) {
+          const { count, error: countError } = await supabase
+            .from('connections')
+            .select('id', { count: 'exact', head: true })
+            .eq('friend_id', user.id)
+            .eq('status', 'pending');
+            
+          if (!countError && count !== null) {
+            setPendingRequestsCount(count);
+          }
+        }
+        
       } catch (error) {
         console.error("Error fetching posts:", error);
         toast({
@@ -220,7 +235,7 @@ const Newsfeed = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, [toast, user]);
   
   // Fetch suggested users
   useEffect(() => {
@@ -276,14 +291,6 @@ const Newsfeed = () => {
       
       <main className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mb-6">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-              <TabsTrigger value="feed">Feed</TabsTrigger>
-              <TabsTrigger value="friends">Friends</TabsTrigger>
-              <TabsTrigger value="discover">Discover</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Left sidebar */}
             <div className="hidden lg:block">
@@ -292,71 +299,80 @@ const Newsfeed = () => {
             
             {/* Main content */}
             <div className="lg:col-span-2">
-              <TabsContent value="feed" className="mt-0">
-                {/* Friend requests section - only on feed tab */}
-                <FriendRequestsSection />
-                
-                {/* Post creation card */}
-                <CreatePostForm onPostCreated={handlePostCreated} />
-                
-                {/* Filters */}
-                <div className="mb-6">
-                  <Tabs defaultValue={activeFilter} onValueChange={setActiveFilter}>
-                    <TabsList className="w-full bg-white">
-                      <TabsTrigger value="all" className="flex-1">All Posts</TabsTrigger>
-                      <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
-                      <TabsTrigger value="text" className="flex-1">Text Only</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+              {/* Friend requests alert if there are pending requests */}
+              {pendingRequestsCount > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-blue-700">
+                      You have {pendingRequestsCount} pending friend request{pendingRequestsCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="border-blue-300 text-blue-700"
+                    onClick={() => navigate('/friends?tab=requests')}
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" /> View Requests
+                  </Button>
                 </div>
-                
-                {/* Feed posts */}
-                <PostsFeed 
-                  posts={posts}
-                  isLoading={isLoading}
-                  activeFilter={activeFilter}
-                  onPostDeleted={handlePostDeleted}
-                />
-              </TabsContent>
+              )}
               
-              <TabsContent value="friends" className="mt-0 space-y-6">
-                {/* Friend management sections */}
-                <FriendRequestsSection />
-                <FriendsListSection />
-              </TabsContent>
+              {/* Social connections card */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-lg">Social</h2>
+                  <Link 
+                    to="/friends" 
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    View All
+                  </Link>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => navigate('/friends?tab=my-friends')}
+                  >
+                    My Friends
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => navigate('/friends?tab=discover')}
+                  >
+                    Find Friends
+                  </Button>
+                </div>
+              </div>
               
-              <TabsContent value="discover" className="mt-0 space-y-6">
-                {/* Friend discovery sections */}
-                <FindFriendSection />
-                <FriendSuggestionsSection />
-              </TabsContent>
+              {/* Post creation card */}
+              <CreatePostForm onPostCreated={handlePostCreated} />
+              
+              {/* Filters */}
+              <div className="mb-6">
+                <Tabs defaultValue={activeFilter} onValueChange={setActiveFilter}>
+                  <TabsList className="w-full bg-white">
+                    <TabsTrigger value="all" className="flex-1">All Posts</TabsTrigger>
+                    <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
+                    <TabsTrigger value="text" className="flex-1">Text Only</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              
+              {/* Feed posts */}
+              <PostsFeed 
+                posts={posts}
+                isLoading={isLoading}
+                activeFilter={activeFilter}
+                onPostDeleted={handlePostDeleted}
+              />
             </div>
             
             {/* Right sidebar */}
             <div className="hidden lg:block">
               <RightSidebar />
-            </div>
-            
-            {/* Mobile bottom tabs */}
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around">
-              <button 
-                className={`p-2 rounded-full ${activeTab === 'feed' ? 'bg-gray-100' : ''}`}
-                onClick={() => setActiveTab('feed')}
-              >
-                Feed
-              </button>
-              <button 
-                className={`p-2 rounded-full ${activeTab === 'friends' ? 'bg-gray-100' : ''}`}
-                onClick={() => setActiveTab('friends')}
-              >
-                Friends
-              </button>
-              <button 
-                className={`p-2 rounded-full ${activeTab === 'discover' ? 'bg-gray-100' : ''}`}
-                onClick={() => setActiveTab('discover')}
-              >
-                Discover
-              </button>
             </div>
           </div>
         </div>

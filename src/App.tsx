@@ -12,6 +12,7 @@ import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
+import Friends from '@/pages/Friends';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -74,6 +75,7 @@ function App() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/marketplace" element={<Marketplace />} />
                   <Route path="/newsfeed" element={<Newsfeed />} />
+                  <Route path="/friends" element={<Friends />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />

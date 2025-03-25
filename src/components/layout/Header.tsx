@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
+import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -66,6 +66,7 @@ const Header: React.FC = () => {
     { name: 'Attendance', path: '/attendance' },
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Newsfeed', path: '/newsfeed' },
+    { name: 'Friends', path: '/friends' },
   ];
 
   const isActive = (path: string) => {
@@ -83,6 +84,7 @@ const Header: React.FC = () => {
       )}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Logo */}
         <Link 
           to="/" 
           className="flex items-center space-x-2"
@@ -98,6 +100,7 @@ const Header: React.FC = () => {
           </span>
         </Link>
 
+        {/* Desktop Nav */}
         <nav className="hidden md:flex items-center space-x-6">
           {navItems.map(item => (
             <Link
@@ -116,6 +119,7 @@ const Header: React.FC = () => {
           ))}
         </nav>
 
+        {/* User Actions */}
         <div className="hidden md:flex items-center space-x-4">
           {isAuthenticated && <NotificationDropdown />}
           
@@ -153,6 +157,7 @@ const Header: React.FC = () => {
           )}
         </div>
 
+        {/* Mobile Menu Button */}
         <button 
           className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -209,6 +214,12 @@ const Header: React.FC = () => {
               className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
             >
               <Radio size={20} />
+            </Link>
+            <Link 
+              to="/friends" 
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
+            >
+              <Users size={20} />
             </Link>
             <Link 
               to="/attendance" 

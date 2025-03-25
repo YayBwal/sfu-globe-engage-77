@@ -8,6 +8,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { UserProfileView } from "@/components/friends/UserProfileView";
 
 interface UserResult {
   id: string;
@@ -23,6 +25,8 @@ export const FindFriendSection = () => {
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<Record<string, boolean>>({});
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Handle search for users
   const handleSearch = async () => {
@@ -112,6 +116,17 @@ export const FindFriendSection = () => {
         description: 'Your friend request has been sent'
       });
       
+      // Send notification to the user
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: friendId,
+          title: 'New Friend Request',
+          message: `You have received a friend request`,
+          source: 'friend',
+          type: 'info'
+        });
+      
     } catch (error) {
       console.error('Error sending friend request:', error);
       toast({
@@ -120,6 +135,11 @@ export const FindFriendSection = () => {
         variant: 'destructive'
       });
     }
+  };
+
+  const viewUserProfile = (userId: string) => {
+    setSelectedUserId(userId);
+    setDialogOpen(true);
   };
 
   return (
@@ -153,7 +173,10 @@ export const FindFriendSection = () => {
           <div className="space-y-3">
             {searchResults.map(result => (
               <div key={result.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
+                <div 
+                  className="flex items-center space-x-3 cursor-pointer"
+                  onClick={() => viewUserProfile(result.id)}
+                >
                   <Avatar>
                     <AvatarImage src={result.profile_pic} />
                     <AvatarFallback>{result.name.charAt(0)}</AvatarFallback>
@@ -186,6 +209,23 @@ export const FindFriendSection = () => {
           </div>
         ) : null}
       </CardContent>
+
+      <Dialog 
+        open={dialogOpen} 
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedUserId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {selectedUserId && (
+            <UserProfileView 
+              userId={selectedUserId} 
+              onClose={() => setDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
