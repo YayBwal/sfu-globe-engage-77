@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,11 +69,15 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
 
-  // Check if the user is a teacher (simplified logic - can be enhanced based on actual app needs)
+  // Check if the user is a teacher based on profile data
   useEffect(() => {
     if (profile) {
-      // This is a simple check - you might want to implement a more robust role-based check
-      setIsTeacher(profile.major === 'Faculty' || profile.batch === 'Teacher');
+      // Check for explicit teacher role or faculty designation
+      setIsTeacher(
+        profile.major === 'Faculty' || 
+        profile.batch === 'Teacher' || 
+        profile.batch === 'teacher'
+      );
     }
   }, [profile]);
 
@@ -340,7 +345,8 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
         .from('class_sessions')
         .update({
           location: `${lat},${lng}`,
-          location_radius: radius
+          location_radius: radius,
+          qr_expiry_time: 600 // Set QR code expiry time to 10 minutes (600 seconds)
         })
         .eq('id', sessionId);
       
@@ -413,7 +419,7 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
       
       toast({
         title: "QR Code generated",
-        description: "The QR code is valid for 5 minutes.",
+        description: "The QR code is valid for 10 minutes.",
       });
       
       return data;

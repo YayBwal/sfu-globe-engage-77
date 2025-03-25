@@ -14,7 +14,7 @@ interface QRCodeDisplayProps {
 
 const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => {
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [loading, setLoading] = useState(false);
   const [locationRadius, setLocationRadius] = useState(50); // Default radius: 50 meters
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -68,7 +68,7 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
     try {
       const code = await generateQRCode(sessionId);
       setQrCode(code);
-      setTimeLeft(300); // Reset timer to 5 minutes
+      setTimeLeft(600); // Reset timer to 10 minutes
       
       // Update location constraints if available
       if (currentLocation) {
