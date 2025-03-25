@@ -13,6 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -29,6 +33,9 @@ const Attendance = () => {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [unauthorizedAttempt, setUnauthorizedAttempt] = useState(false);
+  const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [passcodeError, setPasscodeError] = useState(false);
 
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -38,6 +45,9 @@ const Attendance = () => {
     fetchUserAttendance, userAttendance, userEnrollments,
     fetchUserEnrollments
   } = useAttendance();
+
+  // Teacher passcode - in a real app, this would be stored in the database or environment variables
+  const TEACHER_PASSCODE = "123456";
 
   useEffect(() => {
     if (user) {
@@ -53,21 +63,47 @@ const Attendance = () => {
     }
   }, [user, isTeacher]);
 
-  // Handle tab change with authorization check
+  // Handle tab change with passcode dialog
   const handleViewModeChange = (value: string) => {
-    if (value === 'teacher' && !isTeacher) {
-      setUnauthorizedAttempt(true);
-      toast({
-        title: "Access Denied",
-        description: "Only teachers can access the Teacher View",
-        variant: "destructive",
-      });
-      // Keep the student in Student View
+    if (value === 'teacher') {
+      if (isTeacher) {
+        // Teachers can directly access the view
+        setViewMode('teacher');
+        setUnauthorizedAttempt(false);
+      } else {
+        // Non-teachers need to enter a passcode
+        setShowPasscodeDialog(true);
+      }
       return;
     }
     
+    // For student view, no passcode needed
     setUnauthorizedAttempt(false);
-    setViewMode(value as 'student' | 'teacher');
+    setViewMode('student');
+  };
+
+  // Handle passcode submission
+  const handlePasscodeSubmit = () => {
+    if (passcode === TEACHER_PASSCODE) {
+      // Correct passcode
+      setViewMode('teacher');
+      setUnauthorizedAttempt(false);
+      setShowPasscodeDialog(false);
+      setPasscodeError(false);
+      toast({
+        title: "Access Granted",
+        description: "You now have temporary access to the Teacher View",
+      });
+    } else {
+      // Wrong passcode
+      setPasscodeError(true);
+      setUnauthorizedAttempt(true);
+      toast({
+        title: "Access Denied",
+        description: "The passcode you entered is incorrect",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calendar functions
@@ -635,7 +671,9 @@ const Attendance = () => {
               <ShieldAlert className="h-4 w-4" />
               <AlertTitle>Access Denied</AlertTitle>
               <AlertDescription>
-                You don't have permission to access the Teacher View. Only verified teachers can access this section.
+                {passcodeError 
+                  ? "The passcode you entered is incorrect. Please try again or use the Student View."
+                  : "You don't have permission to access the Teacher View. You need a valid passcode to access this section."}
               </AlertDescription>
             </Alert>
           )}
@@ -649,25 +687,14 @@ const Attendance = () => {
             <div className="flex justify-center">
               <TabsList className="grid grid-cols-2 w-[400px]">
                 <TabsTrigger value="student">Student View</TabsTrigger>
-                <TabsTrigger value="teacher" disabled={!isTeacher}>Teacher View</TabsTrigger>
+                <TabsTrigger value="teacher">Teacher View</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="student">
               <StudentView />
             </TabsContent>
             <TabsContent value="teacher">
-              {isTeacher ? (
-                <TeacherView />
-              ) : (
-                <div className="bg-white rounded-xl shadow-md p-8 text-center">
-                  <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-sfu-red" />
-                  <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-                  <p className="text-gray-600 mb-4">
-                    The Teacher View is only accessible to authorized teachers. 
-                    As a student, you can use the Student View to scan attendance QR codes and view your own attendance records.
-                  </p>
-                </div>
-              )}
+              <TeacherView />
             </TabsContent>
           </Tabs>
         </div>
@@ -692,6 +719,53 @@ const Attendance = () => {
           onClose={() => setShowQRCode(false)}
         />
       )}
+      
+      {/* Passcode Dialog */}
+      <Dialog open={showPasscodeDialog} onOpenChange={setShowPasscodeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Teacher Access Passcode</DialogTitle>
+            <DialogDescription>
+              Please enter the passcode to access the Teacher View
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col space-y-4 py-4">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="passcode">Passcode</Label>
+              <Input 
+                id="passcode" 
+                type="password" 
+                placeholder="Enter passcode" 
+                value={passcode}
+                onChange={(e) => {
+                  setPasscode(e.target.value);
+                  setPasscodeError(false);
+                }}
+                className={passcodeError ? "border-red-500" : ""}
+              />
+              {passcodeError && <p className="text-red-500 text-sm">Incorrect passcode</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowPasscodeDialog(false);
+                setPasscode("");
+                setPasscodeError(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePasscodeSubmit}
+              className="bg-sfu-red hover:bg-sfu-red/90"
+            >
+              Access Teacher View
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Footer />
     </div>
