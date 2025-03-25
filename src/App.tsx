@@ -39,6 +39,15 @@ function App() {
           fileSizeLimit: 1024 * 1024 * 5, // 5MB limit
         });
       }
+      
+      // Check if profile-images bucket exists and create it if it doesn't
+      const { data: profileBucket, error: profileBucketError } = await supabase.storage.getBucket('profile-images');
+      if (profileBucketError && profileBucketError.message.includes('The resource was not found')) {
+        await supabase.storage.createBucket('profile-images', {
+          public: true,
+          fileSizeLimit: 1024 * 1024 * 5, // 5MB limit
+        });
+      }
     };
     
     createStorageBuckets();
