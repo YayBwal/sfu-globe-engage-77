@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -841,4 +842,211 @@ const Profile = () => {
                             <div className="flex-1">
                               <h4 className="font-semibold text-slate-900">{friend.name}</h4>
                               <div className="flex gap-1.5 mt-1">
-                                <span className="inline-flex items-center px-2
+                                <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                                  <School className="h-3 w-3 mr-1" />
+                                  {friend.major}
+                                </span>
+                                <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                                  <Hash className="h-3 w-3 mr-1" />
+                                  {friend.student_id}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                            <Button 
+                              size="sm" 
+                              variant="message"
+                              className="flex-1 text-xs"
+                              onClick={() => setIsMessageOpen(true)}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Message
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="text-xs text-gray-500"
+                              onClick={() => removeFriend(friend.id)}
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                              Remove
+                            </Button>
+                          </div>
+                          {isMessageOpen && (
+                            <FriendMessageModal
+                              isOpen={isMessageOpen}
+                              onClose={() => setIsMessageOpen(false)}
+                              friend={{
+                                id: friend.id,
+                                name: friend.name
+                              }}
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No friends yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Connect with other students to see them listed here.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="clubs" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {clubs.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {clubs.map((club) => (
+                    <Card key={club.id} className="overflow-hidden hover:shadow-lg transition duration-200">
+                      <div className={`h-2 ${club.approved ? 'bg-gradient-to-r from-blue-500 to-blue-400' : 'bg-gradient-to-r from-amber-500 to-amber-400'}`} />
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white">
+                            {club.logo_url ? (
+                              <AvatarImage src={club.logo_url} alt={club.name} />
+                            ) : (
+                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                                {getInitials(club.name)}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div>
+                            <h4 className="font-semibold text-slate-900">{club.name}</h4>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded ${club.approved ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {club.approved ? (
+                                  <>
+                                    <UserCheck className="h-3 w-3 mr-1" />
+                                    Approved
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Pending
+                                  </>
+                                )}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">
+                                {club.role}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">Not in any clubs yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Join clubs to connect with students that share your interests.
+                  </p>
+                  <Link to="/clubs">
+                    <Button className="mt-4">Browse Clubs</Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="quizzes" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {userQuizzes.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quiz</TableHead>
+                        <TableHead className="text-right">Score</TableHead>
+                        <TableHead className="text-right">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userQuizzes.map((quiz) => (
+                        <TableRow key={quiz.id}>
+                          <TableCell className="font-medium">{quiz.quiz_title}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              (quiz.score / quiz.total_questions) >= 0.7 ? 'bg-green-100 text-green-800' : 
+                              (quiz.score / quiz.total_questions) >= 0.5 ? 'bg-amber-100 text-amber-800' : 
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {quiz.score} / {quiz.total_questions}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-gray-500">
+                            {formatDate(quiz.completed_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No quizzes taken yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Take quizzes to test your knowledge and track your progress.
+                  </p>
+                  <Link to="/quizzes">
+                    <Button className="mt-4">Browse Quizzes</Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="courses" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {userCourses.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Course</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                        <TableHead className="text-right">Enrolled</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userCourses.map((course) => (
+                        <TableRow key={course.id}>
+                          <TableCell className="font-medium">{course.course_name}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              course.completed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {course.completed ? 'Completed' : 'In Progress'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-gray-500">
+                            {formatDate(course.enrollment_date)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Book className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No courses enrolled yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Enroll in courses to track your academic progress.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Profile;
