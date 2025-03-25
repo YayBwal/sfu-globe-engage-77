@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/layout/Header";
@@ -11,6 +10,10 @@ import { RightSidebar } from "@/components/newsfeed/RightSidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/components/newsfeed/PostItem";
+import { FriendRequestsSection } from "@/components/newsfeed/FriendRequestsSection";
+import { FriendsListSection } from "@/components/newsfeed/FriendsListSection";
+import { FriendSuggestionsSection } from "@/components/newsfeed/FriendSuggestionsSection";
+import { FindFriendSection } from "@/components/newsfeed/FindFriendSection";
 
 const Newsfeed = () => {
   const { user } = useAuth();
@@ -19,6 +22,7 @@ const Newsfeed = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("feed");
   
   // Fetch posts and related data
   useEffect(() => {
@@ -271,37 +275,90 @@ const Newsfeed = () => {
       <Header />
       
       <main className="pt-24 pb-16 px-4">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left sidebar */}
-          <LeftSidebar suggestedUsers={suggestedUsers} />
+        <div className="max-w-7xl mx-auto">
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+              <TabsTrigger value="feed">Feed</TabsTrigger>
+              <TabsTrigger value="friends">Friends</TabsTrigger>
+              <TabsTrigger value="discover">Discover</TabsTrigger>
+            </TabsList>
+          </Tabs>
           
-          {/* Main content */}
-          <div className="lg:col-span-2">
-            {/* Post creation card */}
-            <CreatePostForm onPostCreated={handlePostCreated} />
-            
-            {/* Filters */}
-            <div className="mb-6">
-              <Tabs defaultValue={activeFilter} onValueChange={setActiveFilter}>
-                <TabsList className="w-full bg-white">
-                  <TabsTrigger value="all" className="flex-1">All Posts</TabsTrigger>
-                  <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
-                  <TabsTrigger value="text" className="flex-1">Text Only</TabsTrigger>
-                </TabsList>
-              </Tabs>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Left sidebar */}
+            <div className="hidden lg:block">
+              <LeftSidebar suggestedUsers={suggestedUsers} />
             </div>
             
-            {/* Feed posts */}
-            <PostsFeed 
-              posts={posts}
-              isLoading={isLoading}
-              activeFilter={activeFilter}
-              onPostDeleted={handlePostDeleted}
-            />
+            {/* Main content */}
+            <div className="lg:col-span-2">
+              <TabsContent value="feed" className="mt-0">
+                {/* Friend requests section - only on feed tab */}
+                <FriendRequestsSection />
+                
+                {/* Post creation card */}
+                <CreatePostForm onPostCreated={handlePostCreated} />
+                
+                {/* Filters */}
+                <div className="mb-6">
+                  <Tabs defaultValue={activeFilter} onValueChange={setActiveFilter}>
+                    <TabsList className="w-full bg-white">
+                      <TabsTrigger value="all" className="flex-1">All Posts</TabsTrigger>
+                      <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
+                      <TabsTrigger value="text" className="flex-1">Text Only</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                
+                {/* Feed posts */}
+                <PostsFeed 
+                  posts={posts}
+                  isLoading={isLoading}
+                  activeFilter={activeFilter}
+                  onPostDeleted={handlePostDeleted}
+                />
+              </TabsContent>
+              
+              <TabsContent value="friends" className="mt-0 space-y-6">
+                {/* Friend management sections */}
+                <FriendRequestsSection />
+                <FriendsListSection />
+              </TabsContent>
+              
+              <TabsContent value="discover" className="mt-0 space-y-6">
+                {/* Friend discovery sections */}
+                <FindFriendSection />
+                <FriendSuggestionsSection />
+              </TabsContent>
+            </div>
+            
+            {/* Right sidebar */}
+            <div className="hidden lg:block">
+              <RightSidebar />
+            </div>
+            
+            {/* Mobile bottom tabs */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around">
+              <button 
+                className={`p-2 rounded-full ${activeTab === 'feed' ? 'bg-gray-100' : ''}`}
+                onClick={() => setActiveTab('feed')}
+              >
+                Feed
+              </button>
+              <button 
+                className={`p-2 rounded-full ${activeTab === 'friends' ? 'bg-gray-100' : ''}`}
+                onClick={() => setActiveTab('friends')}
+              >
+                Friends
+              </button>
+              <button 
+                className={`p-2 rounded-full ${activeTab === 'discover' ? 'bg-gray-100' : ''}`}
+                onClick={() => setActiveTab('discover')}
+              >
+                Discover
+              </button>
+            </div>
           </div>
-          
-          {/* Right sidebar */}
-          <RightSidebar />
         </div>
       </main>
       
