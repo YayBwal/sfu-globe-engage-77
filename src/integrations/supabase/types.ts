@@ -9,6 +9,188 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      attendance_records: {
+        Row: {
+          id: string
+          ip_address: string | null
+          location_lat: number | null
+          location_lng: number | null
+          marked_at: string | null
+          marked_by: string | null
+          notes: string | null
+          scan_method: string | null
+          session_id: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          id?: string
+          ip_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          marked_at?: string | null
+          marked_by?: string | null
+          notes?: string | null
+          scan_method?: string | null
+          session_id: string
+          status: string
+          student_id: string
+        }
+        Update: {
+          id?: string
+          ip_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          marked_at?: string | null
+          marked_by?: string | null
+          notes?: string | null
+          scan_method?: string | null
+          session_id?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_enrollments: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          id: string
+          status: string | null
+          student_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          student_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_sessions: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          date: string
+          id: string
+          location: string | null
+          location_radius: number | null
+          qr_code: string | null
+          qr_expiry_time: number | null
+          qr_generated_at: string | null
+          status: string | null
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          date: string
+          id?: string
+          location?: string | null
+          location_radius?: number | null
+          qr_code?: string | null
+          qr_expiry_time?: number | null
+          qr_generated_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          date?: string
+          id?: string
+          location?: string | null
+          location_radius?: number | null
+          qr_code?: string | null
+          qr_expiry_time?: number | null
+          qr_generated_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_sessions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_activities: {
         Row: {
           club_id: string
@@ -744,6 +926,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_session_qr: {
+        Args: {
+          session_uuid: string
+        }
+        Returns: string
+      }
       get_user_total_score: {
         Args: {
           user_id: string
@@ -753,6 +941,15 @@ export type Database = {
       is_club_manager: {
         Args: {
           club_uuid: string
+        }
+        Returns: boolean
+      }
+      verify_attendance_qr: {
+        Args: {
+          session_uuid: string
+          qr_code: string
+          lat?: number
+          lng?: number
         }
         Returns: boolean
       }

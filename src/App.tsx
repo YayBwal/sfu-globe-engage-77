@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -18,6 +19,7 @@ import GamingHub from '@/pages/GamingHub';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { AttendanceProvider } from '@/contexts/AttendanceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { setupStorageBuckets } from '@/utils/storageSetup';
 
@@ -64,23 +66,25 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <ClubProvider>
-            <div className="app">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/study" element={<Study />} />
-                <Route path="/clubs/*" element={<Clubs />} />
-                <Route path="/quizzes" element={<GamingHub />} />
-                <Route path="/gaming-hub" element={<GamingHub />} />
-                <Route path="/attendance" element={<Attendance />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/marketplace" element={<Marketplace />} />
-                <Route path="/newsfeed" element={<Newsfeed />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-            </div>
+            <AttendanceProvider>
+              <div className="app">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/study" element={<Study />} />
+                  <Route path="/clubs/*" element={<Clubs />} />
+                  <Route path="/quizzes" element={<GamingHub />} />
+                  <Route path="/gaming-hub" element={<GamingHub />} />
+                  <Route path="/attendance" element={<Attendance />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/marketplace" element={<Marketplace />} />
+                  <Route path="/newsfeed" element={<Newsfeed />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
+              </div>
+            </AttendanceProvider>
           </ClubProvider>
         </NotificationProvider>
       </AuthProvider>
