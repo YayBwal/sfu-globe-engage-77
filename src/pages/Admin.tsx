@@ -6,14 +6,21 @@ import UserRoleManager from '@/components/admin/UserRoleManager';
 import Layout from '@/components/layout/Layout';
 
 const Admin = () => {
-  const { isAuthenticated, loading, profile } = useAuth();
+  const { isAuthenticated, loading, isTeacher } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate('/login');
+    if (!loading) {
+      // Redirect if not authenticated
+      if (!isAuthenticated) {
+        navigate('/login');
+      } 
+      // Optionally, redirect if not a teacher/admin
+      else if (!isTeacher) {
+        navigate('/');
+      }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, isTeacher, loading, navigate]);
 
   return (
     <Layout>
