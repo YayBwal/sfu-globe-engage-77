@@ -1,24 +1,27 @@
+
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import MessageModal from '../modals/MessageModal';
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
   id: string;
   name: string;
   student_id: string;
   major: string;
-  image: string | null;
+  image?: string | null;
+  profile_pic?: string | null;
 }
 
 export const PartnerMatching = () => {
   const { user, profile } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [activeRecipient, setActiveRecipient] = useState<UserProfile | null>(null);
@@ -32,12 +35,17 @@ export const PartnerMatching = () => {
       }
 
       try {
-        const response = await fetch(`/api/searchProfiles?query=${searchTerm}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setSearchResults(data);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`name.ilike.%${searchTerm}%,student_id.ilike.%${searchTerm}%,major.ilike.%${searchTerm}%`)
+          .limit(10);
+          
+        if (error) throw error;
+        
+        // Filter out current user if they're in the results
+        const filteredResults = user ? data.filter(profile => profile.id !== user.id) : data;
+        setSearchResults(filteredResults);
       } catch (error) {
         console.error("Could not fetch profiles:", error);
         setSearchResults([]);
@@ -45,21 +53,20 @@ export const PartnerMatching = () => {
     };
 
     fetchProfiles();
-  }, [searchTerm]);
+  }, [searchTerm, user]);
 
-  // Fix the TypeScript error by changing studentId to student_id
   const handleMessage = async (recipient: UserProfile) => {
     if (profile) {
       setActiveRecipient({
         id: recipient.id,
         name: recipient.name,
-        studentId: recipient.student_id, // Changed from studentId to student_id
+        student_id: recipient.student_id,
         major: recipient.major,
         image: recipient.profile_pic
       });
       setIsMessageModalOpen(true);
     } else {
-      router.push('/login?redirect=/study');
+      navigate('/login?redirect=/study');
     }
   };
 
@@ -86,7 +93,7 @@ export const PartnerMatching = () => {
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center space-x-4">
                   <Avatar>
-                    <AvatarImage src={result.image || undefined} alt={result.name} />
+                    <AvatarImage src={result.profile_pic || undefined} alt={result.name} />
                     <AvatarFallback>{result.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
@@ -112,3 +119,4 @@ export const PartnerMatching = () => {
   );
 };
 
+export default PartnerMatching;

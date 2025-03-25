@@ -1,9 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/contexts/AuthContext';
-import { UserProfile } from '@/types';
+import { supabase } from "@/integrations/supabase/client";
+
+interface UserProfile {
+  id: string;
+  name: string;
+  student_id: string;
+  major: string;
+  profile_pic?: string | null;
+}
 
 interface StudentSearchProps {
   onSelect: (user: UserProfile) => void;
@@ -12,7 +21,7 @@ interface StudentSearchProps {
 const StudentSearch: React.FC<StudentSearchProps> = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
-  const { getAllProfiles } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     const searchStudents = async () => {
@@ -22,16 +31,17 @@ const StudentSearch: React.FC<StudentSearchProps> = ({ onSelect }) => {
       }
 
       try {
-        const allProfiles = await getAllProfiles();
-        if (allProfiles) {
-          const filteredResults = allProfiles.filter(profile =>
-            profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            profile.student_id.toLowerCase().includes(searchTerm.toLowerCase())
-          );
-          setSearchResults(filteredResults);
-        } else {
-          setSearchResults([]);
-        }
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`name.ilike.%${searchTerm}%,student_id.ilike.%${searchTerm}%`)
+          .limit(10);
+          
+        if (error) throw error;
+        
+        // Filter out current user
+        const filteredResults = user ? data.filter(profile => profile.id !== user.id) : data;
+        setSearchResults(filteredResults);
       } catch (error) {
         console.error("Error searching for students:", error);
         setSearchResults([]);
@@ -39,7 +49,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({ onSelect }) => {
     };
 
     searchStudents();
-  }, [searchTerm, getAllProfiles]);
+  }, [searchTerm, user]);
 
   return (
     <div>
@@ -58,7 +68,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({ onSelect }) => {
               onClick={() => onSelect(result)}
             >
               <Avatar>
-                <AvatarImage src={result.profile_pic} alt={result.name} />
+                <AvatarImage src={result.profile_pic || undefined} alt={result.name} />
                 <AvatarFallback>{result.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
