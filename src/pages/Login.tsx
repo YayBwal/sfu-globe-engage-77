@@ -20,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
-  studentId: z.string().min(1, { message: "Student ID is required." }),
+  identifier: z.string().min(1, { message: "Student ID or Email is required." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
@@ -31,7 +31,7 @@ const Login = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      studentId: "",
+      identifier: "",
       password: "",
     },
   });
@@ -39,7 +39,7 @@ const Login = () => {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await login(values.studentId, values.password);
+      await login(values.identifier, values.password);
       toast({
         title: "Login successful",
         description: "You have been logged in successfully",
@@ -76,14 +76,14 @@ const Login = () => {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="studentId"
+              name="identifier"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Student ID</FormLabel>
+                  <FormLabel>Student ID or Email</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <School className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="text" placeholder="Enter your student ID" className="pl-10" {...field} />
+                      <Input type="text" placeholder="Enter your Student ID or Email" className="pl-10" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />

@@ -1,127 +1,153 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { LeaderboardUser, QuizScore, GameScore } from './types';
-import { useToast } from '@/hooks/use-toast';
 
-export const useLeaderboard = () => {
-  const { toast } = useToast();
+// Fetch top users by total score
+export const fetchTopUsers = async (): Promise<LeaderboardUser[]> => {
+  try {
+    const { data: quizData, error: quizError } = await supabase
+      .from('quiz_scores')
+      .select('user_id, user_name, profile_pic, score')
+      .order('score', { ascending: false });
 
-  // Fetch leaderboard data including both quiz and game scores
-  const fetchLeaderboards = async (): Promise<{
-    leaderboard: LeaderboardUser[];
-    quizScores: QuizScore[];
-    gameScores: GameScore[];
-  }> => {
-    try {
-      // Fetch quiz scores
-      const { data: quizScoresData, error: quizScoresError } = await supabase
-        .from('quiz_scores')
-        .select('*')
-        .order('score', { ascending: false })
-        .limit(50);
-        
-      if (quizScoresError) throw quizScoresError;
+    if (quizError) {
+      throw quizError;
+    }
+
+    // Group by user and calculate total score
+    const userScores: Record<string, LeaderboardUser> = {};
+    
+    quizData?.forEach(score => {
+      if (!userScores[score.user_id]) {
+        userScores[score.user_id] = {
+          userId: score.user_id,
+          userName: score.user_name,
+          totalScore: 0,
+          quizCount: 0,
+          profilePic: score.profile_pic
+        };
+      }
       
-      // Fetch game scores
-      const { data: gameScoresData, error: gameScoresError } = await supabase
-        .from('game_scores')
-        .select('*')
-        .order('score', { ascending: false })
-        .limit(50);
-        
-      if (gameScoresError) throw gameScoresError;
+      userScores[score.user_id].totalScore += score.score;
+      userScores[score.user_id].quizCount += 1;
+    });
+    
+    // Convert to array and sort by total score
+    return Object.values(userScores)
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .slice(0, 10);
       
-      // Map DB fields to our interface fields
-      const mappedQuizScores = quizScoresData.map(item => ({
-        id: item.id,
-        userId: item.user_id,
-        userName: item.user_name,
-        profilePic: item.profile_pic,
-        quizId: item.quiz_id,
-        quizName: item.quiz_name,
-        score: item.score,
-        timeTaken: item.time_taken,
-        createdAt: item.created_at,
-        sessionId: item.session_id
-      }));
-      
-      const mappedGameScores = gameScoresData.map(item => ({
-        id: item.id,
-        userId: item.user_id,
-        userName: item.user_name,
-        profilePic: item.profile_pic,
-        gameId: item.game_id,
-        gameName: item.game_name,
-        score: item.score,
-        level: item.level,
-        createdAt: item.created_at,
-        sessionId: item.session_id
-      }));
-      
-      // Calculate leaderboard data
-      const userScores = new Map<string, LeaderboardUser>();
-      
-      // Process quiz scores
-      mappedQuizScores.forEach(score => {
-        if (!userScores.has(score.userId)) {
-          userScores.set(score.userId, {
-            userId: score.userId,
-            userName: score.userName,
-            profilePic: score.profilePic,
-            totalScore: 0,
-            quizCount: 0,
-            gameCount: 0
-          });
-        }
-        
-        const userData = userScores.get(score.userId)!;
-        userData.totalScore += score.score;
-        userData.quizCount += 1;
-      });
-      
-      // Process game scores
-      mappedGameScores.forEach(score => {
-        if (!userScores.has(score.userId)) {
-          userScores.set(score.userId, {
-            userId: score.userId,
-            userName: score.userName,
-            profilePic: score.profilePic,
-            totalScore: 0,
-            quizCount: 0,
-            gameCount: 0
-          });
-        }
-        
-        const userData = userScores.get(score.userId)!;
-        userData.totalScore += score.score;
-        userData.gameCount += 1;
-      });
-      
-      // Convert to array and sort by total score
-      const leaderboardArray = Array.from(userScores.values())
-        .sort((a, b) => b.totalScore - a.totalScore);
-      
+  } catch (error) {
+    console.error('Error fetching top users:', error);
+    return [];
+  }
+};
+
+// Fetch top quiz scores
+export const fetchTopQuizScores = async (): Promise<QuizScore[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('quiz_scores')
+      .select('*')
+      .order('score', { ascending: false })
+      .limit(10);
+    
+    if (error) throw error;
+    
+    return data.map(score => ({
+      id: score.id,
+      userId: score.user_id,
+      userName: score.user_name,
+      quizId: score.quiz_id,
+      quizName: score.quiz_name,
+      score: score.score,
+      timeTaken: score.time_taken,
+      createdAt: score.created_at,
+      profilePic: score.profile_pic
+    }));
+    
+  } catch (error) {
+    console.error('Error fetching top quiz scores:', error);
+    return [];
+  }
+};
+
+// Fetch top game scores
+export const fetchTopGameScores = async (): Promise<GameScore[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('game_scores')
+      .select('*')
+      .order('score', { ascending: false })
+      .limit(10);
+    
+    if (error) throw error;
+    
+    return data.map(score => ({
+      id: score.id,
+      userId: score.user_id,
+      userName: score.user_name,
+      gameId: score.game_id,
+      gameName: score.game_name,
+      score: score.score,
+      level: score.level,
+      createdAt: score.created_at,
+      profilePic: score.profile_pic
+    }));
+    
+  } catch (error) {
+    console.error('Error fetching top game scores:', error);
+    return [];
+  }
+};
+
+// Fetch all leaderboard data (combined function)
+export const fetchLeaderboards = async () => {
+  try {
+    const leaderboard = await fetchTopUsers();
+    const quizScores = await fetchTopQuizScores();
+    const gameScores = await fetchTopGameScores();
+    
+    return { leaderboard, quizScores, gameScores };
+  } catch (error) {
+    console.error('Error fetching leaderboard data:', error);
+    return { leaderboard: [], quizScores: [], gameScores: [] };
+  }
+};
+
+// Fetch user stats
+export const fetchUserStats = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('quiz_scores')
+      .select('score')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
       return {
-        quizScores: mappedQuizScores,
-        gameScores: mappedGameScores,
-        leaderboard: leaderboardArray
-      };
-    } catch (error) {
-      console.error('Error fetching leaderboards:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load leaderboard data',
-        variant: 'destructive',
-      });
-      return {
-        quizScores: [],
-        gameScores: [],
-        leaderboard: []
+        totalScore: 0,
+        quizCount: 0,
+        avgScore: 0
       };
     }
-  };
-
-  return {
-    fetchLeaderboards
-  };
+    
+    const totalScore = data.reduce((sum, item) => sum + item.score, 0);
+    const quizCount = data.length;
+    const avgScore = quizCount > 0 ? Math.round(totalScore / quizCount) : 0;
+    
+    return {
+      totalScore,
+      quizCount,
+      avgScore
+    };
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    return {
+      totalScore: 0,
+      quizCount: 0,
+      avgScore: 0
+    };
+  }
 };
