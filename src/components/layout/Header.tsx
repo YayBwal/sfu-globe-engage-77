@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, User, Gamepad, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
@@ -31,9 +30,7 @@ const Header: React.FC = () => {
     { name: 'Home', path: '/' },
     { name: 'Study', path: '/study' },
     { name: 'Clubs', path: '/clubs' },
-    { name: 'Quizzes', path: '/quizzes' },
-    { name: 'Leaderboard', path: '/leaderboard' },
-    { name: 'Games', path: '/games' },
+    { name: 'Gaming Hub', path: '/gaming-hub' },
     { name: 'Attendance', path: '/attendance' },
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Newsfeed', path: '/newsfeed' },

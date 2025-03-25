@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -71,8 +70,6 @@ function App() {
                 <Route path="/study" element={<Study />} />
                 <Route path="/clubs/*" element={<Clubs />} />
                 <Route path="/quizzes" element={<GamingHub />} />
-                <Route path="/leaderboard" element={<GamingHub />} />
-                <Route path="/games" element={<GamingHub />} />
                 <Route path="/gaming-hub" element={<GamingHub />} />
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/register" element={<Register />} />
