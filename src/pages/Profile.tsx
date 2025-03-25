@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -261,7 +262,7 @@ const Profile = () => {
       // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ profile_pic: publicUrl })
+        .update({ profilePic: publicUrl })
         .eq('id', user?.id);
       
       if (updateError) throw updateError;
@@ -315,7 +316,7 @@ const Profile = () => {
       // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ cover_pic: publicUrl })
+        .update({ coverPic: publicUrl })
         .eq('id', user?.id);
       
       if (updateError) throw updateError;
@@ -462,51 +463,54 @@ const Profile = () => {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
       
-      <main className="pt-24 pb-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <Link to="/" className="inline-flex items-center text-sfu-black hover:text-sfu-red mb-6 transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Home
-          </Link>
-          
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
-            <div className="h-60 bg-gradient-to-r from-sfu-red to-sfu-red/60 relative overflow-hidden">
-              {profile?.cover_pic ? (
-                <img 
-                  src={profile.cover_pic} 
-                  alt="Cover" 
-                  className="w-full h-full object-cover"
-                />
-              ) : null}
-              
-              <label 
-                className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 cursor-pointer text-white text-sm px-4 py-2 rounded-md backdrop-blur-sm transition flex items-center gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Change Cover
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={uploadCoverImage}
-                  disabled={uploadingCover}
-                />
-              </label>
-            </div>
+      <main className="pt-16 pb-16">
+        {/* Cover Photo Section */}
+        <div className="relative w-full">
+          <div className="h-80 w-full bg-gradient-to-r from-blue-400 to-indigo-500 overflow-hidden">
+            {profile?.coverPic ? (
+              <img 
+                src={profile.coverPic} 
+                alt="Cover" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 opacity-80" />
+            )}
             
-            <div className="px-6 pb-6 pt-0 -mt-16 relative z-10">
-              <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
+            <div className="absolute inset-0 bg-black/10" />
+            
+            {/* Cover Photo Upload Button */}
+            <label 
+              className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 cursor-pointer text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm transition flex items-center gap-2 shadow-lg"
+            >
+              <Upload className="h-4 w-4" />
+              Change Cover
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={uploadCoverImage}
+                disabled={uploadingCover}
+              />
+            </label>
+          </div>
+          
+          {/* Profile Info Section - Positioned to overflow cover image */}
+          <div className="max-w-5xl mx-auto px-4 relative -mt-24">
+            <div className="bg-white rounded-xl shadow-lg p-6 pt-28 relative">
+              {/* Profile Picture - Position it outside the white card */}
+              <div className="absolute -top-20 left-8 flex justify-center">
                 <div className="relative group">
-                  <Avatar className="h-32 w-32 border-4 border-white bg-sfu-lightgray ring-4 ring-white/40 shadow-md">
-                    <AvatarImage src={profile?.profile_pic} alt={profile?.name} />
-                    <AvatarFallback className="text-3xl font-medium bg-sfu-red text-white">
+                  <Avatar className="h-36 w-36 border-4 border-white bg-sfu-lightgray shadow-xl">
+                    <AvatarImage src={profile?.profilePic} alt={profile?.name} className="object-cover" />
+                    <AvatarFallback className="text-4xl font-medium bg-gradient-to-br from-sfu-red to-pink-600 text-white">
                       {profile ? getInitials(profile.name) : "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <label className="absolute bottom-0 right-0 w-9 h-9 bg-sfu-red text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer">
+                  <label className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
                     <Camera className="h-5 w-5" />
                     <input
                       type="file"
@@ -517,8 +521,11 @@ const Profile = () => {
                     />
                   </label>
                 </div>
-                
-                <div className="flex-1">
+              </div>
+              
+              {/* Profile Info Content */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mt-2">
+                <div className="flex-1 pl-1 md:pl-32 pt-8 md:pt-0">
                   {isEditMode ? (
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -594,7 +601,7 @@ const Profile = () => {
                           )}
                         />
                         <div className="flex gap-2 pt-2">
-                          <Button type="submit" className="bg-sfu-red hover:bg-sfu-red/90">
+                          <Button type="submit" className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
                             <Save className="h-4 w-4 mr-2" />
                             Save Profile
                           </Button>
@@ -612,27 +619,38 @@ const Profile = () => {
                     <>
                       <div className="flex justify-between">
                         <div>
-                          <h1 className="text-2xl font-display font-bold mt-2">{profile?.name}</h1>
-                          <p className="text-gray-500 flex items-center gap-2">
+                          <h1 className="text-3xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
+                            {profile?.name}
+                          </h1>
+                          <p className="text-gray-500 flex items-center gap-2 mt-1">
                             <Mail className="h-4 w-4" />
                             {profile?.email}
                           </p>
                           {profile?.bio && (
-                            <p className="text-gray-700 mt-2">{profile.bio}</p>
+                            <p className="text-gray-700 mt-3 max-w-xl">{profile.bio}</p>
                           )}
                         </div>
-                        <Button 
-                          variant="outline" 
-                          className="hover:bg-gray-100 hover:text-sfu-black"
-                          onClick={() => setIsEditMode(true)}
-                        >
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Edit Profile
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg border-slate-200 hover:bg-gray-100 hover:text-sfu-black"
+                            onClick={() => setIsEditMode(true)}
+                          >
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Edit Profile
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg border-slate-200 hover:bg-gray-100 hover:text-sfu-black"
+                            onClick={logout}
+                          >
+                            Sign Out
+                          </Button>
+                        </div>
                       </div>
                       
                       <div className="flex flex-wrap gap-2 mt-3">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           <School className="h-3 w-3 mr-1" />
                           {profile?.major === 'CS' ? 'Computer Science' : 
                            profile?.major === 'BBA' ? 'Business Administration' : 
@@ -640,11 +658,11 @@ const Profile = () => {
                            profile?.major === 'MED' ? 'Medical Sciences' : 
                            profile?.major === 'ART' ? 'Arts & Humanities' : profile?.major}
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           <Calendar className="h-3 w-3 mr-1" />
                           Batch {profile?.batch}
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           <Hash className="h-3 w-3 mr-1" />
                           ID: {profile?.studentId}
                         </span>
@@ -652,24 +670,18 @@ const Profile = () => {
                     </>
                   )}
                 </div>
-                
-                <div className="mt-4 md:mt-0">
-                  <Button 
-                    variant="outline" 
-                    className="hover:bg-gray-100 hover:text-sfu-black"
-                    onClick={logout}
-                  >
-                    Sign Out
-                  </Button>
-                </div>
               </div>
               
+              {/* Stats Section */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
                 {stats.map((stat, index) => (
-                  <Card key={index} className="border-none shadow-sm">
-                    <CardContent className="p-4 flex flex-col items-center justify-center">
-                      <stat.icon className="h-6 w-6 text-sfu-red mb-2" />
-                      <p className="text-2xl font-semibold">{stat.value}</p>
+                  <Card key={index} className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition duration-200">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-2">
+                        <stat.icon className="h-5 w-5 text-indigo-500" />
+                      </div>
+                      <p className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{stat.value}</p>
                       <p className="text-xs text-gray-500">{stat.label}</p>
                     </CardContent>
                   </Card>
@@ -677,20 +689,23 @@ const Profile = () => {
               </div>
             </div>
           </div>
-          
+        </div>
+        
+        {/* Tabs Section */}
+        <div className="max-w-5xl mx-auto px-4 mt-6">
           <Tabs defaultValue="activity" className="w-full">
-            <TabsList className="w-full bg-white mb-6 p-1 rounded-lg">
-              <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
-              <TabsTrigger value="clubs" className="flex-1">Clubs</TabsTrigger>
-              <TabsTrigger value="quizzes" className="flex-1">Quizzes</TabsTrigger>
-              <TabsTrigger value="courses" className="flex-1">Courses</TabsTrigger>
+            <TabsList className="w-full bg-white mb-6 p-1 rounded-xl shadow-sm">
+              <TabsTrigger value="activity" className="flex-1 rounded-lg">Activity</TabsTrigger>
+              <TabsTrigger value="clubs" className="flex-1 rounded-lg">Clubs</TabsTrigger>
+              <TabsTrigger value="quizzes" className="flex-1 rounded-lg">Quizzes</TabsTrigger>
+              <TabsTrigger value="courses" className="flex-1 rounded-lg">Courses</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="activity" className="bg-white rounded-xl p-6 mt-0">
+            <TabsContent value="activity" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {activities.length > 0 ? (
                 <div className="space-y-4">
                   {activities.map((activity) => (
-                    <Card key={activity.id} className="border-none shadow-sm">
+                    <Card key={activity.id} className="border-none bg-gradient-to-r from-gray-50 to-white shadow-sm hover:shadow-md transition duration-200">
                       <CardContent className="p-4">
                         {renderActivityDetails(activity)}
                       </CardContent>
@@ -708,33 +723,35 @@ const Profile = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="clubs" className="bg-white rounded-xl p-6 mt-0">
+            <TabsContent value="clubs" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {clubs.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {clubs.map((club) => (
-                    <Card key={club.id} className="overflow-hidden">
-                      <div className="h-3 bg-sfu-red" />
+                    <Card key={club.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
+                      <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-500" />
                       <CardContent className="p-4 pt-5">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 rounded-md bg-gray-100">
+                          <Avatar className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 ring-2 ring-white">
                             {club.logo_url ? (
-                              <AvatarImage src={club.logo_url} alt={club.name} />
+                              <AvatarImage src={club.logo_url} alt={club.name} className="p-1" />
                             ) : (
-                              <AvatarFallback className="rounded-md">
+                              <AvatarFallback className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
                                 {getInitials(club.name)}
                               </AvatarFallback>
                             )}
                           </Avatar>
                           <div>
-                            <h4 className="font-semibold">{club.name}</h4>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                              {club.role}
-                            </span>
-                            {!club.approved && (
-                              <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Pending
+                            <h4 className="font-semibold text-slate-900">{club.name}</h4>
+                            <div className="flex gap-1.5 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                                {club.role}
                               </span>
-                            )}
+                              {!club.approved && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -749,7 +766,7 @@ const Profile = () => {
                     Join clubs to connect with other students and participate in engaging activities.
                   </p>
                   <Link to="/clubs">
-                    <Button className="mt-4 bg-sfu-red hover:bg-sfu-red/90">
+                    <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
                       Browse Clubs
                     </Button>
                   </Link>
@@ -757,36 +774,38 @@ const Profile = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="quizzes" className="bg-white rounded-xl p-6 mt-0">
+            <TabsContent value="quizzes" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {userQuizzes.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Quiz</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {userQuizzes.map((quiz) => (
-                      <TableRow key={quiz.id}>
-                        <TableCell className="font-medium">{quiz.quiz_title}</TableCell>
-                        <TableCell>
-                          <span className={`font-medium ${
-                            (quiz.score / quiz.total_questions) >= 0.7 
-                              ? 'text-green-600' 
-                              : (quiz.score / quiz.total_questions) >= 0.5 
-                                ? 'text-amber-600' 
-                                : 'text-red-600'
-                          }`}>
-                            {quiz.score}/{quiz.total_questions}
-                          </span>
-                        </TableCell>
-                        <TableCell>{formatDate(quiz.completed_at)}</TableCell>
+                <div className="overflow-hidden rounded-xl border border-gray-100">
+                  <Table>
+                    <TableHeader className="bg-gradient-to-r from-slate-50 to-white">
+                      <TableRow>
+                        <TableHead>Quiz</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Date</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {userQuizzes.map((quiz) => (
+                        <TableRow key={quiz.id} className="hover:bg-slate-50">
+                          <TableCell className="font-medium">{quiz.quiz_title}</TableCell>
+                          <TableCell>
+                            <span className={`font-medium rounded-full px-2 py-1 text-xs ${
+                              (quiz.score / quiz.total_questions) >= 0.7 
+                                ? 'bg-green-100 text-green-800' 
+                                : (quiz.score / quiz.total_questions) >= 0.5 
+                                  ? 'bg-amber-100 text-amber-800' 
+                                  : 'bg-red-100 text-red-800'
+                            }`}>
+                              {quiz.score}/{quiz.total_questions}
+                            </span>
+                          </TableCell>
+                          <TableCell>{formatDate(quiz.completed_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
                 <div className="text-center py-12">
                   <Book className="h-12 w-12 mx-auto text-gray-300 mb-4" />
@@ -795,7 +814,7 @@ const Profile = () => {
                     Complete quizzes to test your knowledge and improve your ranking.
                   </p>
                   <Link to="/quizzes">
-                    <Button className="mt-4 bg-sfu-red hover:bg-sfu-red/90">
+                    <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
                       Start a Quiz
                     </Button>
                   </Link>
@@ -803,17 +822,30 @@ const Profile = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="courses" className="bg-white rounded-xl p-6 mt-0">
+            <TabsContent value="courses" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {userCourses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {userCourses.map((course) => (
-                    <Card key={course.id} className="overflow-hidden">
-                      <div className={`h-2 ${course.completed ? 'bg-green-500' : 'bg-blue-500'}`} />
-                      <CardContent className="p-4">
+                    <Card key={course.id} className="overflow-hidden group hover:shadow-md transition duration-200 border-none bg-gradient-to-br from-slate-50 to-white">
+                      <div className={`h-1.5 ${course.completed ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}`} />
+                      <CardContent className="p-5">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-semibold">{course.course_name}</h4>
-                            <p className="text-sm text-gray-500">Enrolled: {formatDate(course.enrollment_date)}</p>
+                          <div className="flex gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              course.completed 
+                                ? 'bg-green-100' 
+                                : 'bg-blue-100'
+                            }`}>
+                              <Book className={`h-5 w-5 ${
+                                course.completed 
+                                  ? 'text-green-600' 
+                                  : 'text-blue-600'
+                              }`} />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-slate-900">{course.course_name}</h4>
+                              <p className="text-sm text-gray-500">Enrolled: {formatDate(course.enrollment_date)}</p>
+                            </div>
                           </div>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             course.completed 
@@ -834,7 +866,7 @@ const Profile = () => {
                   <p className="text-gray-500 max-w-md mx-auto">
                     Enroll in courses to start learning and track your progress.
                   </p>
-                  <Button className="mt-4 bg-sfu-red hover:bg-sfu-red/90">
+                  <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
                     Browse Courses
                   </Button>
                 </div>
