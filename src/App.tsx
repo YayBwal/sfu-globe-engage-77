@@ -16,6 +16,7 @@ import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ClubProvider } from '@/contexts/ClubContext';
 import { supabase } from '@/integrations/supabase/client';
 
 function App() {
@@ -56,24 +57,26 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="app">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/study" element={<Study />} />
-            <Route path="/clubs/*" element={<Clubs />} />
-            <Route path="/quizzes" element={<Quizzes />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/games" element={<MinorGames />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/newsfeed" element={<Newsfeed />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </div>
+        <ClubProvider>
+          <div className="app">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/study" element={<Study />} />
+              <Route path="/clubs/*" element={<Clubs />} />
+              <Route path="/quizzes" element={<Quizzes />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/games" element={<MinorGames />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/newsfeed" element={<Newsfeed />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </div>
+        </ClubProvider>
       </AuthProvider>
     </Router>
   );
