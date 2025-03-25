@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { 
   Image, Smile, MapPin, X, FileVideo
@@ -10,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureBucketExists } from "@/utils/storageSetup";
 
 interface CreatePostFormProps {
   onPostCreated: () => void;
@@ -88,13 +88,21 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
       
       // Upload media file if exists
       if (mediaFile && mediaType) {
+        const bucketName = mediaType === 'image' ? 'post-images' : 'post-videos';
+        
+        // Check if bucket exists
+        const bucketExists = await ensureBucketExists(bucketName);
+        if (!bucketExists) {
+          throw new Error(`${bucketName} bucket doesn't exist. Please contact an administrator.`);
+        }
+        
         const fileExt = mediaFile.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
         
         const { error: uploadError, data: uploadData } = await supabase
           .storage
-          .from(mediaType === 'image' ? 'post-images' : 'post-videos')
+          .from(bucketName)
           .upload(filePath, mediaFile);
           
         if (uploadError) {
@@ -104,7 +112,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
         // Get public URL
         const { data: urlData } = supabase
           .storage
-          .from(mediaType === 'image' ? 'post-images' : 'post-videos')
+          .from(bucketName)
           .getPublicUrl(filePath);
           
         mediaUrl = urlData.publicUrl;
@@ -140,7 +148,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
       console.error("Error creating post:", error);
       toast({
         title: "Error",
-        description: "Failed to create post. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create post. Please try again.",
         variant: "destructive"
       });
     } finally {
