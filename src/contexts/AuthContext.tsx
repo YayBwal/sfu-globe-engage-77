@@ -25,6 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profileData) {
             setProfile(profileData);
             setIsAuthenticated(true);
+            
+            // Update online status when user logs in
+            if (profileData.online === false) {
+              await updateUserProfile(user.id, { online: true });
+            }
           } else {
             setProfile(null);
             setIsAuthenticated(false);

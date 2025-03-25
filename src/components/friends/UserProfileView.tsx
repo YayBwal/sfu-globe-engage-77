@@ -92,6 +92,26 @@ export const UserProfileView = ({ userId, onClose }: UserProfileViewProps) => {
     };
     
     fetchProfileData();
+    
+    // Set up real-time subscription for online status changes
+    const onlineStatusChannel = supabase
+      .channel(`profile_online_status_${userId}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+        (payload) => {
+          if (payload.new.online !== undefined) {
+            setProfileData(current => ({
+              ...current,
+              online: payload.new.online
+            }));
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(onlineStatusChannel);
+    };
   }, [userId, user, toast]);
 
   const handleSendFriendRequest = async () => {
@@ -241,15 +261,26 @@ export const UserProfileView = ({ userId, onClose }: UserProfileViewProps) => {
       </CardHeader>
       <CardContent className="p-6">
         <div className="flex flex-col items-center">
-          <Avatar className="h-20 w-20 mb-4">
-            <AvatarImage src={profileData.profile_pic} />
-            <AvatarFallback className="text-lg">
-              {profileData.name?.charAt(0) || 'U'}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-20 w-20 mb-4">
+              <AvatarImage src={profileData.profile_pic} />
+              <AvatarFallback className="text-lg">
+                {profileData.name?.charAt(0) || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            {profileData.online && (
+              <span className="absolute right-0 bottom-4 h-4 w-4 rounded-full bg-green-500 border-2 border-white" title="Online"></span>
+            )}
+            {!profileData.online && (
+              <span className="absolute right-0 bottom-4 h-4 w-4 rounded-full bg-gray-400 border-2 border-white" title="Offline"></span>
+            )}
+          </div>
           
           <h2 className="text-xl font-semibold mb-1">{profileData.name}</h2>
-          <p className="text-muted-foreground mb-4">Student ID: {profileData.student_id}</p>
+          <p className="text-muted-foreground mb-1">Student ID: {profileData.student_id}</p>
+          <p className="text-sm text-gray-500 mb-4">
+            {profileData.online ? 'Online' : 'Offline'}
+          </p>
           
           {/* Connection actions - only show if viewing as a different user */}
           {user && user.id !== userId && (

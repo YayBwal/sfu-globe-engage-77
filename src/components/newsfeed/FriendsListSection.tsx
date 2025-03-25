@@ -85,8 +85,8 @@ export const FriendsListSection = () => {
     fetchFriendsList();
     
     // Set up real-time subscription for connection changes
-    const channel = supabase
-      .channel('friends_list')
+    const connectionChannel = supabase
+      .channel('friends_list_connections')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'connections', filter: `user_id=eq.${user?.id}` }, 
         () => {
@@ -95,8 +95,38 @@ export const FriendsListSection = () => {
       )
       .subscribe();
       
+    // Set up real-time subscription for online status changes
+    const onlineStatusChannel = supabase
+      .channel('friends_online_status')
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `online=eq.true` },
+        (payload) => {
+          setFriends(currentFriends => 
+            currentFriends.map(friend => 
+              friend.id === payload.new.id 
+                ? { ...friend, online: payload.new.online } 
+                : friend
+            )
+          );
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `online=eq.false` },
+        (payload) => {
+          setFriends(currentFriends => 
+            currentFriends.map(friend => 
+              friend.id === payload.new.id 
+                ? { ...friend, online: payload.new.online } 
+                : friend
+            )
+          );
+        }
+      )
+      .subscribe();
+      
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(connectionChannel);
+      supabase.removeChannel(onlineStatusChannel);
     };
   }, [user, toast]);
 
@@ -166,7 +196,12 @@ export const FriendsListSection = () => {
                       <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     {friend.online && (
-                      <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
+                      <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white" 
+                        title="Online"></span>
+                    )}
+                    {!friend.online && (
+                      <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full bg-gray-400 border-2 border-white" 
+                        title="Offline"></span>
                     )}
                   </div>
                   <div>

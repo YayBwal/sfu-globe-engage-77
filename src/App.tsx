@@ -19,6 +19,13 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import { AttendanceProvider } from '@/contexts/AttendanceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { setupStorageBuckets } from '@/utils/storageSetup';
+import { usePresence } from '@/hooks/usePresence';
+
+// Presence wrapper component to use the hook with the router
+const PresenceWrapper = ({ children }: { children: React.ReactNode }) => {
+  usePresence();
+  return <>{children}</>;
+};
 
 function App() {
   // Create storage buckets if they don't exist
@@ -64,22 +71,24 @@ function App() {
         <NotificationProvider>
           <ClubProvider>
             <AttendanceProvider>
-              <div className="app">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/study" element={<Study />} />
-                  <Route path="/clubs/*" element={<Clubs />} />
-                  <Route path="/attendance" element={<Attendance />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/marketplace" element={<Marketplace />} />
-                  <Route path="/newsfeed" element={<Newsfeed />} />
-                  <Route path="/friends" element={<Friends />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <Toaster />
-              </div>
+              <PresenceWrapper>
+                <div className="app">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/study" element={<Study />} />
+                    <Route path="/clubs/*" element={<Clubs />} />
+                    <Route path="/attendance" element={<Attendance />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/marketplace" element={<Marketplace />} />
+                    <Route path="/newsfeed" element={<Newsfeed />} />
+                    <Route path="/friends" element={<Friends />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                  <Toaster />
+                </div>
+              </PresenceWrapper>
             </AttendanceProvider>
           </ClubProvider>
         </NotificationProvider>
