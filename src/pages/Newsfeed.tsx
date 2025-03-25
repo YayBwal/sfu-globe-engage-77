@@ -1,99 +1,18 @@
-import React, { useState } from "react";
-import { 
-  ThumbsUp, MessageSquare, Share2, BookmarkPlus, 
-  Image, Smile, MapPin, Calendar, Send, Filter, UserPlus
-} from "lucide-react";
-import { format } from "date-fns";
+import React, { useState, useEffect } from "react";
+import { Filter, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { CreatePostForm } from "@/components/newsfeed/CreatePostForm";
+import { PostItem, Post } from "@/components/newsfeed/PostItem";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Sample posts for the newsfeed
-const POSTS = [
-  {
-    id: 1,
-    author: {
-      name: "University Student Council",
-      username: "sfu_council",
-      avatar: "https://randomuser.me/api/portraits/men/1.jpg"
-    },
-    content: "🎉 Important Announcement: Registration for the Annual Student Conference is now open! This year's theme is 'Innovation and Sustainability'. Limited slots available, so sign up early!",
-    images: ["https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1000&auto=format&fit=crop"],
-    timestamp: new Date(Date.now() - 2 * 3600 * 1000),
-    likes: 42,
-    comments: 8,
-    shares: 15,
-    isOfficial: true
-  },
-  {
-    id: 2,
-    author: {
-      name: "Sarah Lee",
-      username: "sarah_lee",
-      avatar: "https://randomuser.me/api/portraits/women/2.jpg"
-    },
-    content: "Just finished my final project for Computer Graphics! Here's a sneak peek at what I've been working on for the past month. Feedback appreciated! #ComputerScience #GraphicsDesign",
-    images: ["https://images.unsplash.com/photo-1545670723-196ed0954986?q=80&w=1000&auto=format&fit=crop"],
-    timestamp: new Date(Date.now() - 5 * 3600 * 1000),
-    likes: 35,
-    comments: 12,
-    shares: 3,
-    location: "Computer Science Building"
-  },
-  {
-    id: 3,
-    author: {
-      name: "CS Study Group",
-      username: "cs_study",
-      avatar: "https://randomuser.me/api/portraits/men/3.jpg"
-    },
-    content: "Study session for Algorithm Analysis this Thursday at 6PM in Library Room 302. We'll be covering dynamic programming and graph algorithms. Bring your notes and questions! #StudyGroup #Algorithms",
-    timestamp: new Date(Date.now() - 12 * 3600 * 1000),
-    likes: 28,
-    comments: 6,
-    shares: 9,
-    event: {
-      title: "Algorithm Analysis Study Session",
-      date: new Date(Date.now() + 2 * 24 * 3600 * 1000),
-      location: "Library Room 302"
-    }
-  },
-  {
-    id: 4,
-    author: {
-      name: "David Chen",
-      username: "dave_chen",
-      avatar: "https://randomuser.me/api/portraits/men/4.jpg"
-    },
-    content: "Does anyone have the notes from yesterday's Business Ethics lecture? I had to miss class due to a doctor's appointment. Would really appreciate if someone could share them!",
-    timestamp: new Date(Date.now() - 24 * 3600 * 1000),
-    likes: 15,
-    comments: 23,
-    shares: 0
-  },
-  {
-    id: 5,
-    author: {
-      name: "Campus Library",
-      username: "sfu_library",
-      avatar: "https://randomuser.me/api/portraits/women/5.jpg"
-    },
-    content: "The library will be extending its hours during finals week. Starting next Monday, we'll be open from 7AM to 2AM daily. Study rooms can be booked online as usual. Good luck with your exams! 📚",
-    timestamp: new Date(Date.now() - 36 * 3600 * 1000),
-    likes: 87,
-    comments: 5,
-    shares: 32,
-    isOfficial: true
-  }
-];
-
-// Sample trending topics
+// Sample trending topics (we'll keep these static for now)
 const TRENDING_TOPICS = [
   "#FinalsWeek",
   "#CampusEvents",
@@ -102,39 +21,248 @@ const TRENDING_TOPICS = [
   "#InternshipOpportunities"
 ];
 
-// Sample suggested users to follow
-const SUGGESTED_USERS = [
-  {
-    name: "International Student Club",
-    username: "int_student_club",
-    avatar: "https://randomuser.me/api/portraits/women/11.jpg"
-  },
-  {
-    name: "Career Services",
-    username: "career_services",
-    avatar: "https://randomuser.me/api/portraits/men/12.jpg"
-  },
-  {
-    name: "Student Health Center",
-    username: "health_center",
-    avatar: "https://randomuser.me/api/portraits/women/13.jpg"
-  }
-];
-
 const Newsfeed = () => {
   const { user, profile } = useAuth();
-  const [newPostText, setNewPostText] = useState("");
+  const { toast } = useToast();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  
+  // Fetch posts and related data
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch posts with author information
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select(`
+            id,
+            user_id,
+            content,
+            media_url,
+            media_type,
+            view_count,
+            created_at,
+            updated_at,
+            profiles:user_id (
+              name,
+              student_id,
+              profile_pic
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(20);
+          
+        if (postsError) {
+          throw postsError;
+        }
+        
+        // Get reaction counts for each post
+        const reactionPromises = postsData.map(post => 
+          supabase
+            .from('post_reactions')
+            .select('reaction_type, count(*)')
+            .eq('post_id', post.id)
+            .group('reaction_type')
+        );
+        
+        // Get comment counts
+        const commentPromises = postsData.map(post => 
+          supabase
+            .from('post_comments')
+            .select('id', { count: 'exact', head: true })
+            .eq('post_id', post.id)
+        );
+        
+        // Get share counts
+        const sharePromises = postsData.map(post => 
+          supabase
+            .from('post_shares')
+            .select('id', { count: 'exact', head: true })
+            .eq('post_id', post.id)
+        );
+        
+        // Process all promises
+        const [reactionResults, commentResults, shareResults] = await Promise.all([
+          Promise.all(reactionPromises),
+          Promise.all(commentPromises),
+          Promise.all(sharePromises)
+        ]);
+        
+        // Format the post data
+        const formattedPosts = postsData.map((post, index) => {
+          // Process reactions
+          const reactions: any = { like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 };
+          if (reactionResults[index].data) {
+            reactionResults[index].data.forEach((item: any) => {
+              reactions[item.reaction_type] = parseInt(item.count);
+            });
+          }
+          
+          return {
+            id: post.id,
+            user_id: post.user_id,
+            content: post.content,
+            media_url: post.media_url,
+            media_type: post.media_type,
+            view_count: post.view_count,
+            created_at: post.created_at,
+            updated_at: post.updated_at,
+            author: {
+              name: post.profiles.name,
+              username: `student_${post.profiles.student_id}`,
+              avatar: post.profiles.profile_pic
+            },
+            reactions,
+            _count: {
+              comments: commentResults[index].count || 0,
+              shares: shareResults[index].count || 0
+            }
+          };
+        });
+        
+        setPosts(formattedPosts);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+        toast({
+          title: "Error loading feed",
+          description: "Failed to load posts. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPosts();
+    
+    // Set up real-time subscription for new posts
+    const channel = supabase
+      .channel('public:posts')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'posts' }, 
+        (payload) => {
+          // When a new post is created, fetch it with complete information
+          const fetchNewPost = async () => {
+            const { data, error } = await supabase
+              .from('posts')
+              .select(`
+                id,
+                user_id,
+                content,
+                media_url,
+                media_type,
+                view_count,
+                created_at,
+                updated_at,
+                profiles:user_id (
+                  name,
+                  student_id,
+                  profile_pic
+                )
+              `)
+              .eq('id', payload.new.id)
+              .single();
+              
+            if (error) {
+              console.error("Error fetching new post:", error);
+              return;
+            }
+            
+            const newPost: Post = {
+              id: data.id,
+              user_id: data.user_id,
+              content: data.content,
+              media_url: data.media_url,
+              media_type: data.media_type,
+              view_count: data.view_count,
+              created_at: data.created_at,
+              updated_at: data.updated_at,
+              author: {
+                name: data.profiles.name,
+                username: `student_${data.profiles.student_id}`,
+                avatar: data.profiles.profile_pic
+              },
+              reactions: { like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 },
+              _count: { comments: 0, shares: 0 }
+            };
+            
+            setPosts(prev => [newPost, ...prev]);
+          };
+          
+          fetchNewPost();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
+  
+  // Fetch suggested users
+  useEffect(() => {
+    const fetchSuggestedUsers = async () => {
+      if (!user) return;
+      
+      try {
+        // Get a random selection of users as suggestions 
+        // In a real app, you'd want to suggest users based on common interests, etc.
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, profile_pic')
+          .neq('id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(3);
+          
+        if (error) {
+          throw error;
+        }
+        
+        setSuggestedUsers(data.map(user => ({
+          name: user.name,
+          username: `user_${user.id.substring(0, 8)}`,
+          avatar: user.profile_pic
+        })));
+        
+      } catch (error) {
+        console.error("Error fetching suggested users:", error);
+      }
+    };
+    
+    fetchSuggestedUsers();
+  }, [user]);
   
   // Filter posts based on active filter
-  const filteredPosts = POSTS.filter(post => {
-    if (activeFilter === "official") {
-      return post.isOfficial;
-    } else if (activeFilter === "events") {
-      return post.event;
+  const filteredPosts = React.useMemo(() => {
+    if (activeFilter === "all") {
+      return posts;
+    } else if (activeFilter === "media") {
+      return posts.filter(post => post.media_type && post.media_type !== 'none');
+    } else if (activeFilter === "text") {
+      return posts.filter(post => !post.media_url || post.media_type === 'none');
     }
-    return true;
-  });
+    return posts;
+  }, [posts, activeFilter]);
+  
+  // Handle post created
+  const handlePostCreated = () => {
+    // We rely on the real-time subscription to update the posts list
+    toast({
+      title: "Success",
+      description: "Your post has been published"
+    });
+  };
+  
+  // Handle post deleted
+  const handlePostDeleted = () => {
+    // We could potentially refetch all posts, but for simplicity, we'll just reload the page
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -160,7 +288,7 @@ const Newsfeed = () => {
               
               <h3 className="font-semibold mb-4">Suggested to Follow</h3>
               <ul className="space-y-4">
-                {SUGGESTED_USERS.map((suggestedUser, index) => (
+                {suggestedUsers.map((suggestedUser, index) => (
                   <li key={index} className="flex items-center justify-between">
                     <div className="flex items-center">
                       <Avatar className="h-8 w-8 mr-2">
@@ -186,161 +314,43 @@ const Newsfeed = () => {
           {/* Main content */}
           <div className="lg:col-span-2">
             {/* Post creation card */}
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                <div className="flex gap-4">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={profile?.profilePic} />
-                    <AvatarFallback className="bg-sfu-red text-white">
-                      {profile ? profile.name.charAt(0) : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <Textarea 
-                      placeholder="What's on your mind?"
-                      className="w-full resize-none border-none focus-visible:ring-0 p-0"
-                      rows={3}
-                      value={newPostText}
-                      onChange={(e) => setNewPostText(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t pt-4">
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="text-gray-500">
-                    <Image className="h-4 w-4 mr-1" /> Photo
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-500">
-                    <MapPin className="h-4 w-4 mr-1" /> Location
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-500">
-                    <Calendar className="h-4 w-4 mr-1" /> Event
-                  </Button>
-                </div>
-                <Button 
-                  className="bg-sfu-red hover:bg-sfu-red/90"
-                  disabled={!newPostText.trim()}
-                >
-                  <Send className="h-4 w-4 mr-2" /> Post
-                </Button>
-              </CardFooter>
-            </Card>
+            <CreatePostForm onPostCreated={handlePostCreated} />
             
             {/* Filters */}
             <div className="mb-6">
               <Tabs defaultValue={activeFilter} onValueChange={setActiveFilter}>
                 <TabsList className="w-full bg-white">
                   <TabsTrigger value="all" className="flex-1">All Posts</TabsTrigger>
-                  <TabsTrigger value="official" className="flex-1">Official</TabsTrigger>
-                  <TabsTrigger value="events" className="flex-1">Events</TabsTrigger>
+                  <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
+                  <TabsTrigger value="text" className="flex-1">Text Only</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
             
             {/* Feed posts */}
             <div className="space-y-6">
-              {filteredPosts.map(post => (
-                <Card key={post.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Post header */}
-                    <div className="p-4 flex justify-between items-start">
-                      <div className="flex items-start gap-3">
-                        <Avatar>
-                          <AvatarImage src={post.author.avatar} />
-                          <AvatarFallback>
-                            {post.author.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center">
-                            <p className="font-semibold">{post.author.name}</p>
-                            {post.isOfficial && (
-                              <span className="ml-2 bg-sfu-red text-white text-xs px-1.5 py-0.5 rounded-full">
-                                Official
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center text-xs text-gray-500">
-                            <span>@{post.author.username}</span>
-                            <span className="mx-1">•</span>
-                            <span>{format(post.timestamp, 'MMM d, h:mm a')}</span>
-                            {post.location && (
-                              <>
-                                <span className="mx-1">•</span>
-                                <MapPin className="h-3 w-3 mr-0.5" />
-                                <span>{post.location}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <BookmarkPlus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    {/* Post content */}
-                    <div className="px-4 pb-4">
-                      <p className="whitespace-pre-line">{post.content}</p>
-                    </div>
-                    
-                    {/* Post images */}
-                    {post.images && post.images.length > 0 && (
-                      <div className="w-full">
-                        <img 
-                          src={post.images[0]} 
-                          alt="Post image" 
-                          className="w-full h-auto object-cover"
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Event details */}
-                    {post.event && (
-                      <div className="m-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className="flex items-center">
-                          <Calendar className="h-5 w-5 mr-2 text-sfu-red" />
-                          <h4 className="font-medium">{post.event.title}</h4>
-                        </div>
-                        <div className="mt-2 text-sm text-gray-600 ml-7">
-                          <p>{format(post.event.date, 'EEEE, MMMM d, yyyy • h:mm a')}</p>
-                          <p className="flex items-center mt-1">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {post.event.location}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Post stats */}
-                    <div className="px-4 py-2 border-t border-b flex justify-between text-xs text-gray-500">
-                      <span>{post.likes} likes</span>
-                      <div>
-                        <span>{post.comments} comments</span>
-                        <span className="mx-1">•</span>
-                        <span>{post.shares} shares</span>
-                      </div>
-                    </div>
-                    
-                    {/* Post actions */}
-                    <div className="grid grid-cols-3 divide-x">
-                      <Button variant="ghost" className="rounded-none py-2 h-auto">
-                        <ThumbsUp className="h-4 w-4 mr-2" />
-                        Like
-                      </Button>
-                      <Button variant="ghost" className="rounded-none py-2 h-auto">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Comment
-                      </Button>
-                      <Button variant="ghost" className="rounded-none py-2 h-auto">
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {isLoading ? (
+                <div className="text-center py-10">
+                  <p className="text-gray-500">Loading posts...</p>
+                </div>
+              ) : filteredPosts.length > 0 ? (
+                filteredPosts.map(post => (
+                  <PostItem 
+                    key={post.id} 
+                    post={post} 
+                    onPostDeleted={handlePostDeleted}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-10 bg-white rounded-lg shadow p-6">
+                  <p className="text-gray-500 mb-3">No posts to display</p>
+                  <p className="text-sm text-gray-400">
+                    {activeFilter === "all" 
+                      ? "Be the first to create a post!" 
+                      : "Try a different filter or create a new post."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           
@@ -370,7 +380,6 @@ const Newsfeed = () => {
               </div>
               
               <Button variant="outline" className="w-full mt-4">
-                <Calendar className="h-4 w-4 mr-2" />
                 View All Events
               </Button>
               

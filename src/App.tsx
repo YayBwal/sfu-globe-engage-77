@@ -19,6 +19,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { supabase } from '@/integrations/supabase/client';
+import { setupStorageBuckets } from '@/utils/storageSetup';
 
 function App() {
   // Create storage buckets if they don't exist
@@ -50,6 +51,9 @@ function App() {
           fileSizeLimit: 1024 * 1024 * 5, // 5MB limit
         });
       }
+
+      // Setup post-related buckets
+      await setupStorageBuckets();
     };
     
     createStorageBuckets();
