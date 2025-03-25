@@ -5,10 +5,8 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/home/HeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
-import StudyBuddySection from "@/components/home/StudyBuddySection";
-import QuizSection from "@/components/home/QuizSection";
-import RankingSection from "@/components/home/RankingSection";
 import CTASection from "@/components/home/CTASection";
+import HomeResourcesSection from "@/components/home/HomeResourcesSection";
 
 const Index = () => {
   // Add smooth scroll behavior for anchor links
@@ -42,9 +40,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <FeaturesSection />
-        <StudyBuddySection />
-        <QuizSection />
-        <RankingSection />
+        <HomeResourcesSection />
         <CTASection />
       </main>
       
