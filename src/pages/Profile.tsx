@@ -7,7 +7,8 @@ import * as z from "zod";
 import { 
   Camera, Edit2, Calendar, Book, Users, Award, Gamepad, 
   Clock, ArrowLeft, Upload, User, Image, School, 
-  FileText, Briefcase, MapPin, Mail, Hash, Save
+  FileText, Briefcase, MapPin, Mail, Hash, Save,
+  Circle, UserCheck, UserPlus, UserX
 } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
@@ -77,6 +78,15 @@ interface UserActivity {
   created_at: string;
 }
 
+interface Friend {
+  id: string;
+  name: string;
+  profile_pic?: string;
+  online: boolean;
+  student_id: string;
+  major: string;
+}
+
 const Profile = () => {
   const { profile, user, logout, updateUserStatus } = useAuth();
   const { userClubs } = useClub();
@@ -89,6 +99,8 @@ const Profile = () => {
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [clubs, setClubs] = useState<UserClub[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [activeTab, setActiveTab] = useState("activity");
   
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -101,13 +113,14 @@ const Profile = () => {
     },
   });
   
-  // Fetch user's quiz results
+  // Fetch user's quiz results and other data
   useEffect(() => {
     if (user) {
       fetchUserQuizzes();
       fetchUserCourses();
       fetchUserActivities();
       fetchUserClubs();
+      fetchFriends();
     }
   }, [user]);
   
@@ -164,7 +177,13 @@ const Profile = () => {
         .limit(20);
       
       if (error) throw error;
-      setActivities(data || []);
+      
+      // Filter out profile update activities
+      const filteredActivities = data?.filter(activity => 
+        activity.activity_type !== 'profile_update'
+      ) || [];
+      
+      setActivities(filteredActivities);
     } catch (error) {
       console.error("Error fetching activities:", error);
     }
@@ -201,6 +220,40 @@ const Profile = () => {
       setClubs(formattedClubs);
     } catch (error) {
       console.error("Error fetching clubs:", error);
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      if (!user) return;
+      
+      // Get all connections where the user is either the sender or receiver
+      const { data: connections, error: connectionsError } = await supabase
+        .from('connections')
+        .select('user_id, friend_id')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+      
+      if (connectionsError) throw connectionsError;
+      
+      if (connections && connections.length > 0) {
+        // Get the IDs of the friends
+        const friendIds = connections.map(conn => 
+          conn.user_id === user.id ? conn.friend_id : conn.user_id
+        );
+        
+        // Get the profile data for each friend
+        const { data: friendProfiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, profile_pic, online, student_id, major')
+          .in('id', friendIds);
+          
+        if (profilesError) throw profilesError;
+        
+        setFriends(friendProfiles as Friend[] || []);
+      }
+    } catch (error) {
+      console.error("Error fetching friends:", error);
     }
   };
   
@@ -262,7 +315,7 @@ const Profile = () => {
       // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ profilePic: publicUrl })
+        .update({ profile_pic: publicUrl })
         .eq('id', user?.id);
       
       if (updateError) throw updateError;
@@ -271,9 +324,6 @@ const Profile = () => {
         title: "Profile picture updated",
         description: "Your profile picture has been updated successfully.",
       });
-      
-      // Add activity
-      await addActivity('profile_update', { type: 'profile_picture' });
       
       // Force refresh
       window.location.reload();
@@ -316,7 +366,7 @@ const Profile = () => {
       // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ coverPic: publicUrl })
+        .update({ cover_pic: publicUrl })
         .eq('id', user?.id);
       
       if (updateError) throw updateError;
@@ -325,9 +375,6 @@ const Profile = () => {
         title: "Cover image updated",
         description: "Your cover image has been updated successfully.",
       });
-      
-      // Add activity
-      await addActivity('profile_update', { type: 'cover_picture' });
       
       // Force refresh
       window.location.reload();
@@ -356,6 +403,39 @@ const Profile = () => {
       if (error) throw error;
     } catch (error) {
       console.error("Error logging activity:", error);
+    }
+  };
+
+  const removeFriend = async (friendId: string) => {
+    try {
+      if (!user) return;
+
+      // Delete the connection in both directions
+      await supabase
+        .from('connections')
+        .delete()
+        .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`);
+      
+      // Update friends list
+      setFriends(prev => prev.filter(friend => friend.id !== friendId));
+      
+      toast({
+        title: "Friend removed",
+        description: "The friend has been removed from your list.",
+      });
+
+      // Add to activity
+      await addActivity('friend_remove', { friend_id: friendId });
+      
+      // Refresh activities
+      fetchUserActivities();
+    } catch (error) {
+      console.error("Error removing friend:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove friend",
+        variant: "destructive",
+      });
     }
   };
   
@@ -403,9 +483,17 @@ const Profile = () => {
         icon = <Book className="h-4 w-4 text-green-500" />;
         message = `Enrolled in: ${activity_detail.course_name}`;
         break;
-      case 'profile_update':
-        icon = <User className="h-4 w-4 text-orange-500" />;
-        message = `Updated ${activity_detail.type.replace('_', ' ')}`;
+      case 'study_session_join':
+        icon = <Users className="h-4 w-4 text-blue-500" />;
+        message = `Joined a study session: ${activity_detail.subject}`;
+        break;
+      case 'friend_add':
+        icon = <UserPlus className="h-4 w-4 text-green-500" />;
+        message = `Added a new friend`;
+        break;
+      case 'friend_remove':
+        icon = <UserX className="h-4 w-4 text-red-500" />;
+        message = `Removed a friend`;
         break;
       default:
         break;
@@ -469,22 +557,22 @@ const Profile = () => {
       <main className="pt-16 pb-16">
         {/* Cover Photo Section */}
         <div className="relative w-full">
-          <div className="h-80 w-full bg-gradient-to-r from-blue-400 to-indigo-500 overflow-hidden">
-            {profile?.coverPic ? (
+          <div className="h-64 sm:h-80 w-full bg-gradient-to-r from-blue-500 to-sfu-red overflow-hidden">
+            {profile?.cover_pic ? (
               <img 
-                src={profile.coverPic} 
+                src={profile.cover_pic} 
                 alt="Cover" 
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 opacity-80" />
+              <div className="w-full h-full bg-gradient-to-br from-sfu-red via-amber-500 to-sfu-lightgray opacity-80" />
             )}
             
             <div className="absolute inset-0 bg-black/10" />
             
             {/* Cover Photo Upload Button */}
             <label 
-              className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 cursor-pointer text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm transition flex items-center gap-2 shadow-lg"
+              className="absolute top-4 right-4 bg-white/30 hover:bg-white/50 cursor-pointer text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm transition flex items-center gap-2 shadow-lg"
             >
               <Upload className="h-4 w-4" />
               Change Cover
@@ -497,20 +585,22 @@ const Profile = () => {
               />
             </label>
           </div>
-          
-          {/* Profile Info Section - Positioned to overflow cover image */}
-          <div className="max-w-5xl mx-auto px-4 relative -mt-24">
-            <div className="bg-white rounded-xl shadow-lg p-6 pt-28 relative">
-              {/* Profile Picture - Position it outside the white card */}
-              <div className="absolute -top-20 left-8 flex justify-center">
+        </div>
+        
+        {/* Profile Info Section */}
+        <div className="max-w-5xl mx-auto px-4 -mt-24 relative z-10">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 pt-24 md:pt-6 relative">
+            <div className="flex flex-col md:flex-row gap-6 relative">
+              {/* Profile Picture - Position it so it overlaps the cover image */}
+              <div className="absolute -top-20 left-1/2 md:left-8 transform -translate-x-1/2 md:translate-x-0 flex justify-center z-20">
                 <div className="relative group">
-                  <Avatar className="h-36 w-36 border-4 border-white bg-sfu-lightgray shadow-xl">
-                    <AvatarImage src={profile?.profilePic} alt={profile?.name} className="object-cover" />
-                    <AvatarFallback className="text-4xl font-medium bg-gradient-to-br from-sfu-red to-pink-600 text-white">
+                  <Avatar className="h-36 w-36 border-4 border-white shadow-xl">
+                    <AvatarImage src={profile?.profile_pic} alt={profile?.name} className="object-cover" />
+                    <AvatarFallback className="text-4xl font-medium bg-gradient-to-br from-sfu-red to-amber-500 text-white">
                       {profile ? getInitials(profile.name) : "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <label className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
+                  <label className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-sfu-red to-amber-500 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
                     <Camera className="h-5 w-5" />
                     <input
                       type="file"
@@ -524,8 +614,8 @@ const Profile = () => {
               </div>
               
               {/* Profile Info Content */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mt-2">
-                <div className="flex-1 pl-1 md:pl-32 pt-8 md:pt-0">
+              <div className="flex flex-col md:flex-row justify-between items-start mt-8 md:mt-0 w-full">
+                <div className="flex-1 md:pl-44 text-center md:text-left">
                   {isEditMode ? (
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -601,7 +691,7 @@ const Profile = () => {
                           )}
                         />
                         <div className="flex gap-2 pt-2">
-                          <Button type="submit" className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+                          <Button type="submit" className="bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
                             <Save className="h-4 w-4 mr-2" />
                             Save Profile
                           </Button>
@@ -617,20 +707,43 @@ const Profile = () => {
                     </Form>
                   ) : (
                     <>
-                      <div className="flex justify-between">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-end w-full">
                         <div>
                           <h1 className="text-3xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
                             {profile?.name}
                           </h1>
-                          <p className="text-gray-500 flex items-center gap-2 mt-1">
+                          <p className="text-gray-500 flex items-center justify-center md:justify-start gap-2 mt-1">
                             <Mail className="h-4 w-4" />
                             {profile?.email}
                           </p>
                           {profile?.bio && (
-                            <p className="text-gray-700 mt-3 max-w-xl">{profile.bio}</p>
+                            <p className="text-gray-700 mt-3 max-w-xl text-center md:text-left">{profile.bio}</p>
                           )}
+                          
+                          <div className="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <School className="h-3 w-3 mr-1" />
+                              {profile?.major === 'CS' ? 'Computer Science' : 
+                              profile?.major === 'BBA' ? 'Business Administration' : 
+                              profile?.major === 'ENG' ? 'Engineering' : 
+                              profile?.major === 'MED' ? 'Medical Sciences' : 
+                              profile?.major === 'ART' ? 'Arts & Humanities' : profile?.major}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Batch {profile?.batch}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <Hash className="h-3 w-3 mr-1" />
+                              ID: {profile?.studentId}
+                            </span>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${profile?.online ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              <Circle className={`h-3 w-3 mr-1 ${profile?.online ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'}`} />
+                              {profile?.online ? 'Online' : 'Offline'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mt-4 md:mt-0">
                           <Button 
                             variant="outline" 
                             className="rounded-lg border-slate-200 hover:bg-gray-100 hover:text-sfu-black"
@@ -648,54 +761,36 @@ const Profile = () => {
                           </Button>
                         </div>
                       </div>
-                      
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <School className="h-3 w-3 mr-1" />
-                          {profile?.major === 'CS' ? 'Computer Science' : 
-                           profile?.major === 'BBA' ? 'Business Administration' : 
-                           profile?.major === 'ENG' ? 'Engineering' : 
-                           profile?.major === 'MED' ? 'Medical Sciences' : 
-                           profile?.major === 'ART' ? 'Arts & Humanities' : profile?.major}
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          Batch {profile?.batch}
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <Hash className="h-3 w-3 mr-1" />
-                          ID: {profile?.studentId}
-                        </span>
-                      </div>
                     </>
                   )}
                 </div>
               </div>
-              
-              {/* Stats Section */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                {stats.map((stat, index) => (
-                  <Card key={index} className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition duration-200">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <CardContent className="p-4 flex flex-col items-center justify-center relative">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-2">
-                        <stat.icon className="h-5 w-5 text-indigo-500" />
-                      </div>
-                      <p className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{stat.value}</p>
-                      <p className="text-xs text-gray-500">{stat.label}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+            </div>
+            
+            {/* Stats Section */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {stats.map((stat, index) => (
+                <Card key={index} className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition duration-200">
+                  <div className="absolute inset-0 bg-gradient-to-r from-sfu-red/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sfu-red/10 to-amber-400/10 flex items-center justify-center mb-2">
+                      <stat.icon className="h-5 w-5 text-sfu-red" />
+                    </div>
+                    <p className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-sfu-red to-amber-500">{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </div>
         
         {/* Tabs Section */}
         <div className="max-w-5xl mx-auto px-4 mt-6">
-          <Tabs defaultValue="activity" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full bg-white mb-6 p-1 rounded-xl shadow-sm">
               <TabsTrigger value="activity" className="flex-1 rounded-lg">Activity</TabsTrigger>
+              <TabsTrigger value="friends" className="flex-1 rounded-lg">Friends</TabsTrigger>
               <TabsTrigger value="clubs" className="flex-1 rounded-lg">Clubs</TabsTrigger>
               <TabsTrigger value="quizzes" className="flex-1 rounded-lg">Quizzes</TabsTrigger>
               <TabsTrigger value="courses" className="flex-1 rounded-lg">Courses</TabsTrigger>
@@ -723,19 +818,77 @@ const Profile = () => {
               )}
             </TabsContent>
             
+            <TabsContent value="friends" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {friends.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {friends.map((friend) => (
+                    <Card key={friend.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
+                      <div className={`h-2 ${friend.online ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-gray-300 to-gray-200'}`} />
+                      <CardContent className="p-4 pt-5">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white relative">
+                            {friend.profile_pic ? (
+                              <AvatarImage src={friend.profile_pic} alt={friend.name} className="p-1" />
+                            ) : (
+                              <AvatarFallback className="rounded-full bg-gradient-to-br from-sfu-red to-amber-500 text-white">
+                                {getInitials(friend.name)}
+                              </AvatarFallback>
+                            )}
+                            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${friend.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                          </Avatar>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900">{friend.name}</h4>
+                            <div className="flex gap-1.5 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                {friend.major}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                {friend.student_id}
+                              </span>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8 rounded-full text-gray-500 hover:text-red-500"
+                            onClick={() => removeFriend(friend.id)}
+                          >
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No friends yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Connect with other students to add them as friends.
+                  </p>
+                  <Link to="/study">
+                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
+                      Find Study Partners
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+            
             <TabsContent value="clubs" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {clubs.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {clubs.map((club) => (
                     <Card key={club.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
-                      <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                      <div className="h-2 bg-gradient-to-r from-sfu-red to-amber-500" />
                       <CardContent className="p-4 pt-5">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 ring-2 ring-white">
+                          <Avatar className="h-12 w-12 rounded-xl bg-gradient-to-br from-sfu-red/10 to-amber-400/10 ring-2 ring-white">
                             {club.logo_url ? (
                               <AvatarImage src={club.logo_url} alt={club.name} className="p-1" />
                             ) : (
-                              <AvatarFallback className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                              <AvatarFallback className="rounded-xl bg-gradient-to-br from-sfu-red to-amber-500 text-white">
                                 {getInitials(club.name)}
                               </AvatarFallback>
                             )}
@@ -743,7 +896,7 @@ const Profile = () => {
                           <div>
                             <h4 className="font-semibold text-slate-900">{club.name}</h4>
                             <div className="flex gap-1.5 mt-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sfu-red/10 text-sfu-red capitalize">
                                 {club.role}
                               </span>
                               {!club.approved && (
@@ -766,7 +919,7 @@ const Profile = () => {
                     Join clubs to connect with other students and participate in engaging activities.
                   </p>
                   <Link to="/clubs">
-                    <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
                       Browse Clubs
                     </Button>
                   </Link>
@@ -814,7 +967,7 @@ const Profile = () => {
                     Complete quizzes to test your knowledge and improve your ranking.
                   </p>
                   <Link to="/quizzes">
-                    <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
                       Start a Quiz
                     </Button>
                   </Link>
@@ -827,19 +980,19 @@ const Profile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {userCourses.map((course) => (
                     <Card key={course.id} className="overflow-hidden group hover:shadow-md transition duration-200 border-none bg-gradient-to-br from-slate-50 to-white">
-                      <div className={`h-1.5 ${course.completed ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}`} />
+                      <div className={`h-1.5 ${course.completed ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-sfu-red to-amber-500'}`} />
                       <CardContent className="p-5">
                         <div className="flex justify-between items-start">
                           <div className="flex gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                               course.completed 
                                 ? 'bg-green-100' 
-                                : 'bg-blue-100'
+                                : 'bg-sfu-red/10'
                             }`}>
                               <Book className={`h-5 w-5 ${
                                 course.completed 
                                   ? 'text-green-600' 
-                                  : 'text-blue-600'
+                                  : 'text-sfu-red'
                               }`} />
                             </div>
                             <div>
@@ -850,7 +1003,7 @@ const Profile = () => {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             course.completed 
                               ? 'bg-green-100 text-green-800' 
-                              : 'bg-blue-100 text-blue-800'
+                              : 'bg-sfu-red/10 text-sfu-red'
                           }`}>
                             {course.completed ? 'Completed' : 'In Progress'}
                           </span>
@@ -866,7 +1019,7 @@ const Profile = () => {
                   <p className="text-gray-500 max-w-md mx-auto">
                     Enroll in courses to start learning and track your progress.
                   </p>
-                  <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+                  <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
                     Browse Courses
                   </Button>
                 </div>

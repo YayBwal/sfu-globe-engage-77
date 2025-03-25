@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -14,8 +13,20 @@ import MessagingPanel from "@/components/study/MessagingPanel";
 import StudySessions from "@/components/study/StudySessions";
 import PartnerMatching from "@/components/study/PartnerMatching";
 
-// Import data
-import { upcomingSessions } from "@/data/StudyData";
+// Define types for study sessions
+export type StudySession = {
+  id: string;
+  subject: string;
+  date: string;
+  location: string;
+  type: "online" | "offline";
+  participants?: number;
+  participants_count?: number;
+  host_id: string;
+  password?: string;
+  meeting_link?: string;
+  description?: string;
+};
 
 const Study = () => {
   const [activeTab, setActiveTab] = useState("sessions");
@@ -238,6 +249,9 @@ const Study = () => {
       setTimeout(() => {
         acceptConnection(studentId);
       }, 2000);
+      
+      // Add activity
+      addActivity('friend_add', { friend_id: studentId });
     } catch (error) {
       console.error("Error sending connection request:", error);
       toast({
@@ -386,6 +400,22 @@ const Study = () => {
       });
     }
   };
+
+  const addActivity = async (type: string, detail: any) => {
+    try {
+      const { error } = await supabase
+        .from('user_activities')
+        .insert({
+          user_id: user?.id,
+          activity_type: type,
+          activity_detail: detail
+        });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error logging activity:", error);
+    }
+  };
   
   const isConnected = (studentId: string) => {
     return connections.includes(studentId);
@@ -400,6 +430,36 @@ const Study = () => {
     setShowMessaging(false);
     setActiveTab("sessions");
   };
+
+  // Convert our mock data to match the StudySession type
+  const upcomingSessionsData: StudySession[] = [
+    {
+      id: "1",
+      subject: "Algorithm Analysis",
+      date: "2023-05-15T18:00:00",
+      location: "Library, Room 302",
+      host_id: "user-1",
+      type: "offline"
+    },
+    {
+      id: "2",
+      subject: "Database Systems",
+      date: "2023-05-16T15:30:00",
+      location: "Online",
+      host_id: "user-2",
+      type: "online",
+      password: "db123",
+      meeting_link: "https://zoom.us/j/123456789"
+    },
+    {
+      id: "3",
+      subject: "Mobile Development",
+      date: "2023-05-17T10:00:00",
+      location: "Computer Lab 4",
+      host_id: "user-3",
+      type: "offline"
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -446,7 +506,7 @@ const Study = () => {
                 </TabsList>
                 
                 <TabsContent value="sessions">
-                  <StudySessions upcomingSessions={upcomingSessions} />
+                  <StudySessions upcomingSessions={upcomingSessionsData} />
                 </TabsContent>
                 
                 <TabsContent value="matching">
