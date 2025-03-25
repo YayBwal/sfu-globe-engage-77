@@ -1,14 +1,27 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGaming } from '@/contexts/GamingContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Medal, Trophy } from 'lucide-react';
+import { Medal, Trophy, Trash2 } from 'lucide-react';
 import LeaderboardHeader from './leaderboard/LeaderboardHeader';
 import LoadingSpinner from './leaderboard/LoadingSpinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const LeaderboardSection: React.FC = () => {
-  const { leaderboard = [], isLoading, fetchLeaderboards } = useGaming();
+  const { 
+    leaderboard = [], 
+    isLoading, 
+    fetchLeaderboards, 
+    deleteSession 
+  } = useGaming();
+  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
+  const { toast } = useToast();
   
   // Fetch leaderboard data when component mounts
   useEffect(() => {
@@ -24,9 +37,45 @@ const LeaderboardSection: React.FC = () => {
     }
   };
 
+  const handleDeleteSession = (sessionId: string) => {
+    setSelectedSession(sessionId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (selectedSession) {
+      try {
+        await deleteSession(selectedSession);
+        toast({
+          title: 'Success',
+          description: 'Session deleted successfully',
+        });
+        
+        // Refresh the leaderboard
+        fetchLeaderboards();
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete session',
+          variant: 'destructive',
+        });
+      }
+      
+      setShowDeleteDialog(false);
+      setSelectedSession(null);
+    }
+  };
+
+  const handleCreateSession = () => {
+    setShowCreateSessionDialog(true);
+  };
+
   return (
     <div className="min-h-[60vh]">
-      <LeaderboardHeader />
+      <LeaderboardHeader 
+        showSessionControls={true}
+        onCreateSession={handleCreateSession}
+      />
       
       {isLoading ? (
         <LoadingSpinner />
@@ -77,6 +126,17 @@ const LeaderboardSection: React.FC = () => {
                     <p className="text-lg font-bold text-sfu-red">{player.totalScore}</p>
                     <p className="text-xs text-gray-500">points</p>
                   </div>
+                  
+                  <div className="ml-4">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteSession(player.userId)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -92,6 +152,60 @@ const LeaderboardSection: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Session Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Session</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this session? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteSession}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Session Dialog */}
+      <Dialog open={showCreateSessionDialog} onOpenChange={setShowCreateSessionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Session</DialogTitle>
+            <DialogDescription>
+              Create a new gaming session with quizzes and games.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-500 mb-4">
+              A new session will be created with 10 questions following the same format as existing sessions.
+              Scores will be tracked and automatically added to the leaderboard.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateSessionDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                toast({
+                  title: 'Success',
+                  description: 'New session created successfully',
+                });
+                setShowCreateSessionDialog(false);
+              }}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -13,6 +12,7 @@ export interface Question {
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
   created_at?: string;
+  courseId?: string;
 }
 
 export interface QuizScore {
@@ -25,6 +25,7 @@ export interface QuizScore {
   score: number;
   timeTaken: number;
   createdAt: string;
+  sessionId?: string;
 }
 
 export interface GameScore {
@@ -37,6 +38,7 @@ export interface GameScore {
   score: number;
   level: number;
   createdAt: string;
+  sessionId?: string;
 }
 
 export interface LeaderboardUser {
@@ -46,6 +48,15 @@ export interface LeaderboardUser {
   totalScore: number;
   quizCount: number;
   gameCount: number;
+  sessionId?: string;
+}
+
+export interface GamingSession {
+  id: string;
+  name: string;
+  createdAt: string;
+  createdBy: string;
+  courseId?: string;
 }
 
 interface GamingContextType {
@@ -53,13 +64,17 @@ interface GamingContextType {
   quizScores: QuizScore[];
   gameScores: GameScore[];
   leaderboard: LeaderboardUser[];
+  sessions: GamingSession[];
   fetchQuizzes: () => Promise<void>;
   fetchLeaderboards: () => Promise<void>;
-  saveQuizScore: (quizId: string, quizName: string, score: number, timeTaken: number) => Promise<void>;
-  saveGameScore: (gameId: string, gameName: string, score: number, level: number) => Promise<void>;
+  fetchSessions: () => Promise<void>;
+  saveQuizScore: (quizId: string, quizName: string, score: number, timeTaken: number, sessionId?: string) => Promise<void>;
+  saveGameScore: (gameId: string, gameName: string, score: number, level: number, sessionId?: string) => Promise<void>;
+  createSession: (name: string, courseId?: string) => Promise<string>;
+  deleteSession: (sessionId: string) => Promise<void>;
   isLoading: boolean;
   questions: Question[];
-  fetchQuestions: () => Promise<void>;
+  fetchQuestions: (courseId?: string) => Promise<void>;
 }
 
 const GamingContext = createContext<GamingContextType>({
@@ -67,10 +82,14 @@ const GamingContext = createContext<GamingContextType>({
   quizScores: [],
   gameScores: [],
   leaderboard: [],
+  sessions: [],
   fetchQuizzes: async () => {},
   fetchLeaderboards: async () => {},
+  fetchSessions: async () => {},
   saveQuizScore: async () => {},
   saveGameScore: async () => {},
+  createSession: async () => '',
+  deleteSession: async () => {},
   isLoading: false,
   questions: [],
   fetchQuestions: async () => {},
@@ -83,17 +102,155 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [quizScores, setQuizScores] = useState<QuizScore[]>([]);
   const [gameScores, setGameScores] = useState<GameScore[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+  const [sessions, setSessions] = useState<GamingSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
+  // Fetch sessions
+  const fetchSessions = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('gaming_sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      const mappedSessions = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        createdAt: item.created_at,
+        createdBy: item.created_by,
+        courseId: item.course_id
+      }));
+      
+      setSessions(mappedSessions);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load sessions',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
+  };
+
+  // Create a new session
+  const createSession = async (name: string, courseId?: string): Promise<string> => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You need to be logged in to create sessions',
+        variant: 'destructive',
+      });
+      return '';
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('gaming_sessions')
+        .insert({
+          name,
+          created_by: user.id,
+          course_id: courseId
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      toast({
+        title: 'Success',
+        description: 'Session created successfully',
+      });
+      
+      // Refresh sessions
+      await fetchSessions();
+      
+      return data.id;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create session',
+        variant: 'destructive',
+      });
+      return '';
+    }
+  };
+
+  // Delete a session
+  const deleteSession = async (sessionId: string) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You need to be logged in to delete sessions',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      // Delete associated quiz scores
+      const { error: quizScoresError } = await supabase
+        .from('quiz_scores')
+        .delete()
+        .match({ session_id: sessionId });
+        
+      if (quizScoresError) throw quizScoresError;
+      
+      // Delete associated game scores
+      const { error: gameScoresError } = await supabase
+        .from('game_scores')
+        .delete()
+        .match({ session_id: sessionId });
+        
+      if (gameScoresError) throw gameScoresError;
+      
+      // Delete the session
+      const { error } = await supabase
+        .from('gaming_sessions')
+        .delete()
+        .match({ id: sessionId });
+        
+      if (error) throw error;
+      
+      toast({
+        title: 'Success',
+        description: 'Session deleted successfully',
+      });
+      
+      // Refresh sessions and leaderboard
+      await fetchSessions();
+      await fetchLeaderboards();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete session',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Fetch quizzes
   const fetchQuizzes = async () => {
     try {
       setIsLoading(true);
-      // Fetch quiz data 
-      // ...
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setQuizzes(data);
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching quizzes:', error);
@@ -134,7 +291,8 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quizName: item.quiz_name,
         score: item.score,
         timeTaken: item.time_taken,
-        createdAt: item.created_at
+        createdAt: item.created_at,
+        sessionId: item.session_id
       }));
       
       const mappedGameScores = gameScoresData.map(item => ({
@@ -146,7 +304,8 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         gameName: item.game_name,
         score: item.score,
         level: item.level,
-        createdAt: item.created_at
+        createdAt: item.created_at,
+        sessionId: item.session_id
       }));
       
       // Calculate leaderboard data
@@ -208,13 +367,21 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Fetch questions from the database
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (courseId?: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('quiz_questions')
         .select('*')
         .order('created_at', { ascending: false });
+        
+      // Filter by course ID if provided
+      if (courseId) {
+        query = query.eq('course_id', courseId);
+      }
+      
+      const { data, error } = await query;
         
       if (error) throw error;
       
@@ -226,7 +393,8 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         correctAnswer: item.correct_answer,
         category: item.category,
         difficulty: item.difficulty as 'easy' | 'medium' | 'hard',
-        created_at: item.created_at
+        created_at: item.created_at,
+        courseId: item.course_id
       }));
       
       setQuestions(mappedQuestions);
@@ -243,7 +411,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Save quiz score
-  const saveQuizScore = async (quizId: string, quizName: string, score: number, timeTaken: number) => {
+  const saveQuizScore = async (quizId: string, quizName: string, score: number, timeTaken: number, sessionId?: string) => {
     if (!user) {
       toast({
         title: 'Authentication required',
@@ -262,6 +430,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quiz_name: quizName,
         score,
         time_taken: timeTaken,
+        session_id: sessionId
       });
       
       if (error) throw error;
@@ -284,7 +453,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Save game score
-  const saveGameScore = async (gameId: string, gameName: string, score: number, level: number) => {
+  const saveGameScore = async (gameId: string, gameName: string, score: number, level: number, sessionId?: string) => {
     if (!user) {
       toast({
         title: 'Authentication required',
@@ -303,6 +472,7 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         game_name: gameName,
         score,
         level,
+        session_id: sessionId
       });
       
       if (error) throw error;
@@ -331,10 +501,14 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quizScores, 
         gameScores, 
         leaderboard,
+        sessions,
         fetchQuizzes, 
-        fetchLeaderboards, 
+        fetchLeaderboards,
+        fetchSessions,
         saveQuizScore, 
-        saveGameScore, 
+        saveGameScore,
+        createSession,
+        deleteSession,
         isLoading,
         questions,
         fetchQuestions

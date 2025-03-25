@@ -8,10 +8,12 @@ import LeaderboardSection from "@/components/gaming/LeaderboardSection";
 import QuizSection from "@/components/gaming/QuizSection";
 import GamesSection from "@/components/gaming/GamesSection";
 import { GamingProvider } from "@/contexts/GamingContext";
-import { Trophy, BookOpen, Gamepad } from "lucide-react";
+import { Trophy, BookOpen, Gamepad, BookOpenCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const GamingHub = () => {
   const [activeTab, setActiveTab] = useState("games");
+  const [selectedCourse, setSelectedCourse] = useState<string>("all");
   
   // Force-fetch context data when component mounts
   useEffect(() => {
@@ -40,6 +42,13 @@ const GamingHub = () => {
     exit: { opacity: 0, y: -10, transition: { duration: 0.3 } }
   };
 
+  // Sample course data - this would ideally come from an API
+  const courses = [
+    { id: "dc", name: "Diploma in Computing (DC)" },
+    { id: "dcbm", name: "Diploma in Computing & Business Management (DCBM)" },
+    { id: "bm", name: "Business Management (BM)" }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-sfu-lightgray/30">
       <Header />
@@ -50,9 +59,31 @@ const GamingHub = () => {
             <h1 className="text-3xl md:text-5xl font-display font-bold mb-4 text-gradient-red">
               S1st Gaming Hub
             </h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <p className="text-gray-600 max-w-2xl mx-auto mb-6">
               Compete in quizzes, play games, and climb the leaderboard in one seamless experience.
             </p>
+            
+            <div className="max-w-xs mx-auto">
+              <div className="flex items-center gap-2">
+                <BookOpenCheck size={20} className="text-sfu-red" />
+                <Select
+                  value={selectedCourse}
+                  onValueChange={setSelectedCourse}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Courses</SelectItem>
+                    {courses.map(course => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           
           <GamingProvider>
@@ -91,18 +122,18 @@ const GamingHub = () => {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={activeTab}
+                    key={activeTab + selectedCourse}
                     initial="hidden"
                     animate="visible"
                     exit="exit"
                     variants={tabVariants}
                   >
                     <TabsContent value="games" className="mt-0">
-                      <GamesSection />
+                      <GamesSection courseId={selectedCourse !== "all" ? selectedCourse : undefined} />
                     </TabsContent>
                     
                     <TabsContent value="quiz" className="mt-0">
-                      <QuizSection />
+                      <QuizSection courseId={selectedCourse !== "all" ? selectedCourse : undefined} />
                     </TabsContent>
                     
                     <TabsContent value="leaderboard" className="mt-0">

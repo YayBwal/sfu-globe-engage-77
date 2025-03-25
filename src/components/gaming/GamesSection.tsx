@@ -1,24 +1,51 @@
 
-import React, { useState } from 'react';
-import { Clock, Zap, Brain, Gamepad } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, Zap, Brain, Gamepad, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGaming } from '@/contexts/GamingContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MemoryMatch from '@/components/gaming/games/MemoryMatch';
 
-const GamesSection: React.FC = () => {
+interface GamesSectionProps {
+  courseId?: string;
+}
+
+const GamesSection: React.FC<GamesSectionProps> = ({ courseId }) => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  
   const { user } = useAuth();
-  const { saveGameScore } = useGaming();
+  const { saveGameScore, createSession, deleteSession, fetchSessions } = useGaming();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Fetch sessions when component mounts
+    fetchSessions();
+  }, [fetchSessions]);
+
+  // Start a new game session
+  const handleStartGame = async (gameType: string) => {
+    const sessionName = courseId 
+      ? `Game - ${gameType} - ${courseId.toUpperCase()}` 
+      : `Game - ${gameType}`;
+    
+    const sessionId = await createSession(sessionName, courseId);
+    if (sessionId) {
+      setCurrentSessionId(sessionId);
+      setActiveGame(gameType);
+    }
+  };
 
   // Handle Memory Match game score
   const handleMemoryMatchComplete = (score: number, memorytime: number, level: number) => {
     // Only save scores for logged in users
     if (user) {
-      saveGameScore('memory-match', 'Memory Match', score, level);
+      saveGameScore('memory-match', 'Memory Match', score, level, currentSessionId);
       toast({
         title: 'Game Complete!',
         description: `You scored ${score} points in ${memorytime} seconds!`,
@@ -31,6 +58,21 @@ const GamesSection: React.FC = () => {
       });
     }
     setActiveGame(null);
+    setCurrentSessionId(undefined);
+  };
+
+  // Handle game deletion
+  const handleDeleteGame = (gameId: string) => {
+    setSelectedGameId(gameId);
+    setShowDeleteDialog(true);
+  };
+  
+  const confirmDeleteGame = async () => {
+    if (selectedGameId) {
+      await deleteSession(selectedGameId);
+      setShowDeleteDialog(false);
+      setSelectedGameId(null);
+    }
   };
 
   // Render game selection screen
@@ -38,7 +80,9 @@ const GamesSection: React.FC = () => {
     return (
       <div className="space-y-8">
         <div className="text-center max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Mini Games</h2>
+          <h2 className="text-3xl font-bold mb-4">
+            {courseId ? `${courseId.toUpperCase()} Mini Games` : "Mini Games"}
+          </h2>
           <p className="text-gray-600">
             Train your brain with these fun mini-games designed to improve your cognitive skills and earn points.
           </p>
@@ -52,7 +96,7 @@ const GamesSection: React.FC = () => {
             icon={<Brain className="w-12 h-12 text-white" />}
             bgColor="bg-gradient-to-r from-purple-500 to-indigo-600"
             time="2-5 minutes"
-            onClick={() => setActiveGame('memory-match')}
+            onClick={() => handleStartGame('memory-match')}
           />
           
           {/* Reaction Test Game Card */}
@@ -62,7 +106,7 @@ const GamesSection: React.FC = () => {
             icon={<Zap className="w-12 h-12 text-white" />}
             bgColor="bg-gradient-to-r from-orange-500 to-red-500"
             time="1-2 minutes"
-            onClick={() => setActiveGame('reaction-test')}
+            onClick={() => handleStartGame('reaction-test')}
           />
           
           {/* Coming Soon Game Card */}
@@ -88,7 +132,10 @@ const GamesSection: React.FC = () => {
           <Button 
             variant="outline" 
             className="mb-4"
-            onClick={() => setActiveGame(null)}
+            onClick={() => {
+              setActiveGame(null);
+              setCurrentSessionId(undefined);
+            }}
           >
             ← Back to Games
           </Button>
@@ -106,6 +153,28 @@ const GamesSection: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Delete Game Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Game</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              Are you sure you want to delete this game session? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteGame}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
