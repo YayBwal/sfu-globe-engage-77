@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +42,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     const fetchComments = async () => {
       try {
         setIsLoading(true);
+        
+        // Fix the query to properly join the profiles table
         const { data, error } = await supabase
           .from('post_comments')
           .select(`
@@ -50,7 +51,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             user_id,
             content,
             created_at,
-            profiles:user_id (
+            profiles:profiles!user_id(
               name,
               profile_pic
             )
@@ -86,8 +87,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         setIsLoading(false);
       }
     };
-    
-    fetchComments();
     
     // Set up realtime subscription for new comments
     const channel = supabase
@@ -133,6 +132,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     return () => {
       supabase.removeChannel(channel);
     };
+
+    fetchComments();
   }, [postId, toast]);
 
   // Function to add a new comment
@@ -216,6 +217,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   return (
+    
     <div className="border-t p-4">
       {/* Comment input */}
       <div className="flex items-start gap-3 mb-4">

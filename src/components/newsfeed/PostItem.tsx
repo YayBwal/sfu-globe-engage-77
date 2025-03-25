@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ThumbsUp, MessageSquare, Share2, MoreHorizontal, Trash2, 
@@ -27,7 +26,7 @@ export interface Post {
   user_id: string;
   content: string;
   media_url?: string | null;
-  media_type?: 'image' | 'video' | 'none';
+  media_type?: 'image' | 'video' | 'none' | string; // Added string to fix TS error
   view_count: number;
   created_at: string;
   updated_at: string;
@@ -104,34 +103,6 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
     
     checkUserReaction();
   }, [post.id, user]);
-  
-  // Function to fetch reaction counts
-  const fetchReactionCounts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('post_reactions')
-        .select('reaction_type, count(*)')
-        .eq('post_id', post.id)
-        .group('reaction_type');
-      
-      if (error) {
-        console.error("Error fetching reaction counts:", error);
-        return;
-      }
-      
-      const counts = {
-        like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0
-      };
-      
-      data.forEach(item => {
-        counts[item.reaction_type as keyof typeof counts] = parseInt(item.count);
-      });
-      
-      setReactionsCount(counts);
-    } catch (error) {
-      console.error("Error fetching reaction counts:", error);
-    }
-  };
   
   // Function to handle video view increment
   const handleVideoView = async () => {
