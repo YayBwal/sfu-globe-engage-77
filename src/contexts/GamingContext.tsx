@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -199,3 +200,5 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     </GamingContext.Provider>
   );
 };
+
+export { type Question, type QuizScore, type GameScore, type LeaderboardUser, type GamingSession };
