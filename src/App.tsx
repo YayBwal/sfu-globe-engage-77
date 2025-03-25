@@ -55,8 +55,8 @@ function App() {
     createStorageBuckets();
   }, []);
   
-  // Add your AI API key here
-  const aiApiKey = "your-ai-api-key"; // Replace with your actual API key
+  // OpenAI API key for the AI chat assistant
+  const aiApiKey = "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";
   
   return (
     <Router>

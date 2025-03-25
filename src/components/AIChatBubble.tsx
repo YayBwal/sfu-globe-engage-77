@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Sparkles, Brain, Briefcase } from 'lucide-react';
 import { 
   Collapsible, 
@@ -29,6 +29,7 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const getWelcomeMessage = () => {
@@ -52,6 +53,13 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
       ]);
     }
   }, [activeTab]);
+
+  // Scroll to bottom of messages when new ones are added
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const handleTabChange = (value: 'mental-health' | 'career-guide') => {
     setActiveTab(value);
@@ -94,39 +102,60 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
         ? "You are a compassionate mental health assistant. Provide supportive, empathetic responses to students who may be dealing with stress, anxiety, or other mental health challenges. Suggest coping strategies and resources when appropriate. Never provide medical advice or diagnosis."
         : "You are a knowledgeable career guide assistant. Help students explore career paths, provide information about job opportunities in different fields, and offer advice on resume building, interview preparation, and professional development.";
       
-      // Call AI API here - for now we'll use a mock response while waiting for actual API integration
-      // This is where you would integrate the actual API call
+      // Call OpenAI API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini', // Using a suitable model
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: inputValue }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
       
-      // Simulate API response delay
-      setTimeout(() => {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          content: generateMockResponse(inputValue, activeTab),
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, aiResponse]);
-        setIsLoading(false);
-      }, 1000);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to get AI response');
+      }
       
+      const data = await response.json();
+      const aiContent = data.choices[0]?.message?.content || 'I apologize, but I couldn\'t generate a response at this time.';
+      
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: aiContent,
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
     } catch (error) {
       console.error("Error sending message:", error);
+      
+      // Add a fallback AI response on error
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, I encountered a problem processing your request. Please try again later.",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to get AI response",
         variant: "destructive"
       });
+    } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Temporary mock response generator
-  const generateMockResponse = (input: string, category: 'mental-health' | 'career-guide') => {
-    if (category === 'mental-health') {
-      return `I understand how you feel about "${input}". Remember that it's normal to have ups and downs. Would you like to explore some coping strategies?`;
-    } else {
-      return `Regarding your career question about "${input}", there are several paths you could consider. Would you like more specific advice on education requirements or job prospects?`;
     }
   };
 
@@ -262,6 +291,7 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
                     </div>
                   </div>
                 )}
+                <div ref={messagesEndRef} />
               </div>
               
               {/* Chat Input */}
