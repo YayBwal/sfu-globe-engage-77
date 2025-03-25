@@ -56,7 +56,7 @@ function App() {
   }, []);
   
   // OpenAI API key for the AI chat assistant
-  const aiApiKey = "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";
+  const aiApiKey = "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";
   
   return (
     <Router>
