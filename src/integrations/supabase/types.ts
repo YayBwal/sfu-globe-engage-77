@@ -701,9 +701,7 @@ export type Database = {
           name: string
           online: boolean | null
           profile_pic: string | null
-          role: string | null
           student_id: string
-          user_role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
           availability?: string | null
@@ -718,9 +716,7 @@ export type Database = {
           name: string
           online?: boolean | null
           profile_pic?: string | null
-          role?: string | null
           student_id: string
-          user_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
           availability?: string | null
@@ -735,9 +731,7 @@ export type Database = {
           name?: string
           online?: boolean | null
           profile_pic?: string | null
-          role?: string | null
           student_id?: string
-          user_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Relationships: []
       }
@@ -962,7 +956,6 @@ export type Database = {
     }
     Enums: {
       club_role: "coordinator" | "assistant" | "member"
-      user_role: "student" | "teacher"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -14,7 +14,7 @@ interface QRCodeDisplayProps {
 
 const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => {
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [loading, setLoading] = useState(false);
   const [locationRadius, setLocationRadius] = useState(50); // Default radius: 50 meters
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -68,7 +68,7 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
     try {
       const code = await generateQRCode(sessionId);
       setQrCode(code);
-      setTimeLeft(600); // Reset timer to 10 minutes
+      setTimeLeft(300); // Reset timer to 5 minutes
       
       // Update location constraints if available
       if (currentLocation) {
@@ -79,17 +79,6 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
           locationRadius
         );
       }
-      
-      toast({
-        title: "QR code generated",
-        description: "New attendance QR code valid for 10 minutes",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate QR code",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
@@ -180,9 +169,6 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
     }
   };
 
-  // Show warning when time is running low
-  const timeRunningLow = timeLeft < 60;
-
   return (
     <AnimatePresence>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -239,19 +225,8 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={timeRunningLow ? "pulse-warning" : ""}
                 >
                   {renderQRCode(qrCode)}
-                  {timeRunningLow && (
-                    <motion.div 
-                      className="mt-2 text-amber-600 text-sm text-center font-medium"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1, scale: [1, 1.05, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    >
-                      QR code expiring soon! Consider refreshing.
-                    </motion.div>
-                  )}
                 </motion.div>
               ) : (
                 <motion.div 

@@ -12,7 +12,6 @@ import QRCodeDisplay from "@/components/attendance/QRCodeDisplay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { motion, AnimatePresence } from "framer-motion";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -21,13 +20,13 @@ const getDayOfWeek = (date: Date) => {
 };
 
 const Attendance = () => {
+  const [viewMode, setViewMode] = useState<'student' | 'teacher'>('student');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [scanComplete, setScanComplete] = useState(false);
 
   const { user, profile } = useAuth();
   const { 
@@ -41,8 +40,10 @@ const Attendance = () => {
     if (user) {
       fetchClasses();
       if (isTeacher) {
+        setViewMode('teacher');
         fetchSessions();
       } else {
+        setViewMode('student');
         fetchUserAttendance();
         fetchUserEnrollments();
       }
@@ -161,79 +162,31 @@ const Attendance = () => {
         {/* Left column - Scan QR & Today's Classes */}
         <div className="space-y-6">
           {/* Scan QR Code Section */}
-          <motion.div 
-            className="bg-white rounded-xl shadow-md overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Scan Attendance QR Code</h2>
-              <AnimatePresence mode="wait">
-                {scanComplete ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }} 
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="text-center p-4 bg-green-50 rounded-lg mb-4"
-                  >
-                    <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-2" />
-                    <p className="font-medium text-green-700">Attendance Marked!</p>
-                    <p className="text-sm text-green-600">You've been marked present for today's class</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-3"
-                      onClick={() => setScanComplete(false)}
-                    >
-                      Scan Another Code
-                    </Button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                  >
-                    <Button 
-                      onClick={() => setShowQRScanner(true)}
-                      className="w-full bg-sfu-red hover:bg-sfu-red/90 mb-4 py-6"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <QrCode className="mr-2 h-5 w-5" />
-                      Scan QR Code
-                    </Button>
-                    <p className="text-sm text-gray-500 text-center">
-                      You must be physically present in class to mark attendance
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <Button 
+                onClick={() => setShowQRScanner(true)}
+                className="w-full bg-sfu-red hover:bg-sfu-red/90 mb-4 py-6"
+              >
+                <QrCode className="mr-2 h-5 w-5" />
+                Scan QR Code
+              </Button>
+              <p className="text-sm text-gray-500 text-center">
+                You must be physically present in class to mark attendance
+              </p>
             </div>
-          </motion.div>
+          </div>
           
           {/* Today's Classes */}
-          <motion.div 
-            className="bg-white rounded-xl shadow-md overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Today's Classes</h2>
               
               {todaysClasses && todaysClasses.length > 0 ? (
                 <div className="space-y-3">
                   {todaysClasses.map((enrollment, index) => (
-                    <motion.div 
-                      key={index} 
-                      className="p-3 border border-gray-200 rounded-lg"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                    >
+                    <div key={index} className="p-3 border border-gray-200 rounded-lg">
                       <div className="flex justify-between items-center">
                         <div>
                           <div className="font-medium">{enrollment.classes.name}</div>
@@ -248,7 +201,7 @@ const Attendance = () => {
                           {index === 0 ? 'Completed' : 'Upcoming'}
                         </Badge>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -257,99 +210,58 @@ const Attendance = () => {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
         
         {/* Middle & Right columns - Attendance Stats & Calendar */}
         <div className="md:col-span-2 space-y-6">
           {/* Attendance Overview */}
-          <motion.div 
-            className="bg-white rounded-xl shadow-md overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Attendance Overview</h2>
               <div className="grid grid-cols-4 gap-4">
-                <motion.div 
-                  className="bg-green-50 rounded-lg p-4 text-center"
-                  whileHover={{ scale: 1.05 }}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
+                <div className="bg-green-50 rounded-lg p-4 text-center">
                   <CheckCircle className="h-6 w-6 mx-auto mb-1 text-green-500" />
                   <div className="text-xl font-bold">{presentCount}</div>
                   <div className="text-xs text-gray-500">Present</div>
-                </motion.div>
+                </div>
                 
-                <motion.div 
-                  className="bg-red-50 rounded-lg p-4 text-center"
-                  whileHover={{ scale: 1.05 }}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
+                <div className="bg-red-50 rounded-lg p-4 text-center">
                   <XCircle className="h-6 w-6 mx-auto mb-1 text-red-500" />
                   <div className="text-xl font-bold">{absentCount}</div>
                   <div className="text-xs text-gray-500">Absent</div>
-                </motion.div>
+                </div>
                 
-                <motion.div 
-                  className="bg-amber-50 rounded-lg p-4 text-center"
-                  whileHover={{ scale: 1.05 }}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
+                <div className="bg-amber-50 rounded-lg p-4 text-center">
                   <Clock className="h-6 w-6 mx-auto mb-1 text-amber-500" />
                   <div className="text-xl font-bold">{lateCount}</div>
                   <div className="text-xs text-gray-500">Late</div>
-                </motion.div>
+                </div>
                 
-                <motion.div 
-                  className="bg-blue-50 rounded-lg p-4 text-center"
-                  whileHover={{ scale: 1.05 }}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
                   <Star className="h-6 w-6 mx-auto mb-1 text-blue-500" />
                   <div className="text-xl font-bold">{currentStreak}</div>
                   <div className="text-xs text-gray-500">Streak</div>
-                </motion.div>
+                </div>
               </div>
               
               {totalRecords > 0 && (
-                <motion.div 
-                  className="mt-4 bg-gray-50 rounded-lg p-4"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
+                <div className="mt-4 bg-gray-50 rounded-lg p-4">
                   <div className="text-sm font-medium text-gray-700 mb-2">Attendance Rate</div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <motion.div 
+                    <div 
                       className="bg-sfu-red h-2.5 rounded-full" 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${attendanceRate}%` }}
-                      transition={{ delay: 0.7, duration: 0.8, ease: "easeOut" }}
-                    ></motion.div>
+                      style={{ width: `${attendanceRate}%` }}
+                    ></div>
                   </div>
                   <div className="text-right text-sm mt-1">{attendanceRate}%</div>
-                </motion.div>
+                </div>
               )}
             </div>
-          </motion.div>
+          </div>
           
           {/* Attendance Calendar */}
-          <motion.div 
-            className="bg-white rounded-xl shadow-md overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Attendance Calendar</h2>
@@ -358,8 +270,6 @@ const Attendance = () => {
                     variant="outline" 
                     size="icon"
                     onClick={getPrevMonth}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -368,8 +278,6 @@ const Attendance = () => {
                     variant="outline" 
                     size="icon"
                     onClick={getNextMonth}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -377,46 +285,25 @@ const Attendance = () => {
               </div>
               
               {/* Calendar grid */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {renderCalendar()}
-              </motion.div>
+              {renderCalendar()}
               
               {/* Legend */}
               <div className="flex justify-center mt-4 gap-x-4 text-xs">
-                <motion.div 
-                  className="flex items-center"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
+                <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-green-100 mr-1"></div>
                   <span>Present</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
+                </div>
+                <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-amber-100 mr-1"></div>
                   <span>Late</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                >
+                </div>
+                <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-red-100 mr-1"></div>
                   <span>Absent</span>
-                </motion.div>
+                </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     );
@@ -474,91 +361,44 @@ const Attendance = () => {
     return (
       <div>
         {/* Class selection tabs */}
-        <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+        <div className="mb-6">
           <div className="flex overflow-x-auto gap-2 pb-2">
-            {classes.map((cls, index) => (
-              <motion.div
+            {classes.map(cls => (
+              <Button
                 key={cls.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
+                variant={selectedClass === cls.id ? "default" : "outline"}
+                className={`whitespace-nowrap ${selectedClass === cls.id ? "bg-sfu-red hover:bg-sfu-red/90" : ""}`}
+                onClick={() => setSelectedClass(cls.id)}
               >
-                <Button
-                  variant={selectedClass === cls.id ? "default" : "outline"}
-                  className={`whitespace-nowrap ${selectedClass === cls.id ? "bg-sfu-red hover:bg-sfu-red/90" : ""}`}
-                  onClick={() => setSelectedClass(cls.id)}
-                >
-                  {cls.name}
-                </Button>
-              </motion.div>
+                {cls.name}
+              </Button>
             ))}
           </div>
-        </motion.div>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Left column - Today's Attendance Code */}
           <div className="space-y-6">
-            <motion.div 
-              className="bg-white rounded-xl shadow-md overflow-hidden"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-4">Today's Attendance Code</h2>
                 
                 {todaySessions.length > 0 ? (
-                  <motion.div 
-                    className="text-center"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <motion.div 
-                      className="border-2 border-gray-200 rounded-lg p-4 mb-4 relative"
-                      whileHover={{ scale: 1.02, boxShadow: "0 4px 15px rgba(0,0,0,0.1)" }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                    >
+                  <div className="text-center">
+                    <div className="border-2 border-gray-200 rounded-lg p-4 mb-4">
                       <QrCode className="h-40 w-40 mx-auto mb-2" />
-                      <motion.div 
-                        className="absolute inset-0 bg-black/5 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
-                        whileHover={{ opacity: 1 }}
-                      >
-                        <Button
-                          className="bg-sfu-red hover:bg-sfu-red/90"
-                          onClick={() => {
-                            if (todaySessions[0]) {
-                              setSelectedSession(todaySessions[0].id);
-                              setShowQRCode(true);
-                            }
-                          }}
-                        >
-                          Generate QR Code
-                        </Button>
-                      </motion.div>
                       <div className="text-sm text-gray-500">
-                        Click to generate a new QR code
+                        Code expires in: 4:56
                       </div>
-                    </motion.div>
+                    </div>
                     
                     <div className="flex justify-center gap-2 mb-4">
-                      <Button 
-                        variant="outline"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
+                      <Button variant="outline">
                         <Copy className="h-4 w-4 mr-1" />
                         Copy
                       </Button>
                       <Button 
                         className="bg-sfu-red hover:bg-sfu-red/90"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         onClick={() => {
                           if (todaySessions[0]) {
                             setSelectedSession(todaySessions[0].id);
@@ -571,43 +411,26 @@ const Attendance = () => {
                       </Button>
                     </div>
                     
-                    <motion.p 
-                      className="text-sm text-gray-500"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                    >
+                    <p className="text-sm text-gray-500">
                       Students must scan this code in class to mark attendance
-                    </motion.p>
-                  </motion.div>
+                    </p>
+                  </div>
                 ) : (
-                  <motion.div 
-                    className="text-center py-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
+                  <div className="text-center py-6">
                     <p className="text-gray-500 mb-4">No sessions scheduled for today</p>
                     <Button 
                       className="bg-sfu-red hover:bg-sfu-red/90"
                       disabled={!selectedClass}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       Create Session
                     </Button>
-                  </motion.div>
+                  </div>
                 )}
               </div>
-            </motion.div>
+            </div>
             
             {/* Select Date */}
-            <motion.div 
-              className="bg-white rounded-xl shadow-md overflow-hidden"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-4">Select Date</h2>
                 
@@ -616,8 +439,6 @@ const Attendance = () => {
                     variant="outline" 
                     size="icon"
                     onClick={getPrevMonth}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -626,32 +447,19 @@ const Attendance = () => {
                     variant="outline" 
                     size="icon"
                     onClick={getNextMonth}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
                 
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  {renderCalendar()}
-                </motion.div>
+                {renderCalendar()}
               </div>
-            </motion.div>
+            </div>
           </div>
           
           {/* Right columns - Attendance Records */}
           <div className="md:col-span-2">
-            <motion.div 
-              className="bg-white rounded-xl shadow-md overflow-hidden"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-            >
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-4">
                   {activeSession 
@@ -664,12 +472,7 @@ const Attendance = () => {
                   activeSessionId ? (
                     <div>
                       {attendanceList.length > 0 ? (
-                        <motion.div 
-                          className="overflow-hidden rounded-lg border border-gray-200"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
+                        <div className="overflow-hidden rounded-lg border border-gray-200">
                           <Table>
                             <TableHeader>
                               <TableRow>
@@ -681,14 +484,8 @@ const Attendance = () => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {attendanceList.map((record, index) => (
-                                <motion.tr 
-                                  key={record.id}
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.05 }}
-                                  className="hover:bg-gray-50"
-                                >
+                              {attendanceList.map((record) => (
+                                <TableRow key={record.id}>
                                   <TableCell>
                                     {record.profiles?.name || 'Unknown'}
                                   </TableCell>
@@ -737,11 +534,11 @@ const Attendance = () => {
                                       </Button>
                                     </div>
                                   </TableCell>
-                                </motion.tr>
+                                </TableRow>
                               ))}
                             </TableBody>
                           </Table>
-                        </motion.div>
+                        </div>
                       ) : (
                         <div className="text-center py-6 text-gray-500">
                           <p>No attendance records found for this session</p>
@@ -751,19 +548,11 @@ const Attendance = () => {
                   ) : (
                     <div className="space-y-3">
                       <p className="text-gray-500 mb-4">Select a session to view attendance:</p>
-                      {sessions.map((session, index) => (
-                        <motion.div 
+                      {sessions.map(session => (
+                        <div 
                           key={session.id}
                           className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-sfu-red"
                           onClick={() => setActiveSessionId(session.id)}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          whileHover={{ 
-                            scale: 1.02, 
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            borderColor: "#A6192E" 
-                          }}
                         >
                           <div className="flex justify-between">
                             <div>
@@ -786,14 +575,12 @@ const Attendance = () => {
                                 setSelectedSession(session.id);
                                 setShowQRCode(true);
                               }}
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
                             >
                               <QrCode className="h-4 w-4 mr-1" />
                               Generate QR
                             </Button>
                           </div>
-                        </motion.div>
+                        </div>
                       ))}
                     </div>
                   )
@@ -803,7 +590,7 @@ const Attendance = () => {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
@@ -816,29 +603,32 @@ const Attendance = () => {
       
       <main className="pt-24 pb-16">
         <div className="container max-w-6xl mx-auto px-4">
-          <motion.div 
-            className="text-center mb-8"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <div className="text-center mb-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-2">Attendance Management</h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Secure and efficient attendance tracking with QR codes. Scan the code in your class to mark your attendance.
             </p>
-          </motion.div>
-
-          <div className="mb-8">
-            {isTeacher ? (
-              <div>
-                <TeacherView />
-              </div>
-            ) : (
-              <div>
-                <StudentView />
-              </div>
-            )}
           </div>
+
+          <Tabs 
+            defaultValue={isTeacher ? "teacher" : "student"} 
+            value={viewMode}
+            onValueChange={(value) => setViewMode(value as 'student' | 'teacher')}
+            className="mb-8"
+          >
+            <div className="flex justify-center">
+              <TabsList className="grid grid-cols-2 w-[400px]">
+                <TabsTrigger value="student">Student View</TabsTrigger>
+                <TabsTrigger value="teacher">Teacher View</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="student">
+              <StudentView />
+            </TabsContent>
+            <TabsContent value="teacher">
+              <TeacherView />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       
@@ -849,7 +639,6 @@ const Attendance = () => {
           onSuccess={() => {
             setShowQRScanner(false);
             fetchUserAttendance();
-            setScanComplete(true);
           }}
           onClose={() => setShowQRScanner(false)}
         />

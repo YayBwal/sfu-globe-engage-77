@@ -16,7 +16,6 @@ import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
 import GamingHub from '@/pages/GamingHub';
-import Admin from '@/pages/Admin';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -81,7 +80,6 @@ function App() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/marketplace" element={<Marketplace />} />
                   <Route path="/newsfeed" element={<Newsfeed />} />
-                  <Route path="/admin" element={<Admin />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />
