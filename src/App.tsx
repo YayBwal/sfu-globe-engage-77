@@ -20,6 +20,7 @@ import { AttendanceProvider } from '@/contexts/AttendanceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { setupStorageBuckets } from '@/utils/storageSetup';
 import { usePresence } from '@/hooks/usePresence';
+import { ChatBubble } from '@/components/ai-chat/ChatBubble';
 
 // Presence wrapper component to use the hook with the router
 const PresenceWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -87,6 +88,7 @@ function App() {
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                   <Toaster />
+                  <ChatBubble />
                 </div>
               </PresenceWrapper>
             </AttendanceProvider>

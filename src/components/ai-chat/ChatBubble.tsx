@@ -1,0 +1,168 @@
+
+import React, { useState } from 'react';
+import { MessageSquare, X, Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+type ChatCategory = 'mental-health' | 'career-guide';
+
+const CATEGORY_COLORS = {
+  'mental-health': 'bg-purple-500 hover:bg-purple-600 text-white',
+  'career-guide': 'bg-blue-500 hover:bg-blue-600 text-white',
+};
+
+const CATEGORY_HEADERS = {
+  'mental-health': 'Mental Health Support',
+  'career-guide': 'Career Guidance',
+};
+
+export const ChatBubble = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentCategory, setCurrentCategory] = useState<ChatCategory>('mental-health');
+  const [message, setMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleTabChange = (value: string) => {
+    setCurrentCategory(value as ChatCategory);
+    // Clear chat when switching categories
+    setChatHistory([]);
+  };
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return;
+    
+    // Add user message to chat
+    setChatHistory([...chatHistory, { role: 'user', content: message }]);
+    setIsLoading(true);
+    
+    try {
+      // For now, let's use some mock responses
+      let response = '';
+      
+      if (currentCategory === 'mental-health') {
+        response = "I'm here to support your mental wellbeing. Remember that it's okay to seek help when needed. Is there something specific you'd like to talk about?";
+      } else {
+        response = "I can help with career guidance and professional development. Whether you're exploring options or need advice on specific paths, feel free to ask.";
+      }
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Add AI response to chat
+      setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+    } finally {
+      setIsLoading(false);
+      setMessage('');
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <Button 
+            className={cn(
+              "rounded-full p-3 shadow-lg", 
+              isOpen ? "bg-gray-700 hover:bg-gray-800" : CATEGORY_COLORS[currentCategory]
+            )}
+          >
+            {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
+          </Button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent>
+          <div className="mt-2 rounded-lg shadow-lg border bg-white w-80 sm:w-96 overflow-hidden">
+            <div className="p-3 bg-gray-100 border-b font-medium">
+              <h3 className="text-center">AI is here to help</h3>
+            </div>
+            
+            <Tabs defaultValue="mental-health" onValueChange={handleTabChange}>
+              <TabsList className="w-full">
+                <TabsTrigger value="mental-health" className="flex-1">Mental Health</TabsTrigger>
+                <TabsTrigger value="career-guide" className="flex-1">Career Guide</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="mental-health" className="m-0">
+                <div className={cn("p-2 bg-purple-100 border-b", chatHistory.length === 0 ? "block" : "hidden")}>
+                  <p className="text-sm text-center text-purple-800 font-medium">{CATEGORY_HEADERS['mental-health']}</p>
+                </div>
+                <ChatMessages messages={chatHistory} />
+              </TabsContent>
+              
+              <TabsContent value="career-guide" className="m-0">
+                <div className={cn("p-2 bg-blue-100 border-b", chatHistory.length === 0 ? "block" : "hidden")}>
+                  <p className="text-sm text-center text-blue-800 font-medium">{CATEGORY_HEADERS['career-guide']}</p>
+                </div>
+                <ChatMessages messages={chatHistory} />
+              </TabsContent>
+            </Tabs>
+            
+            <div className="p-3 border-t bg-gray-50">
+              <div className="flex">
+                <Textarea 
+                  placeholder="Type your message..." 
+                  className="min-h-10 flex-1 resize-none"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button 
+                  className={cn(
+                    "ml-2 px-3", 
+                    CATEGORY_COLORS[currentCategory]
+                  )}
+                  onClick={handleSendMessage}
+                  disabled={isLoading || !message.trim()}
+                >
+                  {isLoading ? 
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> :
+                    <Send className="h-4 w-4" />
+                  }
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+};
+
+const ChatMessages = ({ messages }: { messages: { role: 'user' | 'assistant', content: string }[] }) => {
+  if (messages.length === 0) {
+    return (
+      <div className="p-4 text-center text-gray-500 italic">
+        <p>Ask me anything, I'm here to help!</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="h-60 overflow-y-auto p-3 space-y-3">
+      {messages.map((msg, index) => (
+        <div 
+          key={index} 
+          className={cn(
+            "max-w-[80%] p-2 rounded-lg",
+            msg.role === 'user' 
+              ? "bg-gray-100 ml-auto" 
+              : "bg-blue-100 mr-auto"
+          )}
+        >
+          {msg.content}
+        </div>
+      ))}
+    </div>
+  );
+};
