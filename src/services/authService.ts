@@ -9,6 +9,36 @@ export const registerUser = async (
   major: string, 
   batch: string
 ): Promise<void> => {
+  // First check if the student ID already exists in the profiles table
+  const { data: existingProfile, error: checkError } = await supabase
+    .from('profiles')
+    .select('student_id')
+    .eq('student_id', studentId)
+    .single();
+  
+  if (checkError && checkError.code !== 'PGRST116') {
+    // PGRST116 is the error code for "no rows returned" which is what we want
+    throw checkError;
+  }
+  
+  if (existingProfile) {
+    throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
+  }
+
+  // Then check if the email already exists
+  const { data: existingAuth, error: emailCheckError } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false
+    }
+  });
+
+  // If authentication attempt doesn't error with "user not found", the email exists
+  if (existingAuth?.user) {
+    throw new Error('A user with this email already exists. Please use a different email or try logging in.');
+  }
+  
+  // Now proceed with registration since both checks passed
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
