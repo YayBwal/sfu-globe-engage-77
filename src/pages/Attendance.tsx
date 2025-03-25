@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -846,7 +847,4 @@ const Attendance = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowPasscodeDialog
+            <Button
