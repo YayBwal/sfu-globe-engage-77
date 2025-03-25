@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/layout/Header";
@@ -11,7 +11,28 @@ import { GamingProvider } from "@/contexts/GamingContext";
 import { Trophy, BookOpen, Gamepad } from "lucide-react";
 
 const GamingHub = () => {
-  const [activeTab, setActiveTab] = useState("quiz");
+  const [activeTab, setActiveTab] = useState("games");
+  
+  // Force-fetch context data when component mounts
+  useEffect(() => {
+    // This will ensure the data is fetched when the component loads
+    const fetchInitialData = async () => {
+      // We'll use a small delay to ensure the context is initialized
+      setTimeout(() => {
+        const tabsToPreload = document.querySelectorAll('[role="tab"]');
+        tabsToPreload.forEach((tab) => {
+          // Simulate a click to ensure data loading triggers in each tab
+          if (tab instanceof HTMLElement) {
+            tab.click();
+          }
+        });
+        // Set back to the default tab
+        setActiveTab("games");
+      }, 100);
+    };
+    
+    fetchInitialData();
+  }, []);
 
   const tabVariants = {
     hidden: { opacity: 0, y: 10 },
@@ -36,25 +57,26 @@ const GamingHub = () => {
           
           <GamingProvider>
             <Tabs 
-              defaultValue={activeTab} 
+              value={activeTab} 
               onValueChange={setActiveTab}
               className="w-full"
+              defaultValue="games"
             >
               <div className="flex justify-center mb-8">
                 <TabsList className="bg-white/50 backdrop-blur-sm shadow-sm border border-gray-100 p-1 rounded-full">
-                  <TabsTrigger 
-                    value="quiz" 
-                    className="data-[state=active]:bg-sfu-red data-[state=active]:text-white rounded-full px-6 py-2 gap-2"
-                  >
-                    <BookOpen size={18} />
-                    <span className="hidden sm:inline">Quizzes</span>
-                  </TabsTrigger>
                   <TabsTrigger 
                     value="games" 
                     className="data-[state=active]:bg-sfu-red data-[state=active]:text-white rounded-full px-6 py-2 gap-2"
                   >
                     <Gamepad size={18} />
                     <span className="hidden sm:inline">Games</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="quiz" 
+                    className="data-[state=active]:bg-sfu-red data-[state=active]:text-white rounded-full px-6 py-2 gap-2"
+                  >
+                    <BookOpen size={18} />
+                    <span className="hidden sm:inline">Quizzes</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="leaderboard" 
@@ -75,12 +97,12 @@ const GamingHub = () => {
                     exit="exit"
                     variants={tabVariants}
                   >
-                    <TabsContent value="quiz" className="mt-0">
-                      <QuizSection />
-                    </TabsContent>
-                    
                     <TabsContent value="games" className="mt-0">
                       <GamesSection />
+                    </TabsContent>
+                    
+                    <TabsContent value="quiz" className="mt-0">
+                      <QuizSection />
                     </TabsContent>
                     
                     <TabsContent value="leaderboard" className="mt-0">
