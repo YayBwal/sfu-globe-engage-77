@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BellDot, Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { BellDot, Bell, CheckCheck, Trash2, AlertTriangle, CheckCircle, Info, MessageSquare, Calendar, ShoppingBag, BookOpen, Users, Globe } from 'lucide-react';
 import { useNotifications, Notification, NotificationType } from '@/contexts/NotificationContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const NotificationItem = ({ 
   notification, 
@@ -43,20 +45,37 @@ const NotificationItem = ({
     }
   };
 
+  const getTypeIcon = () => {
+    switch (notification.type) {
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case 'error':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Info className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
   const getSourceIcon = () => {
     switch (notification.source) {
       case 'friend':
-        return '👥';
+        return <Users className="h-4 w-4" />;
       case 'marketplace':
-        return '🛒';
+        return <ShoppingBag className="h-4 w-4" />;
       case 'newsfeed':
-        return '📰';
+        return <Globe className="h-4 w-4" />;
       case 'clubs':
-        return '🎭';
+        return <Users className="h-4 w-4" />;
       case 'study':
-        return '📚';
+        return <BookOpen className="h-4 w-4" />;
+      case 'attendance':
+        return <Calendar className="h-4 w-4" />;
+      case 'system':
+        return <Info className="h-4 w-4" />;
       default:
-        return '📣';
+        return <MessageSquare className="h-4 w-4" />;
     }
   };
 
@@ -71,20 +90,30 @@ const NotificationItem = ({
     >
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-2">
-          <span className="text-lg" aria-hidden="true">{getSourceIcon()}</span>
+          <span className="flex items-center justify-center" aria-hidden="true">
+            {getSourceIcon()}
+          </span>
           <h4 className="text-sm font-medium">{notification.title}</h4>
         </div>
-        {!notification.is_read && (
-          <div className="h-2 w-2 rounded-full bg-blue-500" />
-        )}
+        <div className="flex items-center gap-1">
+          {!notification.is_read && (
+            <div className="h-2 w-2 rounded-full bg-blue-500" />
+          )}
+          <span className="ml-1">{getTypeIcon()}</span>
+        </div>
       </div>
       <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
       <div className="flex justify-between items-center mt-2">
-        <span className="text-xs text-gray-500" title={fullDate}>{timeAgo}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500" title={fullDate}>{timeAgo}</span>
+          <Badge variant="outline" className="text-xs py-0 h-5">
+            {notification.source}
+          </Badge>
+        </div>
         <div className="flex gap-1">
           {!notification.is_read && (
             <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleMarkAsRead}>
-              Mark as read
+              <CheckCheck className="h-3.5 w-3.5 mr-1" /> Read
             </Button>
           )}
           <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleDelete}>
@@ -111,22 +140,30 @@ export const NotificationDropdown = () => {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="p-3 border-b flex justify-between items-center">
+      <PopoverContent className="w-96 p-0" align="end">
+        <div className="p-3 border-b flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
           <h3 className="font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 text-xs flex items-center" 
-              onClick={markAllAsRead}
-            >
-              <CheckCheck className="h-3.5 w-3.5 mr-1" />
-              Mark all as read
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-7 text-xs flex items-center" 
+                onClick={markAllAsRead}
+              >
+                <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                Mark all as read
+              </Button>
+            )}
+            <Badge variant="secondary" className={cn(
+              "bg-gray-100 hover:bg-gray-200 transition-colors", 
+              unreadCount > 0 ? "text-blue-600" : "text-gray-600"
+            )}>
+              {unreadCount} unread
+            </Badge>
+          </div>
         </div>
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[400px]">
           <div className="p-2">
             {loading ? (
               <div className="flex justify-center items-center h-[200px]">
@@ -136,19 +173,93 @@ export const NotificationDropdown = () => {
               <div className="text-center text-gray-500 py-8">
                 <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                 <p>No notifications yet</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  We'll notify you when something important happens
+                </p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onMarkAsRead={markAsRead}
-                  onDelete={deleteNotification}
-                />
-              ))
+              <>
+                {/* Group by date */}
+                {(() => {
+                  const today = new Date();
+                  const yesterday = new Date(today);
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  
+                  // Format dates for comparison
+                  const todayStr = format(today, 'yyyy-MM-dd');
+                  const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+                  
+                  // Group notifications
+                  const todayNotifications = notifications.filter(n => 
+                    format(new Date(n.created_at), 'yyyy-MM-dd') === todayStr
+                  );
+                  
+                  const yesterdayNotifications = notifications.filter(n => 
+                    format(new Date(n.created_at), 'yyyy-MM-dd') === yesterdayStr
+                  );
+                  
+                  const olderNotifications = notifications.filter(n => 
+                    format(new Date(n.created_at), 'yyyy-MM-dd') !== todayStr && 
+                    format(new Date(n.created_at), 'yyyy-MM-dd') !== yesterdayStr
+                  );
+                  
+                  return (
+                    <>
+                      {todayNotifications.length > 0 && (
+                        <>
+                          <h4 className="text-xs font-semibold text-gray-500 px-2 py-1">Today</h4>
+                          {todayNotifications.map((notification) => (
+                            <NotificationItem
+                              key={notification.id}
+                              notification={notification}
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                            />
+                          ))}
+                        </>
+                      )}
+                      
+                      {yesterdayNotifications.length > 0 && (
+                        <>
+                          <h4 className="text-xs font-semibold text-gray-500 px-2 py-1 mt-2">Yesterday</h4>
+                          {yesterdayNotifications.map((notification) => (
+                            <NotificationItem
+                              key={notification.id}
+                              notification={notification}
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                            />
+                          ))}
+                        </>
+                      )}
+                      
+                      {olderNotifications.length > 0 && (
+                        <>
+                          <h4 className="text-xs font-semibold text-gray-500 px-2 py-1 mt-2">Earlier</h4>
+                          {olderNotifications.map((notification) => (
+                            <NotificationItem
+                              key={notification.id}
+                              notification={notification}
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </div>
         </ScrollArea>
+        {notifications.length > 0 && (
+          <div className="p-2 border-t text-center">
+            <Button variant="link" size="sm" className="text-xs text-blue-600">
+              View all notifications
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
