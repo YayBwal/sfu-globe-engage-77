@@ -34,7 +34,8 @@ export const generateTestNotification = async (userId: string) => {
         user_id: userId,
         title: randomTitle,
         message: randomMessage,
-        type: randomType
+        type: randomType,
+        is_read: false
       });
       
     if (error) throw error;

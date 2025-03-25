@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -8,7 +7,7 @@ import {
   Camera, Edit2, Calendar, Book, Users, Award, Gamepad, 
   Clock, ArrowLeft, Upload, User, Image, School, 
   FileText, Briefcase, MapPin, Mail, Hash, Save,
-  Circle, UserCheck, UserPlus, UserX
+  Circle, UserCheck, UserPlus, UserX, MessageSquare
 } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import Header from "@/components/layout/Header";
+import FriendMessageModal from "@/components/profile/FriendMessageModal";
 
 // Define forms schema
 const profileFormSchema = z.object({
@@ -821,215 +821,24 @@ const Profile = () => {
             <TabsContent value="friends" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {friends.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {friends.map((friend) => (
-                    <Card key={friend.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
-                      <div className={`h-2 ${friend.online ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-gray-300 to-gray-200'}`} />
-                      <CardContent className="p-4 pt-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white relative">
-                            {friend.profile_pic ? (
-                              <AvatarImage src={friend.profile_pic} alt={friend.name} className="p-1" />
-                            ) : (
-                              <AvatarFallback className="rounded-full bg-gradient-to-br from-sfu-red to-amber-500 text-white">
-                                {getInitials(friend.name)}
-                              </AvatarFallback>
-                            )}
-                            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${friend.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                          </Avatar>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-slate-900">{friend.name}</h4>
-                            <div className="flex gap-1.5 mt-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                                {friend.major}
-                              </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                                {friend.student_id}
-                              </span>
-                            </div>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8 rounded-full text-gray-500 hover:text-red-500"
-                            onClick={() => removeFriend(friend.id)}
-                          >
-                            <UserX className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="font-medium text-gray-800 mb-2">No friends yet</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
-                    Connect with other students to add them as friends.
-                  </p>
-                  <Link to="/study">
-                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
-                      Find Study Partners
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="clubs" className="bg-white rounded-xl shadow-sm p-6 mt-0">
-              {clubs.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {clubs.map((club) => (
-                    <Card key={club.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
-                      <div className="h-2 bg-gradient-to-r from-sfu-red to-amber-500" />
-                      <CardContent className="p-4 pt-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 rounded-xl bg-gradient-to-br from-sfu-red/10 to-amber-400/10 ring-2 ring-white">
-                            {club.logo_url ? (
-                              <AvatarImage src={club.logo_url} alt={club.name} className="p-1" />
-                            ) : (
-                              <AvatarFallback className="rounded-xl bg-gradient-to-br from-sfu-red to-amber-500 text-white">
-                                {getInitials(club.name)}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div>
-                            <h4 className="font-semibold text-slate-900">{club.name}</h4>
-                            <div className="flex gap-1.5 mt-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sfu-red/10 text-sfu-red capitalize">
-                                {club.role}
-                              </span>
-                              {!club.approved && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800">
-                                  Pending
-                                </span>
+                  {friends.map((friend) => {
+                    const [isMessageOpen, setIsMessageOpen] = useState(false);
+                    return (
+                      <Card key={friend.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
+                        <div className={`h-2 ${friend.online ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-gray-300 to-gray-200'}`} />
+                        <CardContent className="p-4 pt-5">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white relative">
+                              {friend.profile_pic ? (
+                                <AvatarImage src={friend.profile_pic} alt={friend.name} className="p-1" />
+                              ) : (
+                                <AvatarFallback className="rounded-full bg-gradient-to-br from-sfu-red to-amber-500 text-white">
+                                  {getInitials(friend.name)}
+                                </AvatarFallback>
                               )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="font-medium text-gray-800 mb-2">No clubs joined yet</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
-                    Join clubs to connect with other students and participate in engaging activities.
-                  </p>
-                  <Link to="/clubs">
-                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
-                      Browse Clubs
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="quizzes" className="bg-white rounded-xl shadow-sm p-6 mt-0">
-              {userQuizzes.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-gray-100">
-                  <Table>
-                    <TableHeader className="bg-gradient-to-r from-slate-50 to-white">
-                      <TableRow>
-                        <TableHead>Quiz</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {userQuizzes.map((quiz) => (
-                        <TableRow key={quiz.id} className="hover:bg-slate-50">
-                          <TableCell className="font-medium">{quiz.quiz_title}</TableCell>
-                          <TableCell>
-                            <span className={`font-medium rounded-full px-2 py-1 text-xs ${
-                              (quiz.score / quiz.total_questions) >= 0.7 
-                                ? 'bg-green-100 text-green-800' 
-                                : (quiz.score / quiz.total_questions) >= 0.5 
-                                  ? 'bg-amber-100 text-amber-800' 
-                                  : 'bg-red-100 text-red-800'
-                            }`}>
-                              {quiz.score}/{quiz.total_questions}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatDate(quiz.completed_at)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Book className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="font-medium text-gray-800 mb-2">No quizzes taken yet</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
-                    Complete quizzes to test your knowledge and improve your ranking.
-                  </p>
-                  <Link to="/quizzes">
-                    <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
-                      Start a Quiz
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="courses" className="bg-white rounded-xl shadow-sm p-6 mt-0">
-              {userCourses.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userCourses.map((course) => (
-                    <Card key={course.id} className="overflow-hidden group hover:shadow-md transition duration-200 border-none bg-gradient-to-br from-slate-50 to-white">
-                      <div className={`h-1.5 ${course.completed ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-sfu-red to-amber-500'}`} />
-                      <CardContent className="p-5">
-                        <div className="flex justify-between items-start">
-                          <div className="flex gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              course.completed 
-                                ? 'bg-green-100' 
-                                : 'bg-sfu-red/10'
-                            }`}>
-                              <Book className={`h-5 w-5 ${
-                                course.completed 
-                                  ? 'text-green-600' 
-                                  : 'text-sfu-red'
-                              }`} />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-slate-900">{course.course_name}</h4>
-                              <p className="text-sm text-gray-500">Enrolled: {formatDate(course.enrollment_date)}</p>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            course.completed 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-sfu-red/10 text-sfu-red'
-                          }`}>
-                            {course.completed ? 'Completed' : 'In Progress'}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Book className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="font-medium text-gray-800 mb-2">No courses enrolled</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
-                    Enroll in courses to start learning and track your progress.
-                  </p>
-                  <Button className="mt-4 bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
-                    Browse Courses
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-    </div>
-  );
-};
-
-export default Profile;
+                              <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${friend.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                            </Avatar>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-slate-900">{friend.name}</h4>
+                              <div className="flex gap-1.5 mt-1">
+                                <span className="inline-flex items-center px-2

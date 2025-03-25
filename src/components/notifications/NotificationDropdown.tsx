@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BellDot, Bell, CheckCheck } from 'lucide-react';
-import { useNotifications, Notification } from '@/contexts/NotificationContext';
+import { useNotifications, Notification, NotificationType } from '@/contexts/NotificationContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
