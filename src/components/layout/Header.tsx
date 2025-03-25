@@ -58,14 +58,14 @@ const Header: React.FC = () => {
           to="/" 
           className="flex items-center space-x-2"
         >
-          <div className="w-10 h-10 bg-sfu-red rounded-lg flex items-center justify-center">
-            <span className="text-white font-display font-bold text-lg">SG</span>
+          <div className="h-10 w-10">
+            <img src="/lovable-uploads/6b2792e9-40c8-412d-8f43-0d697f2e4cfc.png" alt="S1st Globe Logo" className="h-full w-full object-contain" />
           </div>
           <span className={cn(
             "font-display font-semibold text-xl transition-all duration-300",
             isScrolled ? "text-sfu-black" : "text-sfu-black"
           )}>
-            SFU Globe
+            S1st Globe
           </span>
         </Link>
 

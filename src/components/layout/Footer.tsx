@@ -10,15 +10,15 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-sfu-red rounded-lg flex items-center justify-center">
-                <span className="text-white font-display font-bold text-lg">SG</span>
+              <div className="h-10 w-10">
+                <img src="/lovable-uploads/6b2792e9-40c8-412d-8f43-0d697f2e4cfc.png" alt="S1st Globe Logo" className="h-full w-full object-contain bg-white rounded-lg p-1" />
               </div>
               <span className="font-display font-semibold text-xl text-white">
-                SFU Globe
+                S1st Globe
               </span>
             </div>
             <p className="text-gray-400 text-sm mt-4">
-              Connect, learn, and grow with the SFU community.
+              Connect, learn, and grow with the S1st community.
             </p>
             <div className="flex space-x-4 mt-6">
               <a href="#" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all duration-200">
@@ -77,7 +77,7 @@ const Footer: React.FC = () => {
 
         <div className="border-t border-white/10 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} SFU Globe. All rights reserved.
+            © {new Date().getFullYear()} S1st Globe. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link to="#" className="text-gray-400 hover:text-white transition-colors text-sm">

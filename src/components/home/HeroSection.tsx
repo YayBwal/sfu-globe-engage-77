@@ -29,11 +29,11 @@ const HeroSection: React.FC = () => {
       
       <div className="max-w-5xl mx-auto text-center relative z-10" ref={parallaxRef}>
         <div className="inline-block mb-6">
-          <span className="pill bg-sfu-red/10 text-sfu-red">Your Global SFU Community</span>
+          <span className="pill bg-sfu-red/10 text-sfu-red">Your Global College Community</span>
         </div>
         
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight">
-          Connect, Learn, and<br />Grow with <span className="text-sfu-red">SFU Globe</span>
+          Connect, Learn, and<br />Grow with <span className="text-sfu-red">S1st Globe</span>
         </h1>
         
         <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-10">
