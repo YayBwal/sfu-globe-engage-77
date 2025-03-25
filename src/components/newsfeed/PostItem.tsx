@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ThumbsUp, MessageSquare, Share2, MoreHorizontal, Trash2, 
@@ -124,14 +123,14 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
     }
   };
   
-  // Function to fetch reaction counts
+  // Function to fetch reaction counts - FIXED SQL GROUP BY error
   const fetchReactionCounts = async () => {
     try {
       const { data, error } = await supabase
         .from('post_reactions')
         .select('reaction_type, count')
         .eq('post_id', post.id)
-        .select('reaction_type, count');
+        .group('reaction_type');
       
       if (error) {
         console.error("Error fetching reactions:", error);
@@ -153,6 +152,11 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
       console.error("Error fetching reaction counts:", error);
     }
   };
+  
+  // Fetch reaction counts when the component mounts
+  useEffect(() => {
+    fetchReactionCounts();
+  }, [post.id]);
   
   // Function to handle reactions
   const handleReaction = async (reaction: string) => {
@@ -219,7 +223,6 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
     }
   };
   
-  // Function to delete post
   const handleDeletePost = async () => {
     if (!user || user.id !== post.user_id) {
       toast({ 
