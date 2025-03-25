@@ -42,7 +42,7 @@ export const useLeaderboard = () => {
         score: item.score,
         timeTaken: item.time_taken,
         createdAt: item.created_at,
-        sessionId: undefined // session_id doesn't exist yet
+        sessionId: item.session_id
       }));
       
       const mappedGameScores = gameScoresData.map(item => ({
@@ -55,7 +55,7 @@ export const useLeaderboard = () => {
         score: item.score,
         level: item.level,
         createdAt: item.created_at,
-        sessionId: undefined // session_id doesn't exist yet
+        sessionId: item.session_id
       }));
       
       // Calculate leaderboard data

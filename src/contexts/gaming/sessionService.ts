@@ -3,19 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { GamingSession } from './types';
 import { useToast } from '@/hooks/use-toast';
 
-// These functions are extracted from GamingContext to handle session-related operations
 export const useSessions = () => {
   const { toast } = useToast();
 
   // Fetch sessions
   const fetchSessions = async (): Promise<GamingSession[]> => {
     try {
-      // Since gaming_sessions table doesn't exist yet, this will be a placeholder
-      // In a real implementation, we would create the table first
-      
-      // We'll use the quiz_scores table to simulate sessions for now
       const { data, error } = await supabase
-        .from('quiz_scores')
+        .from('gaming_sessions')
         .select('*')
         .order('created_at', { ascending: false });
         
@@ -24,10 +19,10 @@ export const useSessions = () => {
       // Map to our GamingSession structure
       const mappedSessions = data.map(item => ({
         id: item.id,
-        name: item.quiz_name,
+        name: item.name,
         createdAt: item.created_at,
-        createdBy: item.user_id,
-        courseId: undefined
+        createdBy: item.created_by,
+        courseId: item.course_id
       }));
       
       return mappedSessions;
@@ -45,17 +40,13 @@ export const useSessions = () => {
   // Create a new session
   const createSession = async (name: string, userId: string, courseId?: string): Promise<string> => {
     try {
-      // Instead of trying to insert into a non-existent table, we'll simulate
-      // by adding a quiz score entry that will act as our session
       const { data, error } = await supabase
-        .from('quiz_scores')
+        .from('gaming_sessions')
         .insert({
-          quiz_id: 'session-' + Date.now(),
-          quiz_name: name,
-          user_id: userId,
-          user_name: 'Session Creator',
-          score: 0,
-          time_taken: 0
+          name,
+          created_by: userId,
+          course_id: courseId,
+          session_type: name.toLowerCase().includes('quiz') ? 'quiz' : 'game'
         })
         .select()
         .single();
@@ -82,9 +73,9 @@ export const useSessions = () => {
   // Delete a session
   const deleteSession = async (sessionId: string): Promise<void> => {
     try {
-      // Delete the "session" (quiz score entry)
+      // Delete the session
       const { error } = await supabase
-        .from('quiz_scores')
+        .from('gaming_sessions')
         .delete()
         .match({ id: sessionId });
         

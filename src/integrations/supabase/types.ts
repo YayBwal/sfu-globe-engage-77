@@ -438,6 +438,7 @@ export type Database = {
           level: number
           profile_pic: string | null
           score: number
+          session_id: string | null
           user_id: string
           user_name: string
         }
@@ -449,6 +450,7 @@ export type Database = {
           level: number
           profile_pic?: string | null
           score: number
+          session_id?: string | null
           user_id: string
           user_name: string
         }
@@ -460,8 +462,44 @@ export type Database = {
           level?: number
           profile_pic?: string | null
           score?: number
+          session_id?: string | null
           user_id?: string
           user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_scores_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gaming_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gaming_sessions: {
+        Row: {
+          course_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          session_type: string
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          session_type?: string
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          session_type?: string
         }
         Relationships: []
       }
@@ -850,6 +888,7 @@ export type Database = {
           quiz_id: string
           quiz_name: string
           score: number
+          session_id: string | null
           time_taken: number
           user_id: string
           user_name: string
@@ -861,6 +900,7 @@ export type Database = {
           quiz_id: string
           quiz_name: string
           score: number
+          session_id?: string | null
           time_taken: number
           user_id: string
           user_name: string
@@ -872,11 +912,20 @@ export type Database = {
           quiz_id?: string
           quiz_name?: string
           score?: number
+          session_id?: string | null
           time_taken?: number
           user_id?: string
           user_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "quiz_scores_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gaming_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quizzes: {
         Row: {

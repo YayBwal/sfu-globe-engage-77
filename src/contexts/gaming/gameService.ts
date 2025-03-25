@@ -25,8 +25,8 @@ export const useGames = () => {
         game_id: gameId,
         game_name: gameName,
         score,
-        level
-        // session_id field doesn't exist yet, so we don't include it
+        level,
+        session_id: sessionId
       });
       
       if (error) throw error;

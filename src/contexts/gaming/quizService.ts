@@ -84,8 +84,8 @@ export const useQuizzes = () => {
         quiz_id: quizId,
         quiz_name: quizName,
         score,
-        time_taken: timeTaken
-        // session_id field doesn't exist yet, so we don't include it
+        time_taken: timeTaken,
+        session_id: sessionId
       });
       
       if (error) throw error;
