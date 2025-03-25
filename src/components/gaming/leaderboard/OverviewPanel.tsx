@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LeaderboardUser, QuizScore, GameScore } from '@/contexts/GamingContext';
+import { LeaderboardUser, QuizScore, GameScore } from '@/contexts/gaming/types';
 import TopPlayersCard from './TopPlayersCard';
 import TopScoreCard from './TopScoreCard';
 import WeeklyChallenge from './WeeklyChallenge';

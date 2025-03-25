@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import OverviewPanel from './OverviewPanel';
 import ScoresTable from './ScoresTable';
 import LoadingSpinner from './LoadingSpinner';
-import { LeaderboardUser, QuizScore, GameScore } from '@/contexts/GamingContext';
+import { LeaderboardUser, QuizScore, GameScore } from '@/contexts/gaming/types';
 
 interface TabContentProps {
   activeTab: string;
