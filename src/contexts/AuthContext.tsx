@@ -7,6 +7,7 @@ type AuthContextType = {
   profile: UserProfile | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isTeacher: boolean;
   register: (email: string, password: string, name: string, studentId: string, major: string, batch: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,6 +27,7 @@ type UserProfile = {
   availability: string;
   profilePic: string | null;
   coverPic: string | null;
+  role: string;
   profile_pic?: string | null; // For compatibility with DB
   cover_pic?: string | null; // For compatibility with DB
 };
@@ -37,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -83,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               availability: profileData.availability || "",
               profilePic: profileData.profile_pic,
               coverPic: profileData.cover_pic,
+              role: profileData.role || "student",
               // Keep original DB fields for compatibility
               profile_pic: profileData.profile_pic,
               cover_pic: profileData.cover_pic
@@ -90,13 +94,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             setProfile(mappedProfile);
             setIsAuthenticated(true);
+            // Set isTeacher based on role
+            setIsTeacher(mappedProfile.role === 'teacher');
           } else {
             setProfile(null);
             setIsAuthenticated(false);
+            setIsTeacher(false);
           }
         } else {
           setProfile(null);
           setIsAuthenticated(false);
+          setIsTeacher(false);
         }
       } catch (error) {
         console.error("Unexpected error fetching profile:", error);
@@ -247,6 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     isAuthenticated,
+    isTeacher,
     register,
     login,
     logout,

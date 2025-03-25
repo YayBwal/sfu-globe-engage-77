@@ -701,6 +701,7 @@ export type Database = {
           name: string
           online: boolean | null
           profile_pic: string | null
+          role: string | null
           student_id: string
         }
         Insert: {
@@ -716,6 +717,7 @@ export type Database = {
           name: string
           online?: boolean | null
           profile_pic?: string | null
+          role?: string | null
           student_id: string
         }
         Update: {
@@ -731,6 +733,7 @@ export type Database = {
           name?: string
           online?: boolean | null
           profile_pic?: string | null
+          role?: string | null
           student_id?: string
         }
         Relationships: []
