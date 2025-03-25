@@ -16,6 +16,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters long' }),
@@ -148,7 +155,19 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Major</FormLabel>
                   <FormControl>
-                    <Input placeholder="Computer Science" {...field} />
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value} 
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your major" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DC">DC - Diploma in Computing</SelectItem>
+                        <SelectItem value="DCBM">DCBM - Diploma in Computing & Business Management</SelectItem>
+                        <SelectItem value="BM">BM - Business Management</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
