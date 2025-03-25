@@ -52,6 +52,18 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Function to generate QR code SVG
+  const generateQRCodeSVG = (data: string) => {
+    // This is a simplified QR code representation
+    // In a real-world scenario, you would use a library like qrcode.react
+    return (
+      <div className="relative">
+        <QrCode className="h-40 w-40 mx-auto" />
+        <div className="text-xs mt-2 text-center">Code: {data.substring(0, 8)}...</div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
@@ -69,11 +81,7 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => 
                 <RefreshCw className="h-16 w-16 animate-spin" />
               </div>
             ) : qrCode ? (
-              <div className="text-center">
-                {/* In a real app, you would use a QR code library to generate an actual QR code */}
-                <QrCode className="h-40 w-40 mx-auto" />
-                <p className="text-xs mt-2">Code: {qrCode.substring(0, 8)}...</p>
-              </div>
+              generateQRCodeSVG(qrCode)
             ) : (
               <div className="text-center text-gray-500">
                 <p>Failed to generate QR code</p>

@@ -42,6 +42,7 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [userAttendance, setUserAttendance] = useState<any[]>([]);
   const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
 
@@ -58,24 +59,40 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     
     setIsLoading(true);
     try {
-      let query = supabase.from('classes');
+      let query;
       
       if (isTeacher) {
-        query = query.eq('teacher_id', user.id);
+        const { data, error } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('teacher_id', user.id);
+        
+        if (error) throw error;
+        setClasses(data || []);
       } else {
         // For students, get classes they're enrolled in
-        query = query.in('id', 
-          supabase.from('class_enrollments')
-            .select('class_id')
-            .eq('student_id', user.id)
-            .eq('status', 'active')
-        );
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('class_enrollments')
+          .select('class_id')
+          .eq('student_id', user.id)
+          .eq('status', 'active');
+        
+        if (enrollmentsError) throw enrollmentsError;
+        
+        if (enrollmentsData && enrollmentsData.length > 0) {
+          const classIds = enrollmentsData.map(e => e.class_id);
+          
+          const { data, error } = await supabase
+            .from('classes')
+            .select('*')
+            .in('id', classIds);
+          
+          if (error) throw error;
+          setClasses(data || []);
+        } else {
+          setClasses([]);
+        }
       }
-      
-      const { data, error } = await query.select('*');
-      
-      if (error) throw error;
-      setClasses(data || []);
     } catch (error: any) {
       toast({
         title: "Error fetching classes",
@@ -92,18 +109,26 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     
     setIsLoading(true);
     try {
-      let query = supabase.from('class_sessions');
+      let query;
       
       if (classId) {
-        query = query.eq('class_id', classId);
+        const { data, error } = await supabase
+          .from('class_sessions')
+          .select('*, classes(name, description)')
+          .eq('class_id', classId)
+          .order('date', { ascending: false });
+        
+        if (error) throw error;
+        setSessions(data || []);
+      } else {
+        const { data, error } = await supabase
+          .from('class_sessions')
+          .select('*, classes(name, description)')
+          .order('date', { ascending: false });
+        
+        if (error) throw error;
+        setSessions(data || []);
       }
-      
-      const { data, error } = await query
-        .select('*, classes(name, description)')
-        .order('date', { ascending: false });
-      
-      if (error) throw error;
-      setSessions(data || []);
     } catch (error: any) {
       toast({
         title: "Error fetching sessions",
@@ -120,18 +145,26 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     
     setIsLoading(true);
     try {
-      let query = supabase.from('attendance_records');
+      let query;
       
       if (sessionId) {
-        query = query.eq('session_id', sessionId);
+        const { data, error } = await supabase
+          .from('attendance_records')
+          .select('*, profiles(name, student_id)')
+          .eq('session_id', sessionId)
+          .order('marked_at', { ascending: false });
+        
+        if (error) throw error;
+        setAttendanceRecords(data || []);
+      } else {
+        const { data, error } = await supabase
+          .from('attendance_records')
+          .select('*, profiles(name, student_id)')
+          .order('marked_at', { ascending: false });
+        
+        if (error) throw error;
+        setAttendanceRecords(data || []);
       }
-      
-      const { data, error } = await query
-        .select('*, profiles(name, student_id)')
-        .order('marked_at', { ascending: false });
-      
-      if (error) throw error;
-      setAttendanceRecords(data || []);
     } catch (error: any) {
       toast({
         title: "Error fetching attendance records",
@@ -195,6 +228,7 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       setUserEnrollments(data || []);
+      setEnrollments(data || []);
     } catch (error: any) {
       toast({
         title: "Error fetching your enrollments",
@@ -375,6 +409,7 @@ export const AttendanceProvider = ({ children }: { children: ReactNode }) => {
     classes,
     sessions,
     attendanceRecords,
+    enrollments,
     isTeacher,
     isLoading,
     generateQRCode,
