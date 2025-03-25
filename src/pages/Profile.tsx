@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -8,7 +7,7 @@ import {
   Camera, Edit2, Calendar, Book, Users, Award, Gamepad, 
   Clock, ArrowLeft, Upload, User, Image, School, 
   FileText, Briefcase, MapPin, Mail, Hash, Save,
-  Circle, UserCheck, UserPlus, UserX, MessageSquare, LogOut
+  Circle, UserCheck, UserPlus, UserX, MessageSquare
 } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
@@ -87,90 +86,6 @@ interface Friend {
   student_id: string;
   major: string;
 }
-
-// Add a new StatDetailDialog component at the top level of the file
-interface StatDetailProps {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  description: string;
-  open: boolean;
-  onClose: () => void;
-}
-
-const StatDetailDialog: React.FC<StatDetailProps> = ({ 
-  title, 
-  value, 
-  icon, 
-  description, 
-  open, 
-  onClose 
-}) => {
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {icon}
-            <span>{title} Details</span>
-          </DialogTitle>
-        </DialogHeader>
-        <div className="py-6">
-          <div className="flex flex-col items-center justify-center mb-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-sfu-red/10 to-amber-400/10 flex items-center justify-center mb-4">
-              {React.cloneElement(icon as React.ReactElement, { className: "h-10 w-10 text-sfu-red" })}
-            </div>
-            <p className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sfu-red to-amber-500">{value}</p>
-          </div>
-          <p className="text-center text-gray-600">{description}</p>
-        </div>
-        <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// Modify the Card component in Profile.tsx
-// Here we're creating a new StatCard component
-interface StatCardProps {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  description: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, description }) => {
-  const [showDetail, setShowDetail] = useState(false);
-  
-  return (
-    <>
-      <Card 
-        className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition duration-200 cursor-pointer"
-        onClick={() => setShowDetail(true)}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-sfu-red/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        <CardContent className="p-4 flex flex-col items-center justify-center relative">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sfu-red/10 to-amber-400/10 flex items-center justify-center mb-2">
-            <Icon className="h-5 w-5 text-sfu-red" />
-          </div>
-          <p className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-sfu-red to-amber-500">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </CardContent>
-      </Card>
-      
-      <StatDetailDialog
-        title={label}
-        value={value}
-        icon={<Icon className="h-5 w-5" />}
-        description={description}
-        open={showDetail}
-        onClose={() => setShowDetail(false)}
-      />
-    </>
-  );
-};
 
 // Create Friend Message component to avoid rendering hooks directly in map function
 const FriendCard = ({ friend, onRemove }: { friend: Friend, onRemove: (id: string) => Promise<void> }) => {
@@ -262,7 +177,6 @@ const Profile = () => {
   const [clubs, setClubs] = useState<UserClub[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [activeTab, setActiveTab] = useState("activity");
-  const [showUserMenu, setShowUserMenu] = useState(false);
   
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -674,66 +588,6 @@ const Profile = () => {
     );
   };
   
-  // Update the getStatDescription function
-  const getStatDescription = (label: string): string => {
-    switch (label) {
-      case "Courses":
-        return "Total number of courses you have enrolled in. Each course contributes to your academic progress and skill development.";
-      case "Hours":
-        return "Estimated total study hours across all your enrolled courses. This is calculated based on course workload and your engagement.";
-      case "Quizzes":
-        return "Total number of quizzes you have completed. Regular quiz-taking helps reinforce your learning and identify areas for improvement.";
-      case "Clubs":
-        return "Number of approved clubs you are a member of. Club participation enhances your networking and extracurricular experiences.";
-      default:
-        return "Click for more details about this statistic.";
-    }
-  };
-  
-  // Modify the stats section to render our new StatCard component
-  const renderStats = () => {
-    const statItems = [
-      { 
-        icon: Book, 
-        label: "Courses", 
-        value: userCourses.length.toString(),
-        description: getStatDescription("Courses")
-      },
-      { 
-        icon: Clock, 
-        label: "Hours", 
-        value: (userCourses.length * 12).toString(),
-        description: getStatDescription("Hours")
-      },
-      { 
-        icon: Award, 
-        label: "Quizzes", 
-        value: userQuizzes.length.toString(),
-        description: getStatDescription("Quizzes") 
-      },
-      { 
-        icon: Users, 
-        label: "Clubs", 
-        value: clubs.filter(c => c.approved).length.toString(),
-        description: getStatDescription("Clubs")
-      },
-    ];
-    
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-        {statItems.map((stat, index) => (
-          <StatCard 
-            key={index}
-            icon={stat.icon}
-            label={stat.label}
-            value={stat.value}
-            description={stat.description}
-          />
-        ))}
-      </div>
-    );
-  };
-  
   // Stats based on real data
   const stats = [
     { 
@@ -771,19 +625,6 @@ const Profile = () => {
       </div>
     );
   }
-  
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
-  };
-
-  const handleEditProfile = () => {
-    setIsEditMode(true);
-    setShowUserMenu(false);
-  };
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -925,83 +766,77 @@ const Profile = () => {
                             </FormItem>
                           )}
                         />
-                        <div className="flex justify-end gap-2">
+                        <div className="flex gap-2 pt-2">
+                          <Button type="submit" className="bg-gradient-to-r from-sfu-red to-amber-500 hover:from-sfu-red hover:to-amber-600">
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Profile
+                          </Button>
                           <Button 
                             type="button" 
-                            variant="outline"
+                            variant="outline" 
                             onClick={() => setIsEditMode(false)}
                           >
                             Cancel
-                          </Button>
-                          <Button type="submit">
-                            <Save className="h-4 w-4 mr-2" />
-                            Save Changes
                           </Button>
                         </div>
                       </form>
                     </Form>
                   ) : (
                     <>
-                      <div className="flex justify-between items-center">
-                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{profile?.name}</h1>
-                        <div className="relative">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-end w-full">
+                        <div>
+                          <h1 className="text-3xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
+                            {profile?.name}
+                          </h1>
+                          <p className="text-gray-500 flex items-center justify-center md:justify-start gap-2 mt-1">
+                            <Mail className="h-4 w-4" />
+                            {profile?.email}
+                          </p>
+                          {profile?.bio && (
+                            <p className="text-gray-700 mt-3 max-w-xl text-center md:text-left">{profile.bio}</p>
+                          )}
+                          
+                          <div className="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <School className="h-3 w-3 mr-1" />
+                              {profile?.major === 'CS' ? 'Computer Science' : 
+                              profile?.major === 'BBA' ? 'Business Administration' : 
+                              profile?.major === 'ENG' ? 'Engineering' : 
+                              profile?.major === 'MED' ? 'Medical Sciences' : 
+                              profile?.major === 'ART' ? 'Arts & Humanities' : profile?.major}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Batch {profile?.batch}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <Hash className="h-3 w-3 mr-1" />
+                              ID: {profile?.student_id}
+                            </span>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${profile?.online ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              <Circle className={`h-3 w-3 mr-1 ${profile?.online ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'}`} />
+                              {profile?.online ? 'Online' : 'Offline'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-4 md:mt-0">
                           <Button 
                             variant="outline" 
-                            size="sm"
-                            className="text-sm"
-                            onClick={() => setShowUserMenu(!showUserMenu)}
+                            className="rounded-lg border-slate-200 hover:bg-gray-100 hover:text-sfu-black"
+                            onClick={() => setIsEditMode(true)}
                           >
-                            <User className="h-4 w-4 mr-2" />
-                            Actions
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Edit Profile
                           </Button>
-                          
-                          {showUserMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 p-1 z-50">
-                              <div className="py-1" role="menu">
-                                <button
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                                  onClick={handleEditProfile}
-                                >
-                                  <Edit2 className="h-4 w-4 mr-2" />
-                                  Edit Profile
-                                </button>
-                                <button
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
-                                  onClick={handleLogout}
-                                >
-                                  <LogOut className="h-4 w-4 mr-2" />
-                                  Sign Out
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg border-slate-200 hover:bg-gray-100 hover:text-sfu-black"
+                            onClick={logout}
+                          >
+                            Sign Out
+                          </Button>
                         </div>
                       </div>
-                      
-                      <div className="mt-1 flex flex-wrap gap-2 items-center justify-center md:justify-start">
-                        {profile?.student_id && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                            <Hash className="h-3 w-3 mr-1" />
-                            {profile.student_id}
-                          </span>
-                        )}
-                        {profile?.major && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                            <School className="h-3 w-3 mr-1" />
-                            {profile.major}
-                          </span>
-                        )}
-                        {profile?.batch && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Batch {profile.batch}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <p className="text-gray-600 mt-4 max-w-2xl">
-                        {profile?.bio || "No bio added yet."}
-                      </p>
                     </>
                   )}
                 </div>
@@ -1009,209 +844,222 @@ const Profile = () => {
             </div>
             
             {/* Stats Section */}
-            {!isEditMode && renderStats()}
-            
-            {/* Tabs Section */}
-            {!isEditMode && (
-              <Tabs value={activeTab} className="mt-8" onValueChange={setActiveTab}>
-                <TabsList className="w-full md:w-auto border rounded-lg p-1 bg-gray-50">
-                  <TabsTrigger value="activity" className="text-xs md:text-sm">
-                    Activity
-                  </TabsTrigger>
-                  <TabsTrigger value="courses" className="text-xs md:text-sm">
-                    Courses
-                  </TabsTrigger>
-                  <TabsTrigger value="quizzes" className="text-xs md:text-sm">
-                    Quizzes
-                  </TabsTrigger>
-                  <TabsTrigger value="clubs" className="text-xs md:text-sm">
-                    Clubs
-                  </TabsTrigger>
-                  <TabsTrigger value="friends" className="text-xs md:text-sm">
-                    Friends
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="activity" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Activity</CardTitle>
-                      <CardDescription>Your recent actions and activities</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {activities.length > 0 ? (
-                        <div className="space-y-4">
-                          {activities.map((activity) => (
-                            <div key={activity.id} className="p-3 rounded-lg bg-gray-50">
-                              {renderActivityDetails(activity)}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No activities found.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="courses" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>My Courses</CardTitle>
-                      <CardDescription>Courses you are enrolled in</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {userCourses.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Course Name</TableHead>
-                              <TableHead>Enrollment Date</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {userCourses.map((course) => (
-                              <TableRow key={course.id}>
-                                <TableCell className="font-medium">
-                                  {course.course_name}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(course.enrollment_date)}
-                                </TableCell>
-                                <TableCell>
-                                  {course.completed ? (
-                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                                      Completed
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                      In Progress
-                                    </span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No courses found.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="quizzes" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>My Quizzes</CardTitle>
-                      <CardDescription>Quizzes you have completed</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {userQuizzes.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Quiz Title</TableHead>
-                              <TableHead>Score</TableHead>
-                              <TableHead>Completed</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {userQuizzes.map((quiz) => (
-                              <TableRow key={quiz.id}>
-                                <TableCell className="font-medium">
-                                  {quiz.quiz_title}
-                                </TableCell>
-                                <TableCell>
-                                  {quiz.score}/{quiz.total_questions}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(quiz.completed_at)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No quizzes found.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="clubs" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>My Clubs</CardTitle>
-                      <CardDescription>Clubs you are a member of</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {clubs.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {clubs.map((club) => (
-                            <Card key={club.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                              <div className={`h-2 ${club.approved ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <Avatar className="h-10 w-10">
-                                    {club.logo_url ? (
-                                      <AvatarImage src={club.logo_url} alt={club.name} />
-                                    ) : (
-                                      <AvatarFallback>{club.name.charAt(0)}</AvatarFallback>
-                                    )}
-                                  </Avatar>
-                                  <div>
-                                    <h4 className="font-semibold">{club.name}</h4>
-                                    <p className="text-xs text-gray-500">Role: {club.role}</p>
-                                  </div>
-                                </div>
-                                <div className="text-xs">
-                                  <span className={`inline-block px-2 py-1 rounded ${
-                                    club.approved 
-                                      ? 'bg-green-100 text-green-800' 
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {club.approved ? 'Approved' : 'Pending Approval'}
-                                  </span>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No clubs found.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="friends" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>My Friends</CardTitle>
-                      <CardDescription>People you are connected with</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {friends.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {friends.map((friend) => (
-                            <FriendCard 
-                              key={friend.id}
-                              friend={friend}
-                              onRemove={removeFriend}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No friends found.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {stats.map((stat, index) => (
+                <Card key={index} className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition duration-200">
+                  <div className="absolute inset-0 bg-gradient-to-r from-sfu-red/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sfu-red/10 to-amber-400/10 flex items-center justify-center mb-2">
+                      <stat.icon className="h-5 w-5 text-sfu-red" />
+                    </div>
+                    <p className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-sfu-red to-amber-500">{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
+        </div>
+        
+        {/* Tabs Section */}
+        <div className="max-w-5xl mx-auto px-4 mt-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full bg-white mb-6 p-1 rounded-xl shadow-sm">
+              <TabsTrigger value="activity" className="flex-1 rounded-lg">Activity</TabsTrigger>
+              <TabsTrigger value="friends" className="flex-1 rounded-lg">Friends</TabsTrigger>
+              <TabsTrigger value="clubs" className="flex-1 rounded-lg">Clubs</TabsTrigger>
+              <TabsTrigger value="quizzes" className="flex-1 rounded-lg">Quizzes</TabsTrigger>
+              <TabsTrigger value="courses" className="flex-1 rounded-lg">Courses</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="activity" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {activities.length > 0 ? (
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <Card key={activity.id} className="border-none bg-gradient-to-r from-gray-50 to-white shadow-sm hover:shadow-md transition duration-200">
+                      <CardContent className="p-4">
+                        {renderActivityDetails(activity)}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No recent activity</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Your recent activities will appear here as you engage with classes, clubs, and quizzes.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="friends" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {friends.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {friends.map((friend) => (
+                    <FriendCard 
+                      key={friend.id} 
+                      friend={friend} 
+                      onRemove={removeFriend} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No friends yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Connect with other students to see them listed here.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="clubs" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {clubs.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {clubs.map((club) => (
+                    <Card key={club.id} className="overflow-hidden hover:shadow-lg transition duration-200">
+                      <div className={`h-2 ${club.approved ? 'bg-gradient-to-r from-blue-500 to-blue-400' : 'bg-gradient-to-r from-amber-500 to-amber-400'}`} />
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white">
+                            {club.logo_url ? (
+                              <AvatarImage src={club.logo_url} alt={club.name} />
+                            ) : (
+                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                                {getInitials(club.name)}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div>
+                            <h4 className="font-semibold text-slate-900">{club.name}</h4>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded ${club.approved ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {club.approved ? (
+                                  <>
+                                    <UserCheck className="h-3 w-3 mr-1" />
+                                    Approved
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Pending
+                                  </>
+                                )}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">
+                                {club.role}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">Not in any clubs yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Join clubs to connect with students that share your interests.
+                  </p>
+                  <Link to="/clubs">
+                    <Button className="mt-4">Browse Clubs</Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="quizzes" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {userQuizzes.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quiz</TableHead>
+                        <TableHead className="text-right">Score</TableHead>
+                        <TableHead className="text-right">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userQuizzes.map((quiz) => (
+                        <TableRow key={quiz.id}>
+                          <TableCell className="font-medium">{quiz.quiz_title}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              (quiz.score / quiz.total_questions) >= 0.7 ? 'bg-green-100 text-green-800' : 
+                              (quiz.score / quiz.total_questions) >= 0.5 ? 'bg-amber-100 text-amber-800' : 
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {quiz.score} / {quiz.total_questions}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-gray-500">
+                            {formatDate(quiz.completed_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No quizzes taken yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Take quizzes to test your knowledge and track your progress.
+                  </p>
+                  <Link to="/quizzes">
+                    <Button className="mt-4">Browse Quizzes</Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="courses" className="bg-white rounded-xl shadow-sm p-6 mt-0">
+              {userCourses.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Course</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                        <TableHead className="text-right">Enrolled</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userCourses.map((course) => (
+                        <TableRow key={course.id}>
+                          <TableCell className="font-medium">{course.course_name}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              course.completed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {course.completed ? 'Completed' : 'In Progress'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-gray-500">
+                            {formatDate(course.enrollment_date)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Book className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="font-medium text-gray-800 mb-2">No courses enrolled yet</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Enroll in courses to track your academic progress.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

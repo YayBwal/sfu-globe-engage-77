@@ -1,213 +1,187 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSessions } from './gaming/sessionService';
-import { useQuizzes } from './gaming/quizService';
 import { useGames } from './gaming/gameService';
+import { useQuizzes } from './gaming/quizService';
 import { useLeaderboard } from './gaming/leaderboardService';
-import { 
-  GamingContextType, 
-  Question, 
-  QuizScore, 
-  GameScore, 
-  LeaderboardUser, 
-  GamingSession 
-} from './gaming/types';
+import { GamingSession, Question, GameScore, QuizScore, LeaderboardUser } from './gaming/types';
 
-const GamingContext = createContext<GamingContextType>({
-  quizzes: [],
-  quizScores: [],
-  gameScores: [],
-  leaderboard: [],
-  sessions: [],
-  fetchQuizzes: async () => {},
-  fetchLeaderboards: async () => {},
-  fetchSessions: async () => {},
-  saveQuizScore: async () => {},
-  saveGameScore: async () => {},
-  createSession: async () => '',
-  deleteSession: async () => {},
-  isLoading: false,
-  questions: [],
-  fetchQuestions: async () => {},
-});
+interface GamingContextType {
+  // Sessions
+  sessions: GamingSession[];
+  createSession: (name: string, courseId?: string) => Promise<string>;
+  deleteSession: (sessionId: string) => Promise<void>;
+  
+  // Quiz functionality
+  saveQuizScore: (quizId: string, quizName: string, score: number, timeTaken: number, sessionId?: string) => Promise<void>;
+  
+  // Game functionality
+  saveGameScore: (gameId: string, gameName: string, score: number, level: number, sessionId?: string) => Promise<void>;
+  
+  // Leaderboard data
+  topUsers: LeaderboardUser[];
+  topQuizScores: QuizScore[];
+  topGameScores: GameScore[];
+  userStats: { totalScore: number; rank: number; totalGames: number };
+  timeFilter: string;
+  setTimeFilter: (filter: string) => void;
+  
+  // Loading states
+  isLoading: boolean;
+}
 
-export const useGaming = () => useContext(GamingContext);
+export const GamingContext = createContext<GamingContextType | undefined>(undefined);
 
 export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [quizzes, setQuizzes] = useState<any[]>([]);
-  const [quizScores, setQuizScores] = useState<QuizScore[]>([]);
-  const [gameScores, setGameScores] = useState<GameScore[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
-  const [sessions, setSessions] = useState<GamingSession[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const sessionService = useSessions();
-  const quizService = useQuizzes();
-  const gameService = useGames();
-  const leaderboardService = useLeaderboard();
-
-  // Fetch sessions
-  const fetchSessions = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedSessions = await sessionService.fetchSessions();
-      setSessions(fetchedSessions);
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
-      toast({
-        title: "Error fetching sessions",
-        description: "Failed to load gaming sessions. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Create a new session
-  const createSession = async (name: string, courseId?: string): Promise<string> => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [userStats, setUserStats] = useState({ totalScore: 0, rank: 0, totalGames: 0 });
+  
+  // Initialize services
+  const { 
+    fetchSessions, 
+    createSession, 
+    deleteSession 
+  } = useSessions();
+  
+  const { saveGameScore } = useGames();
+  const { saveQuizScore } = useQuizzes();
+  const { 
+    fetchTopUsers, 
+    fetchTopQuizScores, 
+    fetchTopGameScores,
+    fetchUserStats
+  } = useLeaderboard();
+  
+  // State variables
+  const [sessions, setSessions] = useState<GamingSession[]>([]);
+  const [topUsers, setTopUsers] = useState<LeaderboardUser[]>([]);
+  const [topQuizScores, setTopQuizScores] = useState<QuizScore[]>([]);
+  const [topGameScores, setTopGameScores] = useState<GameScore[]>([]);
+  
+  // Load initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true);
+        const sessionsData = await fetchSessions();
+        setSessions(sessionsData);
+        
+        // Load leaderboard data
+        const usersData = await fetchTopUsers(timeFilter);
+        const quizScoresData = await fetchTopQuizScores(timeFilter);
+        const gameScoresData = await fetchTopGameScores(timeFilter);
+        
+        setTopUsers(usersData);
+        setTopQuizScores(quizScoresData);
+        setTopGameScores(gameScoresData);
+        
+        // Load user stats if logged in
+        if (user) {
+          const stats = await fetchUserStats(user.id, timeFilter);
+          setUserStats(stats);
+        }
+      } catch (error) {
+        console.error('Error loading gaming data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load gaming data',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadInitialData();
+  }, [fetchSessions, fetchTopUsers, fetchTopQuizScores, fetchTopGameScores, fetchUserStats, user, timeFilter, toast]);
+  
+  // Context wrapper for creating a session
+  const handleCreateSession = async (name: string, courseId?: string) => {
     if (!user) {
       toast({
-        title: 'Authentication required',
-        description: 'You need to be logged in to create sessions',
+        title: 'Authentication Required',
+        description: 'Please log in to create a session',
         variant: 'destructive',
       });
       return '';
     }
     
     try {
-      const sessionId = await sessionService.createSession(name, user.id, courseId);
+      const sessionId = await createSession(name, user.id, courseId);
       
-      // Refresh sessions
-      await fetchSessions();
-      
-      toast({
-        title: 'Session created',
-        description: 'Gaming session created successfully',
-      });
-      
-      return sessionId;
+      if (sessionId) {
+        // Refresh the sessions list
+        const updatedSessions = await fetchSessions();
+        setSessions(updatedSessions);
+        
+        toast({
+          title: 'Success',
+          description: 'Session created successfully',
+        });
+        
+        return sessionId;
+      }
+      return '';
     } catch (error) {
-      console.error("Error creating session:", error);
+      console.error('Error creating session:', error);
       toast({
-        title: 'Error creating session',
-        description: 'Failed to create gaming session. Please try again.',
+        title: 'Error',
+        description: 'Failed to create session',
         variant: 'destructive',
       });
       return '';
     }
   };
-
-  // Delete a session
-  const deleteSession = async (sessionId: string) => {
-    if (!user) {
+  
+  // Context wrapper for deleting a session
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId);
+      
+      // Update the local state
+      setSessions(prev => prev.filter(session => session.id !== sessionId));
+      
       toast({
-        title: 'Authentication required',
-        description: 'You need to be logged in to delete sessions',
+        title: 'Success',
+        description: 'Session deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete session',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Context wrapper for saving a quiz score
+  const handleSaveQuizScore = async (
+    quizId: string, 
+    quizName: string, 
+    score: number, 
+    timeTaken: number,
+    sessionId?: string
+  ) => {
+    if (!user || !profile) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to save your score',
         variant: 'destructive',
       });
       return;
     }
     
     try {
-      await sessionService.deleteSession(sessionId);
-      
-      // Refresh sessions and leaderboard
-      await fetchSessions();
-      await fetchLeaderboards();
-      
-      toast({
-        title: 'Session deleted',
-        description: 'Gaming session deleted successfully',
-      });
-    } catch (error) {
-      console.error("Error deleting session:", error);
-      toast({
-        title: 'Error deleting session',
-        description: 'Failed to delete gaming session. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Fetch quizzes
-  const fetchQuizzes = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedQuizzes = await quizService.fetchQuizzes();
-      setQuizzes(fetchedQuizzes);
-    } catch (error) {
-      console.error("Error fetching quizzes:", error);
-      toast({
-        title: "Error fetching quizzes",
-        description: "Failed to load quizzes. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch leaderboards
-  const fetchLeaderboards = async () => {
-    setIsLoading(true);
-    try {
-      const data = await leaderboardService.fetchLeaderboards();
-      
-      setQuizScores(data.quizScores);
-      setGameScores(data.gameScores);
-      setLeaderboard(data.leaderboard);
-    } catch (error) {
-      console.error("Error fetching leaderboards:", error);
-      toast({
-        title: "Error fetching leaderboards",
-        description: "Failed to load leaderboard data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch questions from the database
-  const fetchQuestions = async (courseId?: string) => {
-    setIsLoading(true);
-    try {
-      const fetchedQuestions = await quizService.fetchQuestions(courseId);
-      setQuestions(fetchedQuestions);
-    } catch (error) {
-      console.error("Error fetching questions:", error);
-      toast({
-        title: "Error fetching questions",
-        description: "Failed to load quiz questions. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Save quiz score
-  const saveQuizScore = async (quizId: string, quizName: string, score: number, timeTaken: number, sessionId?: string) => {
-    if (!user) {
-      toast({
-        title: 'Authentication required',
-        description: 'You need to be logged in to save scores',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    try {
-      await quizService.saveQuizScore(
-        user.id, 
-        profile?.name || 'Anonymous',
-        profile?.profile_pic,
+      await saveQuizScore(
+        user.id,
+        profile.name,
+        profile.profile_pic,
         quizId,
         quizName,
         score,
@@ -215,39 +189,42 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sessionId
       );
       
-      // Refresh leaderboards
-      await fetchLeaderboards();
+      // Refresh leaderboard data
+      const quizScoresData = await fetchTopQuizScores(timeFilter);
+      setTopQuizScores(quizScoresData);
       
-      toast({
-        title: 'Score saved',
-        description: 'Your quiz score has been saved successfully',
-      });
+      const usersData = await fetchTopUsers(timeFilter);
+      setTopUsers(usersData);
+      
+      const stats = await fetchUserStats(user.id, timeFilter);
+      setUserStats(stats);
     } catch (error) {
-      console.error("Error saving quiz score:", error);
-      toast({
-        title: 'Error saving score',
-        description: 'Failed to save your quiz score. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Error saving quiz score:', error);
     }
   };
-
-  // Save game score
-  const saveGameScore = async (gameId: string, gameName: string, score: number, level: number, sessionId?: string) => {
-    if (!user) {
+  
+  // Context wrapper for saving a game score
+  const handleSaveGameScore = async (
+    gameId: string, 
+    gameName: string, 
+    score: number, 
+    level: number,
+    sessionId?: string
+  ) => {
+    if (!user || !profile) {
       toast({
-        title: 'Authentication required',
-        description: 'You need to be logged in to save scores',
+        title: 'Authentication Required',
+        description: 'Please log in to save your score',
         variant: 'destructive',
       });
       return;
     }
     
     try {
-      await gameService.saveGameScore(
+      await saveGameScore(
         user.id,
-        profile?.name || 'Anonymous',
-        profile?.profile_pic,
+        profile.name,
+        profile.profile_pic,
         gameId,
         gameName,
         score,
@@ -255,46 +232,83 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sessionId
       );
       
-      // Refresh leaderboards
-      await fetchLeaderboards();
+      // Refresh leaderboard data
+      const gameScoresData = await fetchTopGameScores(timeFilter);
+      setTopGameScores(gameScoresData);
       
-      toast({
-        title: 'Score saved',
-        description: 'Your game score has been saved successfully',
-      });
+      const usersData = await fetchTopUsers(timeFilter);
+      setTopUsers(usersData);
+      
+      const stats = await fetchUserStats(user.id, timeFilter);
+      setUserStats(stats);
     } catch (error) {
-      console.error("Error saving game score:", error);
-      toast({
-        title: 'Error saving score',
-        description: 'Failed to save your game score. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Error saving game score:', error);
     }
   };
-
+  
+  // Update leaderboard data when time filter changes
+  useEffect(() => {
+    const updateLeaderboardData = async () => {
+      try {
+        setIsLoading(true);
+        
+        const usersData = await fetchTopUsers(timeFilter);
+        const quizScoresData = await fetchTopQuizScores(timeFilter);
+        const gameScoresData = await fetchTopGameScores(timeFilter);
+        
+        setTopUsers(usersData);
+        setTopQuizScores(quizScoresData);
+        setTopGameScores(gameScoresData);
+        
+        if (user) {
+          const stats = await fetchUserStats(user.id, timeFilter);
+          setUserStats(stats);
+        }
+      } catch (error) {
+        console.error('Error updating leaderboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    updateLeaderboardData();
+  }, [timeFilter, fetchTopUsers, fetchTopQuizScores, fetchTopGameScores, fetchUserStats, user]);
+  
+  const contextValue: GamingContextType = {
+    // Sessions
+    sessions,
+    createSession: handleCreateSession,
+    deleteSession: handleDeleteSession,
+    
+    // Quiz functionality
+    saveQuizScore: handleSaveQuizScore,
+    
+    // Game functionality
+    saveGameScore: handleSaveGameScore,
+    
+    // Leaderboard data
+    topUsers,
+    topQuizScores,
+    topGameScores,
+    userStats,
+    timeFilter,
+    setTimeFilter,
+    
+    // Loading state
+    isLoading
+  };
+  
   return (
-    <GamingContext.Provider 
-      value={{ 
-        quizzes, 
-        quizScores, 
-        gameScores, 
-        leaderboard,
-        sessions,
-        fetchQuizzes, 
-        fetchLeaderboards,
-        fetchSessions,
-        saveQuizScore, 
-        saveGameScore,
-        createSession,
-        deleteSession,
-        isLoading,
-        questions,
-        fetchQuestions
-      }}
-    >
+    <GamingContext.Provider value={contextValue}>
       {children}
     </GamingContext.Provider>
   );
 };
 
-export { type Question, type QuizScore, type GameScore, type LeaderboardUser, type GamingSession };
+export const useGaming = () => {
+  const context = useContext(GamingContext);
+  if (context === undefined) {
+    throw new Error('useGaming must be used within a GamingProvider');
+  }
+  return context;
+};
