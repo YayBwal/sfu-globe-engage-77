@@ -2,12 +2,12 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MarketplaceItem } from "@/types/marketplace";
+import { MarketplaceItemDisplay } from "@/types/marketplace";
 
 interface RelatedItemsProps {
   currentCategory: string;
-  items: MarketplaceItem[];
-  onItemClick: (item: MarketplaceItem) => void;
+  items: MarketplaceItemDisplay[];
+  onItemClick: (item: MarketplaceItemDisplay) => void;
 }
 
 const RelatedItems: React.FC<RelatedItemsProps> = ({ 

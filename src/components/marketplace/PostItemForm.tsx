@@ -12,11 +12,12 @@ import { Camera, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "@/contexts/AuthContext";
+import { MarketplaceItemDisplay } from "@/types/marketplace";
 
 interface PostItemFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onItemPosted: (newItem: any) => void;
+  onItemPosted: (newItem: MarketplaceItemDisplay) => void;
 }
 
 const CATEGORIES = [
@@ -62,7 +63,7 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
     condition: "",
     contact: "",
     sellerId: user?.id || "",
-    sellerName: user?.displayName || ""
+    sellerName: user?.name || "" // Use name property from user
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -134,29 +135,27 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
         imageUrl = publicUrl;
       }
       
-      // Create new marketplace item
-      const newItem = {
+      // Create database-friendly item object
+      const dbItem = {
         id: itemId,
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
         currency: formData.currency,
         category: formData.category,
-        condition: formData.condition,
-        image: imageUrl,
-        seller: {
-          name: formData.sellerName,
-          id: formData.sellerId
-        },
-        contact: formData.contact,
-        postedDate: new Date().toISOString(),
-        isAvailable: true
+        condition: formData.condition || null,
+        image_url: imageUrl,
+        seller_id: formData.sellerId,
+        seller_name: formData.sellerName,
+        posted_date: new Date().toISOString(),
+        contact: formData.contact || null,
+        is_available: true
       };
       
-      // Add to database (if connected to Supabase)
+      // Add to database
       const { error } = await supabase
         .from('marketplace_items')
-        .insert(newItem);
+        .insert(dbItem);
         
       if (error) throw error;
       
@@ -166,8 +165,27 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
         description: "Your item is now listed in the marketplace.",
       });
       
+      // Create display-friendly item for the UI
+      const displayItem: MarketplaceItemDisplay = {
+        id: itemId,
+        title: formData.title,
+        description: formData.description || null,
+        price: parseFloat(formData.price),
+        currency: formData.currency,
+        category: formData.category,
+        condition: formData.condition || null,
+        image: imageUrl,
+        seller: {
+          name: formData.sellerName,
+          id: formData.sellerId
+        },
+        postedDate: new Date().toISOString(),
+        contact: formData.contact || null,
+        isAvailable: true
+      };
+      
       // Pass the new item back to parent component
-      onItemPosted(newItem);
+      onItemPosted(displayItem);
       
       // Reset form
       setFormData({
@@ -179,7 +197,7 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
         condition: "",
         contact: "",
         sellerId: user?.id || "",
-        sellerName: user?.displayName || ""
+        sellerName: user?.name || ""
       });
       setImageFile(null);
       setImagePreview(null);

@@ -6,13 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Trash, Mail, ExternalLink, Calendar, Tag, CircleDollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MarketplaceItem } from "@/types/marketplace";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { MarketplaceItemDisplay } from "@/types/marketplace";
 
 interface ItemDetailViewProps {
-  item: MarketplaceItem | null;
+  item: MarketplaceItemDisplay | null;
   isOpen: boolean;
   onClose: () => void;
   onDelete: (itemId: string) => void;

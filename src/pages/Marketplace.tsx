@@ -13,12 +13,12 @@ import Footer from "@/components/layout/Footer";
 import PostItemForm from "@/components/marketplace/PostItemForm";
 import ItemDetailView from "@/components/marketplace/ItemDetailView";
 import RelatedItems from "@/components/marketplace/RelatedItems";
-import { MarketplaceItem } from "@/types/marketplace";
+import { MarketplaceItemDisplay, toDisplayModel } from "@/types/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Initial marketplace items (will be replaced with Supabase data)
-const INITIAL_MARKETPLACE_ITEMS: MarketplaceItem[] = [
+const INITIAL_MARKETPLACE_ITEMS: MarketplaceItemDisplay[] = [
   {
     id: "1",
     title: "Calculus Textbook - 5th Edition",
@@ -131,11 +131,11 @@ const Marketplace = () => {
   const [sortBy, setSortBy] = useState("newest");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isPostFormOpen, setIsPostFormOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MarketplaceItemDisplay | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   
   // State for marketplace items
-  const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>(INITIAL_MARKETPLACE_ITEMS);
+  const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItemDisplay[]>(INITIAL_MARKETPLACE_ITEMS);
   const [isLoading, setIsLoading] = useState(false);
   
   // Fetch marketplace items from Supabase
@@ -152,7 +152,9 @@ const Marketplace = () => {
         if (error) throw error;
         
         if (data) {
-          setMarketplaceItems(data);
+          // Convert database model to display model
+          const displayItems = data.map(item => toDisplayModel(item));
+          setMarketplaceItems(displayItems);
         }
       } catch (error) {
         console.error("Error fetching marketplace items:", error);
@@ -195,7 +197,7 @@ const Marketplace = () => {
   });
 
   // Handle creating a new item
-  const handleItemPosted = (newItem: MarketplaceItem) => {
+  const handleItemPosted = (newItem: MarketplaceItemDisplay) => {
     setMarketplaceItems(prev => [newItem, ...prev]);
   };
   
@@ -205,7 +207,7 @@ const Marketplace = () => {
   };
   
   // Open detail view for an item
-  const handleViewItemDetails = (item: MarketplaceItem) => {
+  const handleViewItemDetails = (item: MarketplaceItemDisplay) => {
     setSelectedItem(item);
     setIsDetailViewOpen(true);
   };
