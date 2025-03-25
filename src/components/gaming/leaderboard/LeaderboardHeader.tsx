@@ -9,7 +9,7 @@ const LeaderboardHeader: React.FC = () => {
         <Trophy size={32} />
       </div>
       <h2 className="text-2xl font-display font-bold mb-2">Leaderboard</h2>
-      <p className="text-gray-600">See how you stack up against other players in quizzes and games.</p>
+      <p className="text-gray-600">See how you stack up against other players based on your quiz scores.</p>
     </div>
   );
 };

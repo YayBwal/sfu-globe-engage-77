@@ -1,13 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useGaming, Question } from '@/contexts/GamingContext';
-import { Trophy, Check, X, Clock, HelpCircle, BookOpen, SlidersHorizontal } from 'lucide-react';
+import { Trophy, Check, X, Clock, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import LoadingSpinner from './leaderboard/LoadingSpinner';
 
 const QuizSection: React.FC = () => {
   const { questions, fetchQuestions, saveQuizScore, isLoading } = useGaming();
@@ -18,14 +19,10 @@ const QuizSection: React.FC = () => {
   const [score, setScore] = useState<number>(0);
   const [showResult, setShowResult] = useState<boolean>(false);
   const [quizFinished, setQuizFinished] = useState<boolean>(false);
-  const [timeRemaining, setTimeRemaining] = useState<number>(60);
+  const [timeRemaining, setTimeRemaining] = useState<number>(30);
   const [totalTime, setTotalTime] = useState<number>(0);
   const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
   const [answers, setAnswers] = useState<{ question: string; userAnswer: string; correctAnswer: string; isCorrect: boolean }[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [difficultyFilter, setDifficultyFilter] = useState<"all" | "easy" | "medium" | "hard">("all");
-  const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
-  const [quizStarted, setQuizStarted] = useState<boolean>(false);
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   
   // Fetch questions on mount
@@ -33,61 +30,25 @@ const QuizSection: React.FC = () => {
     fetchQuestions();
   }, [fetchQuestions]);
   
-  // Filter questions based on category and difficulty
-  useEffect(() => {
-    if (!questions) return;
-    
-    let filtered = [...questions];
-    
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter(q => q.category === categoryFilter);
-    }
-    
-    if (difficultyFilter !== "all") {
-      filtered = filtered.filter(q => q.difficulty === difficultyFilter);
-    }
-    
-    setFilteredQuestions(filtered);
-  }, [questions, categoryFilter, difficultyFilter]);
-  
-  // Get unique categories
-  const categories = questions ? 
-    Array.from(new Set(questions.map(q => q.category))).sort() : 
-    [];
-  
-  // Function to get limited questions by difficulty
-  const getLimitedQuestionsByDifficulty = (difficulty: string, limit = 3) => {
-    if (!filteredQuestions.length) return [];
-    
-    let questionsForDifficulty = filteredQuestions;
-    
-    if (difficulty !== 'all') {
-      questionsForDifficulty = filteredQuestions.filter(q => q.difficulty === difficulty);
-    }
-    
-    return questionsForDifficulty.slice(0, limit);
-  };
-  
   // Start quiz
   const startQuiz = () => {
-    if (filteredQuestions.length === 0) return;
+    if (!questions || questions.length === 0) return;
     
-    // Randomly select 10 questions (or all if less than 10)
-    const quizLength = Math.min(10, filteredQuestions.length);
-    const selectedQuestions = [...filteredQuestions]
+    // Randomly select 10 questions
+    const quizLength = Math.min(10, questions.length);
+    const selectedQuestions = [...questions]
       .sort(() => 0.5 - Math.random())
       .slice(0, quizLength);
     
     setQuizQuestions(selectedQuestions);
     setActiveQuiz(true);
-    setQuizStarted(true);
     setCurrentQuestionIndex(0);
     setScore(0);
     setAnswers([]);
     setShowResult(false);
     setQuizFinished(false);
     setSelectedAnswerIndex(null);
-    setTimeRemaining(60);
+    setTimeRemaining(30);
     setTotalTime(0);
     
     // Start timer
@@ -96,7 +57,7 @@ const QuizSection: React.FC = () => {
         if (prev <= 1) {
           // Time's up for this question
           handleAnswer(null);
-          return 60;
+          return 30;
         }
         return prev - 1;
       });
@@ -137,7 +98,7 @@ const QuizSection: React.FC = () => {
       if (currentQuestionIndex < quizQuestions.length - 1) {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
         setSelectedAnswerIndex(null);
-        setTimeRemaining(60);
+        setTimeRemaining(30);
       } else {
         endQuiz();
       }
@@ -151,15 +112,33 @@ const QuizSection: React.FC = () => {
       setTimerId(null);
     }
     
+    // Add completion bonus
+    const finalScore = score + 20;
+    
+    // Add speed bonus (up to 30 points)
+    const averageTimePerQuestion = totalTime / quizQuestions.length;
+    let speedBonus = 0;
+    
+    if (averageTimePerQuestion < 10) {
+      speedBonus = 30;
+    } else if (averageTimePerQuestion < 15) {
+      speedBonus = 20;
+    } else if (averageTimePerQuestion < 20) {
+      speedBonus = 10;
+    }
+    
+    const totalFinalScore = finalScore + speedBonus;
+    
+    setScore(totalFinalScore);
     setQuizFinished(true);
     setShowResult(true);
     setActiveQuiz(false);
     
     // Save the quiz score
     saveQuizScore(
-      "trivia-quiz", 
-      `${categoryFilter !== "all" ? categoryFilter : "General"} Quiz`, 
-      score, 
+      "quiz-challenge", 
+      "Quiz Challenge", 
+      totalFinalScore, 
       totalTime
     );
   };
@@ -167,7 +146,7 @@ const QuizSection: React.FC = () => {
   // Restart the quiz
   const restartQuiz = () => {
     setShowResult(false);
-    setQuizStarted(false);
+    startQuiz();
   };
   
   // Return to quiz selection
@@ -178,7 +157,6 @@ const QuizSection: React.FC = () => {
     }
     
     setActiveQuiz(false);
-    setQuizStarted(false);
     setQuizFinished(false);
     setShowResult(false);
   };
@@ -202,99 +180,29 @@ const QuizSection: React.FC = () => {
             </div>
             <h2 className="text-2xl font-display font-bold mb-2">Quiz Challenge</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Test your knowledge across various categories and difficulty levels. Each correct answer gives you 10 points.
+              Test your knowledge with 10 random questions. Each correct answer gives you 10 points, plus bonuses for completion and speed!
             </p>
           </div>
           
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-              <div className="w-full md:w-auto flex items-center gap-2">
-                <SlidersHorizontal size={18} className="text-gray-400" />
-                <h3 className="font-medium">Quiz Filters</h3>
-              </div>
-              
-              <div className="w-full md:w-auto flex flex-col md:flex-row gap-3">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Select
-                  value={difficultyFilter}
-                  onValueChange={(value: "all" | "easy" | "medium" | "hard") => setDifficultyFilter(value)}
-                >
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Select Difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Difficulties</SelectItem>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Button 
-                onClick={startQuiz} 
-                disabled={isLoading || filteredQuestions.length === 0}
-                className="w-full md:w-auto bg-sfu-red hover:bg-sfu-red/90"
-              >
-                Start Quiz
-              </Button>
-            </div>
-            
             {isLoading ? (
-              <div className="flex justify-center py-10">
-                <div className="w-10 h-10 border-4 border-sfu-red/20 border-t-sfu-red rounded-full animate-spin"></div>
-              </div>
-            ) : filteredQuestions.length === 0 ? (
+              <LoadingSpinner />
+            ) : questions.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No questions available for the selected filters. Try different criteria.
+                No questions available. Please try again later.
               </div>
             ) : (
-              <div>
-                {['easy', 'medium', 'hard'].map((difficulty) => {
-                  const questionsForDifficulty = getLimitedQuestionsByDifficulty(difficulty, 3);
-                  
-                  return questionsForDifficulty.length > 0 ? (
-                    <div key={difficulty} className="mb-6">
-                      <h3 className="text-lg font-medium mb-3 capitalize">{difficulty} Questions</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {questionsForDifficulty.map((question, index) => (
-                          <motion.div
-                            key={question.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="bg-gray-50 rounded-lg p-4 overflow-hidden"
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <Badge variant={
-                                question.difficulty === 'easy' 
-                                  ? 'outline' 
-                                  : question.difficulty === 'medium' 
-                                    ? 'secondary' 
-                                    : 'destructive'
-                              }>
-                                {question.difficulty.toUpperCase()}
-                              </Badge>
-                              <Badge variant="outline">{question.category}</Badge>
-                            </div>
-                            <p className="text-sm font-medium line-clamp-3 h-12">{question.question}</p>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null;
-                })}
+              <div className="text-center py-8">
+                <h3 className="text-xl font-medium mb-4">Ready to take the challenge?</h3>
+                <p className="text-gray-600 mb-6">
+                  You'll get 10 randomly selected questions with 30 seconds for each question.
+                </p>
+                <Button 
+                  onClick={startQuiz} 
+                  className="bg-sfu-red hover:bg-sfu-red/90 px-8"
+                >
+                  Start Quiz
+                </Button>
               </div>
             )}
           </div>
@@ -302,18 +210,27 @@ const QuizSection: React.FC = () => {
           <div className="bg-gradient-to-br from-sfu-red/5 to-sfu-red/10 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <Trophy size={20} className="text-sfu-red" />
-              <h3 className="font-display font-medium">Quiz Leaderboard</h3>
+              <h3 className="font-display font-medium">How Scoring Works</h3>
             </div>
             
-            <p className="text-gray-600 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="bg-white p-4 rounded-lg">
+                <p className="font-medium">Correct Answer</p>
+                <p className="text-xl font-bold text-sfu-red">10 points</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg">
+                <p className="font-medium">Completion Bonus</p>
+                <p className="text-xl font-bold text-sfu-red">20 points</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg">
+                <p className="font-medium">Speed Bonus</p>
+                <p className="text-xl font-bold text-sfu-red">Up to 30 points</p>
+              </div>
+            </div>
+            
+            <p className="text-gray-600">
               Complete quizzes to appear on the leaderboard and earn points. The top players are recognized in the global rankings.
             </p>
-            
-            <div className="flex justify-center">
-              <Button variant="outline" className="gap-2">
-                View Leaderboard <Trophy size={14} />
-              </Button>
-            </div>
           </div>
         </div>
       ) : showResult ? (
