@@ -21,28 +21,30 @@ const Friends = () => {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-6">Friends</h1>
           
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
               <TabsTrigger value="my-friends">My Friends</TabsTrigger>
               <TabsTrigger value="requests">Requests</TabsTrigger>
               <TabsTrigger value="discover">Discover</TabsTrigger>
             </TabsList>
+            
+            <div className="space-y-6 mt-6">
+              <TabsContent value="my-friends">
+                <FriendsListSection />
+              </TabsContent>
+              
+              <TabsContent value="requests">
+                <FriendRequestsSection />
+              </TabsContent>
+              
+              <TabsContent value="discover">
+                <div className="space-y-6">
+                  <FindFriendSection />
+                  <FriendSuggestionsSection />
+                </div>
+              </TabsContent>
+            </div>
           </Tabs>
-          
-          <div className="space-y-6">
-            <TabsContent value="my-friends" className="mt-0">
-              <FriendsListSection />
-            </TabsContent>
-            
-            <TabsContent value="requests" className="mt-0">
-              <FriendRequestsSection />
-            </TabsContent>
-            
-            <TabsContent value="discover" className="mt-0 space-y-6">
-              <FindFriendSection />
-              <FriendSuggestionsSection />
-            </TabsContent>
-          </div>
         </div>
       </main>
       
