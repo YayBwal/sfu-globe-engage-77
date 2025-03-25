@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Bell, Gamepad, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
+import { Menu, X, User, Gamepad, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -87,9 +88,7 @@ const Header: React.FC = () => {
         </nav>
 
         <div className="hidden md:flex items-center space-x-4">
-          <button className="w-9 h-9 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200">
-            <Bell size={20} />
-          </button>
+          {isAuthenticated && <NotificationDropdown />}
           
           {isAuthenticated ? (
             <Link to="/profile">
@@ -179,11 +178,7 @@ const Header: React.FC = () => {
             >
               <CalendarCheck size={20} />
             </Link>
-            <button 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <Bell size={20} />
-            </button>
+            {isAuthenticated && <NotificationDropdown />}
             {isAuthenticated ? (
               <Link 
                 to="/profile" 
