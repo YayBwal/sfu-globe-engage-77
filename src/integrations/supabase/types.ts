@@ -247,54 +247,6 @@ export type Database = {
           },
         ]
       }
-      marketplace_items: {
-        Row: {
-          category: string
-          condition: string | null
-          contact: string | null
-          currency: string
-          description: string | null
-          id: string
-          image_url: string | null
-          is_available: boolean
-          posted_date: string
-          price: number
-          seller_id: string
-          seller_name: string
-          title: string
-        }
-        Insert: {
-          category: string
-          condition?: string | null
-          contact?: string | null
-          currency?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_available?: boolean
-          posted_date?: string
-          price: number
-          seller_id: string
-          seller_name: string
-          title: string
-        }
-        Update: {
-          category?: string
-          condition?: string | null
-          contact?: string | null
-          currency?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_available?: boolean
-          posted_date?: string
-          price?: number
-          seller_id?: string
-          seller_name?: string
-          title?: string
-        }
-        Relationships: []
-      }
       messages: {
         Row: {
           created_at: string | null

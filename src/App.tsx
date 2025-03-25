@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Index from '@/pages/Index';
 import Study from '@/pages/Study';
@@ -15,7 +15,6 @@ import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
-import AIChatBubble from '@/components/AIChatBubble';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,9 +54,6 @@ function App() {
     createStorageBuckets();
   }, []);
   
-  // OpenAI API key for the AI chat assistant
-  const aiApiKey = "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";
-  
   return (
     <Router>
       <AuthProvider>
@@ -79,7 +75,6 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
-            <AIChatBubble apiKey={aiApiKey} />
           </div>
         </ClubProvider>
       </AuthProvider>
