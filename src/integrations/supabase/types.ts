@@ -429,80 +429,6 @@ export type Database = {
           },
         ]
       }
-      game_scores: {
-        Row: {
-          created_at: string
-          game_id: string
-          game_name: string
-          id: string
-          level: number
-          profile_pic: string | null
-          score: number
-          session_id: string | null
-          user_id: string
-          user_name: string
-        }
-        Insert: {
-          created_at?: string
-          game_id: string
-          game_name: string
-          id?: string
-          level: number
-          profile_pic?: string | null
-          score: number
-          session_id?: string | null
-          user_id: string
-          user_name: string
-        }
-        Update: {
-          created_at?: string
-          game_id?: string
-          game_name?: string
-          id?: string
-          level?: number
-          profile_pic?: string | null
-          score?: number
-          session_id?: string | null
-          user_id?: string
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "game_scores_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "gaming_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      gaming_sessions: {
-        Row: {
-          course_id: string | null
-          created_at: string
-          created_by: string
-          id: string
-          name: string
-          session_type: string
-        }
-        Insert: {
-          course_id?: string | null
-          created_at?: string
-          created_by: string
-          id?: string
-          name: string
-          session_type?: string
-        }
-        Update: {
-          course_id?: string | null
-          created_at?: string
-          created_by?: string
-          id?: string
-          name?: string
-          session_type?: string
-        }
-        Relationships: []
-      }
       marketplace_items: {
         Row: {
           category: string
@@ -809,36 +735,6 @@ export type Database = {
         }
         Relationships: []
       }
-      quiz_questions: {
-        Row: {
-          category: string
-          correct_answer: number
-          created_at: string
-          difficulty: string
-          id: string
-          options: Json
-          question: string
-        }
-        Insert: {
-          category: string
-          correct_answer: number
-          created_at?: string
-          difficulty: string
-          id?: string
-          options: Json
-          question: string
-        }
-        Update: {
-          category?: string
-          correct_answer?: number
-          created_at?: string
-          difficulty?: string
-          id?: string
-          options?: Json
-          question?: string
-        }
-        Relationships: []
-      }
       quiz_results: {
         Row: {
           completed_at: string
@@ -876,53 +772,6 @@ export type Database = {
             columns: ["quiz_id"]
             isOneToOne: false
             referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quiz_scores: {
-        Row: {
-          created_at: string
-          id: string
-          profile_pic: string | null
-          quiz_id: string
-          quiz_name: string
-          score: number
-          session_id: string | null
-          time_taken: number
-          user_id: string
-          user_name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          profile_pic?: string | null
-          quiz_id: string
-          quiz_name: string
-          score: number
-          session_id?: string | null
-          time_taken: number
-          user_id: string
-          user_name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          profile_pic?: string | null
-          quiz_id?: string
-          quiz_name?: string
-          score?: number
-          session_id?: string | null
-          time_taken?: number
-          user_id?: string
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_scores_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "gaming_sessions"
             referencedColumns: ["id"]
           },
         ]
