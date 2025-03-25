@@ -215,6 +215,38 @@ export type Database = {
           },
         ]
       }
+      course_enrollments: {
+        Row: {
+          completed: boolean | null
+          course_name: string
+          enrollment_date: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          course_name: string
+          enrollment_date?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          course_name?: string
+          enrollment_date?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string | null
@@ -262,6 +294,7 @@ export type Database = {
           availability: string | null
           batch: string
           bio: string | null
+          cover_pic: string | null
           created_at: string | null
           email: string
           id: string
@@ -269,12 +302,14 @@ export type Database = {
           major: string
           name: string
           online: boolean | null
+          profile_pic: string | null
           student_id: string
         }
         Insert: {
           availability?: string | null
           batch: string
           bio?: string | null
+          cover_pic?: string | null
           created_at?: string | null
           email: string
           id: string
@@ -282,12 +317,14 @@ export type Database = {
           major: string
           name: string
           online?: boolean | null
+          profile_pic?: string | null
           student_id: string
         }
         Update: {
           availability?: string | null
           batch?: string
           bio?: string | null
+          cover_pic?: string | null
           created_at?: string | null
           email?: string
           id?: string
@@ -295,7 +332,76 @@ export type Database = {
           major?: string
           name?: string
           online?: boolean | null
+          profile_pic?: string | null
           student_id?: string
+        }
+        Relationships: []
+      }
+      quiz_results: {
+        Row: {
+          completed_at: string
+          id: string
+          quiz_id: string
+          quiz_title: string | null
+          score: number
+          total_questions: number
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          quiz_id: string
+          quiz_title?: string | null
+          score: number
+          total_questions: number
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          quiz_id?: string
+          quiz_title?: string | null
+          score?: number
+          total_questions?: number
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_results_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          title: string
+          total_questions: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          title: string
+          total_questions: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          title?: string
+          total_questions?: number
         }
         Relationships: []
       }
@@ -344,6 +450,7 @@ export type Database = {
           id: string
           location: string | null
           max_participants: number | null
+          meeting_link: string | null
           password: string | null
           subject: string
           type: string
@@ -356,6 +463,7 @@ export type Database = {
           id?: string
           location?: string | null
           max_participants?: number | null
+          meeting_link?: string | null
           password?: string | null
           subject: string
           type: string
@@ -368,6 +476,7 @@ export type Database = {
           id?: string
           location?: string | null
           max_participants?: number | null
+          meeting_link?: string | null
           password?: string | null
           subject?: string
           type?: string
@@ -382,11 +491,49 @@ export type Database = {
           },
         ]
       }
+      user_activities: {
+        Row: {
+          activity_detail: Json
+          activity_type: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_detail: Json
+          activity_type: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_detail?: Json
+          activity_type?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_total_score: {
+        Args: {
+          user_id: string
+        }
+        Returns: number
+      }
       is_club_manager: {
         Args: {
           club_uuid: string
