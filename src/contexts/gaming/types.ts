@@ -39,7 +39,16 @@ export type LeaderboardUser = {
   userName: string;
   totalScore: number;
   quizCount: number;
+  gameCount?: number;
   profilePic?: string | null;
+};
+
+export type GamingSession = {
+  id: string;
+  name: string;
+  createdAt: string;
+  createdBy: string;
+  courseId?: string;
 };
 
 export type GamingContextType = {
