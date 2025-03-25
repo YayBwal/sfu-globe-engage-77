@@ -1,235 +1,288 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
-type QuizScore = {
+// Define types for our gaming context
+export interface Question {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number; // Index of the correct answer in options array
+  category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  created_at?: string;
+}
+
+export interface QuizScore {
   id: string;
   userId: string;
   userName: string;
+  profilePic?: string;
   quizId: string;
   quizName: string;
   score: number;
   timeTaken: number;
   createdAt: string;
-};
+}
 
-type GameScore = {
+export interface GameScore {
   id: string;
   userId: string;
   userName: string;
+  profilePic?: string;
   gameId: string;
   gameName: string;
   score: number;
   level: number;
   createdAt: string;
-};
+}
 
-type LeaderboardEntry = {
-  userId: string;
-  userName: string;
-  profilePic?: string;
-  totalScore: number;
-  quizCount: number;
-  gameCount: number;
-  lastPlayed: string;
-};
-
-type GamingContextType = {
+interface GamingContextType {
+  quizzes: any[];
   quizScores: QuizScore[];
   gameScores: GameScore[];
-  leaderboard: LeaderboardEntry[];
+  fetchQuizzes: () => Promise<void>;
+  fetchLeaderboards: () => Promise<void>;
+  saveQuizScore: (quizId: string, quizName: string, score: number, timeTaken: number) => Promise<void>;
+  saveGameScore: (gameId: string, gameName: string, score: number, level: number) => Promise<void>;
   isLoading: boolean;
-  addQuizScore: (score: Omit<QuizScore, 'id' | 'createdAt'>) => Promise<void>;
-  addGameScore: (score: Omit<GameScore, 'id' | 'createdAt'>) => Promise<void>;
-  refreshScores: () => Promise<void>;
-};
+  questions: Question[];
+  fetchQuestions: () => Promise<void>;
+}
 
-const GamingContext = createContext<GamingContextType | undefined>(undefined);
+const GamingContext = createContext<GamingContextType>({
+  quizzes: [],
+  quizScores: [],
+  gameScores: [],
+  fetchQuizzes: async () => {},
+  fetchLeaderboards: async () => {},
+  saveQuizScore: async () => {},
+  saveGameScore: async () => {},
+  isLoading: false,
+  questions: [],
+  fetchQuestions: async () => {},
+});
 
-export const useGaming = () => {
-  const context = useContext(GamingContext);
-  if (context === undefined) {
-    throw new Error('useGaming must be used within a GamingProvider');
-  }
-  return context;
-};
+export const useGaming = () => useContext(GamingContext);
 
 export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [quizzes, setQuizzes] = useState<any[]>([]);
   const [quizScores, setQuizScores] = useState<QuizScore[]>([]);
   const [gameScores, setGameScores] = useState<GameScore[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
 
-  // Function to fetch all scores
-  const fetchScores = async () => {
-    setIsLoading(true);
+  // Fetch quizzes
+  const fetchQuizzes = async () => {
     try {
-      // Fetch quiz scores
-      const { data: quizData, error: quizError } = await supabase
-        .from('quiz_scores')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (quizError) throw quizError;
-      
-      // Fetch game scores
-      const { data: gameData, error: gameError } = await supabase
-        .from('game_scores')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (gameError) throw gameError;
-      
-      // Process data for leaderboard
-      const combinedScores = [...(quizData || []), ...(gameData || [])];
-      
-      // Build leaderboard
-      const leaderboardMap = new Map<string, LeaderboardEntry>();
-      
-      combinedScores.forEach(score => {
-        const userId = score.user_id;
-        const isQuiz = 'quiz_id' in score;
-        
-        if (!leaderboardMap.has(userId)) {
-          leaderboardMap.set(userId, {
-            userId,
-            userName: score.user_name,
-            profilePic: score.profile_pic,
-            totalScore: 0,
-            quizCount: 0,
-            gameCount: 0,
-            lastPlayed: score.created_at
-          });
-        }
-        
-        const entry = leaderboardMap.get(userId)!;
-        
-        if (isQuiz) {
-          entry.quizCount += 1;
-        } else {
-          entry.gameCount += 1;
-        }
-        
-        entry.totalScore += score.score;
-        
-        // Update last played if this score is more recent
-        if (new Date(score.created_at) > new Date(entry.lastPlayed)) {
-          entry.lastPlayed = score.created_at;
-        }
-      });
-      
-      // Convert map to array and sort by total score
-      const leaderboardArray = Array.from(leaderboardMap.values())
-        .sort((a, b) => b.totalScore - a.totalScore);
-      
-      // Update state with the fetched data
-      setQuizScores(quizData || []);
-      setGameScores(gameData || []);
-      setLeaderboard(leaderboardArray);
+      setIsLoading(true);
+      // Fetch quiz data 
+      // ...
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error fetching scores:', error);
-    } finally {
+      console.error('Error fetching quizzes:', error);
       setIsLoading(false);
     }
   };
 
-  // Add a new quiz score
-  const addQuizScore = async (score: Omit<QuizScore, 'id' | 'createdAt'>) => {
+  // Fetch leaderboards
+  const fetchLeaderboards = async () => {
     try {
-      const { data, error } = await supabase
+      setIsLoading(true);
+      
+      // Fetch quiz scores
+      const { data: quizScoresData, error: quizScoresError } = await supabase
         .from('quiz_scores')
-        .insert([
-          {
-            user_id: score.userId,
-            user_name: score.userName,
-            quiz_id: score.quizId,
-            quiz_name: score.quizName,
-            score: score.score,
-            time_taken: score.timeTaken
-          }
-        ])
-        .select();
-
-      if (error) throw error;
+        .select('*')
+        .order('score', { ascending: false })
+        .limit(50);
+        
+      if (quizScoresError) throw quizScoresError;
       
-      // Refresh scores after adding a new one
-      await fetchScores();
-    } catch (error) {
-      console.error('Error adding quiz score:', error);
-    }
-  };
-
-  // Add a new game score
-  const addGameScore = async (score: Omit<GameScore, 'id' | 'createdAt'>) => {
-    try {
-      const { data, error } = await supabase
+      // Fetch game scores
+      const { data: gameScoresData, error: gameScoresError } = await supabase
         .from('game_scores')
-        .insert([
-          {
-            user_id: score.userId,
-            user_name: score.userName,
-            game_id: score.gameId,
-            game_name: score.gameName,
-            score: score.score,
-            level: score.level
-          }
-        ])
-        .select();
-
-      if (error) throw error;
+        .select('*')
+        .order('score', { ascending: false })
+        .limit(50);
+        
+      if (gameScoresError) throw gameScoresError;
       
-      // Refresh scores after adding a new one
-      await fetchScores();
+      // Map DB fields to our interface fields
+      const mappedQuizScores = quizScoresData.map(item => ({
+        id: item.id,
+        userId: item.user_id,
+        userName: item.user_name,
+        profilePic: item.profile_pic,
+        quizId: item.quiz_id,
+        quizName: item.quiz_name,
+        score: item.score,
+        timeTaken: item.time_taken,
+        createdAt: item.created_at
+      }));
+      
+      const mappedGameScores = gameScoresData.map(item => ({
+        id: item.id,
+        userId: item.user_id,
+        userName: item.user_name,
+        profilePic: item.profile_pic,
+        gameId: item.game_id,
+        gameName: item.game_name,
+        score: item.score,
+        level: item.level,
+        createdAt: item.created_at
+      }));
+      
+      setQuizScores(mappedQuizScores);
+      setGameScores(mappedGameScores);
+      setIsLoading(false);
     } catch (error) {
-      console.error('Error adding game score:', error);
+      console.error('Error fetching leaderboards:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load leaderboard data',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
     }
   };
 
-  // Fetch scores on mount
-  useEffect(() => {
-    fetchScores();
-    
-    // Setup realtime subscription for score updates
-    const quizChannel = supabase
-      .channel('public:quiz_scores')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'quiz_scores' 
-      }, () => {
-        fetchScores();
-      })
-      .subscribe();
+  // Fetch questions from the database
+  const fetchQuestions = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
       
-    const gameChannel = supabase
-      .channel('public:game_scores')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'game_scores' 
-      }, () => {
-        fetchScores();
-      })
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(quizChannel);
-      supabase.removeChannel(gameChannel);
-    };
-  }, []);
+      // Map the database fields to our Question interface
+      const mappedQuestions = data.map(item => ({
+        id: item.id,
+        question: item.question,
+        options: Array.isArray(item.options) ? item.options : JSON.parse(item.options),
+        correctAnswer: item.correct_answer,
+        category: item.category,
+        difficulty: item.difficulty,
+        created_at: item.created_at
+      }));
+      
+      setQuestions(mappedQuestions);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load quiz questions',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
+  };
 
-  const value = {
-    quizScores,
-    gameScores,
-    leaderboard,
-    isLoading,
-    addQuizScore,
-    addGameScore,
-    refreshScores: fetchScores
+  // Save quiz score
+  const saveQuizScore = async (quizId: string, quizName: string, score: number, timeTaken: number) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You need to be logged in to save scores',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from('quiz_scores').insert({
+        user_id: user.id,
+        user_name: profile?.name || 'Anonymous',
+        profile_pic: profile?.profile_pic,
+        quiz_id: quizId,
+        quiz_name: quizName,
+        score,
+        time_taken: timeTaken,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Score saved',
+        description: `You scored ${score} points!`,
+      });
+      
+      // Refresh leaderboards
+      await fetchLeaderboards();
+    } catch (error) {
+      console.error('Error saving quiz score:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save your score',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Save game score
+  const saveGameScore = async (gameId: string, gameName: string, score: number, level: number) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You need to be logged in to save scores',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from('game_scores').insert({
+        user_id: user.id,
+        user_name: profile?.name || 'Anonymous',
+        profile_pic: profile?.profile_pic,
+        game_id: gameId,
+        game_name: gameName,
+        score,
+        level,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Score saved',
+        description: `You scored ${score} points at level ${level}!`,
+      });
+      
+      // Refresh leaderboards
+      await fetchLeaderboards();
+    } catch (error) {
+      console.error('Error saving game score:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save your score',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
-    <GamingContext.Provider value={value}>
+    <GamingContext.Provider 
+      value={{ 
+        quizzes, 
+        quizScores, 
+        gameScores, 
+        fetchQuizzes, 
+        fetchLeaderboards, 
+        saveQuizScore, 
+        saveGameScore, 
+        isLoading,
+        questions,
+        fetchQuestions
+      }}
+    >
       {children}
     </GamingContext.Provider>
   );

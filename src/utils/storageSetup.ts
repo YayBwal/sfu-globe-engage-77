@@ -33,3 +33,42 @@ export const setupStorageBuckets = async () => {
     console.error('Error setting up storage buckets:', error);
   }
 };
+
+// Add the missing function to check if a bucket exists and create it if it doesn't
+export const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.storage.getBucket(bucketName);
+    
+    // If bucket doesn't exist, create it
+    if (error && error.message.includes('The resource was not found')) {
+      // Configure size limit based on bucket name
+      let fileSizeLimit = 1024 * 1024 * 5; // Default 5MB
+      
+      if (bucketName.includes('video')) {
+        fileSizeLimit = 1024 * 1024 * 50; // 50MB for videos
+      } else if (bucketName.includes('image')) {
+        fileSizeLimit = 1024 * 1024 * 5; // 5MB for images
+      } else if (bucketName.includes('logo')) {
+        fileSizeLimit = 1024 * 1024 * 2; // 2MB for logos
+      }
+      
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: true,
+        fileSizeLimit: fileSizeLimit,
+      });
+      
+      if (createError) {
+        console.error(`Error creating bucket ${bucketName}:`, createError);
+        return false;
+      }
+    } else if (error) {
+      console.error(`Error checking bucket ${bucketName}:`, error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error ensuring bucket ${bucketName} exists:`, error);
+    return false;
+  }
+};
