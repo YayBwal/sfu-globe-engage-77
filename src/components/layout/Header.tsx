@@ -1,15 +1,26 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, Gamepad, CalendarCheck, ShoppingBag, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, profile, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
@@ -25,6 +36,28 @@ const Header: React.FC = () => {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging you out",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditProfile = () => {
+    navigate('/profile');
+    setIsMenuOpen(false);
+  };
 
   const navItems = [
     { name: 'Home', path: '/' },
@@ -88,14 +121,29 @@ const Header: React.FC = () => {
           {isAuthenticated && <NotificationDropdown />}
           
           {isAuthenticated ? (
-            <Link to="/profile">
-              <Avatar className="h-9 w-9 border-2 border-white hover:border-sfu-red transition-colors">
-                <AvatarImage src={profile?.profilePic} />
-                <AvatarFallback className="bg-sfu-red text-white">
-                  {profile?.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="outline-none focus:outline-none">
+                  <Avatar className="h-9 w-9 border-2 border-white hover:border-sfu-red transition-colors cursor-pointer">
+                    <AvatarImage src={profile?.profilePic} alt={profile?.name} />
+                    <AvatarFallback className="bg-sfu-red text-white">
+                      {profile?.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleEditProfile} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Edit Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Link 
               to="/login" 
@@ -176,15 +224,25 @@ const Header: React.FC = () => {
               <CalendarCheck size={20} />
             </Link>
             {isAuthenticated && <NotificationDropdown />}
-            {isAuthenticated ? (
-              <Link 
-                to="/profile" 
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-              >
-                <User size={20} />
-              </Link>
-            ) : null}
           </div>
+          
+          {isAuthenticated && (
+            <div className="w-full">
+              <button 
+                onClick={handleEditProfile}
+                className="w-full text-left px-4 py-2 rounded-lg my-2 hover:bg-gray-100 transition-colors flex items-center"
+              >
+                <User size={18} className="mr-2" />
+                Edit Profile
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </nav>
       </div>
     </header>
