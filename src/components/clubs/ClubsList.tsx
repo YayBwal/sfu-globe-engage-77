@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Users, ChevronRight, Calendar } from "lucide-react";
+import { Search, Plus, Users, ChevronRight, Calendar, Book, Laptop, Music, Feather } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useClub } from "@/contexts/ClubContext";
@@ -35,6 +34,7 @@ import { useForm } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { Club } from "@/types/clubs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ClubFormData {
   name: string;
@@ -43,6 +43,7 @@ interface ClubFormData {
 }
 
 const ClubsList = () => {
+  
   const { clubs, userClubs, loading, createClub, isClubManager, requestToJoinClub } = useClub();
   const { isAuthenticated } = useAuth();
   
@@ -319,22 +320,102 @@ const ClubItem: React.FC<ClubItemProps> = ({
   const isMember = !!userMembership?.approved;
   const hasPendingRequest = !!userMembership && !userMembership.approved;
   
-  // Club icons based on name
-  const getClubIcon = (clubName: string) => {
-    const colorClass = "text-sfu-red/30";
+  // Club-specific design data
+  const getClubDesign = (clubName: string) => {
     switch(clubName) {
-      case "English Club": return <span className={`text-2xl ${colorClass}`}>🔤</span>;
-      case "Basketball Club": return <span className={`text-2xl ${colorClass}`}>🏀</span>;
-      case "IT Club": return <span className={`text-2xl ${colorClass}`}>💻</span>;
-      case "Buddhist Club": return <span className={`text-2xl ${colorClass}`}>☯️</span>;
-      case "Music Club": return <span className={`text-2xl ${colorClass}`}>🎵</span>;
-      default: return <Users size={40} className={colorClass} />;
+      case "Basketball Club":
+        return {
+          icon: (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-200">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-full bg-orange-500/20 animate-ping"></div>
+                <div className="relative bg-orange-500 text-white rounded-full w-20 h-20 flex items-center justify-center text-2xl font-bold">
+                  🏀
+                </div>
+              </div>
+            </div>
+          ),
+          color: "text-orange-600"
+        };
+      case "Buddhist Club":
+        return {
+          icon: (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 to-violet-100">
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="absolute w-24 h-24 bg-violet-200 rounded-full opacity-30"></div>
+                <div className="absolute w-20 h-20 bg-violet-100 rounded-full opacity-50"></div>
+                <div className="relative text-3xl">☸️</div>
+              </div>
+            </div>
+          ),
+          color: "text-violet-600"
+        };
+      case "English Club":
+        return {
+          icon: (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-sky-50 to-blue-100">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <div className="absolute w-20 h-28 bg-white shadow-md rounded transform rotate-6"></div>
+                <div className="absolute w-20 h-28 bg-white shadow-md rounded transform -rotate-6"></div>
+                <div className="relative z-10">
+                  <Book size={40} className="text-blue-500" />
+                </div>
+              </div>
+            </div>
+          ),
+          color: "text-blue-600"
+        };
+      case "IT Club":
+        return {
+          icon: (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <div className="absolute inset-0 bg-opacity-20 rounded-md"></div>
+                <div className="relative transform">
+                  <div className="w-16 h-10 bg-teal-500 rounded-t-md"></div>
+                  <div className="w-20 h-14 bg-gray-800 rounded-b-md p-1.5">
+                    <div className="text-teal-500 text-xs font-mono">
+                      &lt;code/&gt;
+                    </div>
+                  </div>
+                  <div className="w-20 h-1 bg-gray-700 rounded-b-md mt-0.5"></div>
+                </div>
+              </div>
+            </div>
+          ),
+          color: "text-teal-600"
+        };
+      case "Music Club":
+        return {
+          icon: (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-100">
+              <div className="relative">
+                <div className="absolute -inset-6 flex items-center justify-center">
+                  <div className="w-8 h-8 bg-pink-200 rounded-full opacity-30 transform translate-x-8"></div>
+                  <div className="w-6 h-6 bg-purple-200 rounded-full opacity-30 transform -translate-x-8 translate-y-4"></div>
+                  <div className="w-5 h-5 bg-pink-200 rounded-full opacity-30 transform translate-y-8"></div>
+                </div>
+                <div className="relative">
+                  <Music size={48} className="text-purple-500" />
+                </div>
+              </div>
+            </div>
+          ),
+          color: "text-purple-600"
+        };
+      default:
+        return {
+          icon: <Users size={40} className="text-sfu-red/30" />,
+          color: "text-sfu-red"
+        };
     }
   };
+  
+  const clubDesign = getClubDesign(club.name);
 
   return (
     <Card className="h-full overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md">
-      <div className="h-40 bg-gradient-to-br from-sfu-red/10 to-sfu-red/5 flex items-center justify-center">
+      <div className="h-40 bg-gradient-to-br from-sfu-red/10 to-sfu-red/5 flex items-center justify-center overflow-hidden">
         {club.logo_url ? (
           <img 
             src={club.logo_url} 
@@ -342,14 +423,12 @@ const ClubItem: React.FC<ClubItemProps> = ({
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            {getClubIcon(club.name)}
-          </div>
+          clubDesign.icon
         )}
       </div>
       
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">{club.name}</CardTitle>
+        <CardTitle className={`text-lg ${clubDesign.color}`}>{club.name}</CardTitle>
       </CardHeader>
       
       <CardContent className="flex-grow">
@@ -364,7 +443,7 @@ const ClubItem: React.FC<ClubItemProps> = ({
       <CardFooter className="flex justify-between items-center pt-2 border-t">
         {isAuthenticated ? (
           isManager ? (
-            <Button variant="outline" size="sm" className="text-sfu-red">
+            <Button variant="outline" size="sm" className={clubDesign.color}>
               <Users size={14} className="mr-1" />
               Manager
             </Button>
