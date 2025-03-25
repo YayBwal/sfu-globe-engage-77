@@ -2,46 +2,48 @@
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, BarChart, 
-  Calendar, ChevronLeft, ChevronRight, Plus, Users, School } from "lucide-react";
+import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Redo, Copy, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAttendance } from "@/contexts/AttendanceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import QRScanner from "@/components/attendance/QRScanner";
 import QRCodeDisplay from "@/components/attendance/QRCodeDisplay";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
+// Helper function to get abbreviated day of week
+const getDayOfWeek = (date: Date) => {
+  const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  return days[date.getDay()];
+};
 
 const Attendance = () => {
+  const [viewMode, setViewMode] = useState<'student' | 'teacher'>('student');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [showCreateClassDialog, setShowCreateClassDialog] = useState(false);
-  const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
-  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [newClass, setNewClass] = useState({name: "", description: ""});
-  const [newSession, setNewSession] = useState({date: "", location: ""});
-  
+
   const { user, profile } = useAuth();
   const { 
     classes, sessions, attendanceRecords, isTeacher, isLoading,
-    fetchClasses, fetchSessions, fetchAttendanceRecords, createClass, 
-    createSession, markAttendance, fetchUserAttendance, userAttendance,
-    fetchUserEnrollments, userEnrollments
+    fetchClasses, fetchSessions, fetchAttendanceRecords, 
+    fetchUserAttendance, userAttendance, userEnrollments,
+    fetchUserEnrollments
   } = useAttendance();
 
   useEffect(() => {
     if (user) {
       fetchClasses();
       if (isTeacher) {
+        setViewMode('teacher');
         fetchSessions();
       } else {
+        setViewMode('student');
         fetchUserAttendance();
         fetchUserEnrollments();
       }
@@ -65,491 +67,575 @@ const Attendance = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
-  const formatDate = (date: Date) => {
+  const formatMonth = (date: Date) => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   };
 
-  // Function to get attendance status for a calendar day
-  const getDayStatus = (day: number): string | null => {
-    if (!userAttendance || userAttendance.length === 0) return null;
-    
-    const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).toISOString().split('T')[0];
-    
-    // Find attendance records for this date
-    const record = userAttendance.find(att => {
-      const attDate = new Date(att.class_sessions.date).toISOString().split('T')[0];
-      return attDate === dateStr;
-    });
-    
-    return record ? record.status : null;
-  };
-
-  // Generate calendar
+  // Function to generate calendar days
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentMonth);
-    const firstDay = getFirstDayOfMonth(currentMonth);
+    const firstDayOfMonth = getFirstDayOfMonth(currentMonth);
     const days = [];
+    const currentDate = new Date();
     
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-10"></div>);
-    }
+    // Header row with days of week
+    const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+      <div key={`header-${day}`} className="text-center text-xs font-medium text-gray-500">
+        {day}
+      </div>
+    ));
     
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
+    // Empty cells for days before the first day of the month
+    const emptyCells = Array.from({ length: firstDayOfMonth }).map((_, i) => (
+      <div key={`empty-${i}`} className="h-8"></div>
+    ));
+    
+    // Days of the month
+    const dateCells = Array.from({ length: daysInMonth }).map((_, i) => {
+      const day = i + 1;
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const isToday = new Date().toDateString() === date.toDateString();
+      const isToday = currentDate.toDateString() === date.toDateString();
       const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
-      const status = getDayStatus(day);
       
-      days.push(
+      // Get attendance status for this day
+      const hasAttendanceRecord = userAttendance?.some(record => {
+        const recordDate = new Date(record.class_sessions.date);
+        return recordDate.toDateString() === date.toDateString();
+      });
+      
+      const attendanceStatus = hasAttendanceRecord 
+        ? userAttendance.find(record => {
+            const recordDate = new Date(record.class_sessions.date);
+            return recordDate.toDateString() === date.toDateString();
+          })?.status 
+        : null;
+      
+      return (
         <div 
-          key={day} 
-          className={`h-10 flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 ${
-            isToday ? 'border border-sfu-red' : ''
-          } ${
-            isSelected ? 'bg-sfu-red text-white' : ''
-          } ${
-            status === 'present' ? 'bg-green-100' : 
-            status === 'late' ? 'bg-yellow-100' : 
-            status === 'absent' ? 'bg-red-100' : ''
-          } hover:bg-gray-100`}
+          key={`day-${day}`}
+          className={`h-8 flex items-center justify-center rounded-full cursor-pointer
+            ${isToday ? 'ring-1 ring-sfu-red' : ''}
+            ${isSelected ? 'bg-sfu-red text-white' : ''}
+            ${!isSelected && attendanceStatus === 'present' ? 'bg-green-100' : ''}
+            ${!isSelected && attendanceStatus === 'late' ? 'bg-amber-100' : ''}
+            ${!isSelected && attendanceStatus === 'absent' ? 'bg-red-100' : ''}
+            ${!isSelected && attendanceStatus === 'excused' ? 'bg-blue-100' : ''}
+            hover:bg-gray-100`}
           onClick={() => setSelectedDate(date)}
         >
           {day}
         </div>
       );
-    }
-    
-    return days;
-  };
-
-  const handleCreateClass = async () => {
-    if (newClass.name.trim() === "") return;
-    
-    await createClass(newClass);
-    setNewClass({name: "", description: ""});
-    setShowCreateClassDialog(false);
-  };
-
-  const handleCreateSession = async () => {
-    if (!selectedClass || !newSession.date) return;
-    
-    await createSession({
-      class_id: selectedClass,
-      date: new Date(newSession.date).toISOString(),
-      location: newSession.location,
-      status: "scheduled"
     });
     
-    setNewSession({date: "", location: ""});
-    setShowCreateSessionDialog(false);
+    return (
+      <div className="grid grid-cols-7 gap-1">
+        {dayHeaders}
+        {emptyCells}
+        {dateCells}
+      </div>
+    );
   };
 
-  const handleOpenQRCode = (sessionId: string) => {
-    setSelectedSession(sessionId);
-    setShowQRCode(true);
-  };
-
-  const handleOpenQRScanner = (sessionId: string) => {
-    setSelectedSession(sessionId);
-    setShowQRScanner(true);
-  };
-
-  const handleClassChange = (classId: string) => {
-    setSelectedClass(classId);
-    fetchSessions(classId);
-  };
-
-  return (
-    <div className="min-h-screen bg-white">
-      <Header />
-      
-      <main className="pt-24 pb-16">
-        <div className="container-narrow max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">Attendance Tracking</h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Keep track of your class attendance, view statistics, and maintain your perfect attendance streak.
-            </p>
+  // Student view components
+  const StudentView = () => {
+    // Get attendance stats
+    const presentCount = userAttendance?.filter(a => a.status === 'present').length || 0;
+    const lateCount = userAttendance?.filter(a => a.status === 'late').length || 0;
+    const absentCount = userAttendance?.filter(a => a.status === 'absent').length || 0;
+    const excusedCount = userAttendance?.filter(a => a.status === 'excused').length || 0;
+    const totalRecords = userAttendance?.length || 0;
+    const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+    
+    // Mock streak calculation (in real app, would need proper calculation)
+    const currentStreak = presentCount;
+    
+    // Filter today's classes
+    const today = new Date();
+    const todaysClasses = userEnrollments?.filter(enrollment => {
+      // In a real app, you'd check if there's a session today for this class
+      return true;
+    });
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Left column - Scan QR & Today's Classes */}
+        <div className="space-y-6">
+          {/* Scan QR Code Section */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Scan Attendance QR Code</h2>
+              <Button 
+                onClick={() => setShowQRScanner(true)}
+                className="w-full bg-sfu-red hover:bg-sfu-red/90 mb-4 py-6"
+              >
+                <QrCode className="mr-2 h-5 w-5" />
+                Scan QR Code
+              </Button>
+              <p className="text-sm text-gray-500 text-center">
+                You must be physically present in class to mark attendance
+              </p>
+            </div>
           </div>
-
-          {isTeacher ? (
-            // Teacher View
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Teacher Management Panel */}
-              <div className="md:col-span-1 space-y-6">
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-black text-white p-4">
-                    <h2 className="font-display font-semibold">Teacher Panel</h2>
-                  </div>
-                  
-                  <div className="p-4 space-y-4">
-                    <Button 
-                      onClick={() => setShowCreateClassDialog(true)}
-                      className="w-full flex items-center gap-2 bg-sfu-red hover:bg-sfu-red/90"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Create New Class
-                    </Button>
-                    
-                    {classes.length > 0 && (
-                      <Button 
-                        onClick={() => setShowCreateSessionDialog(true)}
-                        className="w-full flex items-center gap-2"
-                      >
-                        <Calendar className="h-4 w-4" />
-                        Create Class Session
-                      </Button>
-                    )}
-                  </div>
+          
+          {/* Today's Classes */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Today's Classes</h2>
+              
+              {todaysClasses && todaysClasses.length > 0 ? (
+                <div className="space-y-3">
+                  {todaysClasses.map((enrollment, index) => (
+                    <div key={index} className="p-3 border border-gray-200 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{enrollment.classes.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {/* Show class time if available */}
+                            10:30 AM
+                          </div>
+                        </div>
+                        <Badge className={`${
+                          index === 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {index === 0 ? 'Completed' : 'Upcoming'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <p>No classes scheduled for today</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Middle & Right columns - Attendance Stats & Calendar */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Attendance Overview */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Attendance Overview</h2>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <CheckCircle className="h-6 w-6 mx-auto mb-1 text-green-500" />
+                  <div className="text-xl font-bold">{presentCount}</div>
+                  <div className="text-xs text-gray-500">Present</div>
                 </div>
                 
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-black text-white p-4">
-                    <h2 className="font-display font-semibold">Your Classes</h2>
-                  </div>
-                  
-                  <div className="p-4">
-                    {classes.length > 0 ? (
-                      <div className="space-y-3">
-                        {classes.map(cls => (
-                          <div 
-                            key={cls.id} 
-                            className={`p-3 border rounded-lg cursor-pointer ${
-                              selectedClass === cls.id ? 'border-sfu-red bg-sfu-red/5' : 'border-gray-200'
-                            }`}
-                            onClick={() => handleClassChange(cls.id)}
-                          >
-                            <div className="font-medium">{cls.name}</div>
-                            {cls.description && (
-                              <div className="text-sm text-gray-500">{cls.description}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 text-gray-500">
-                        <School className="h-10 w-10 mx-auto mb-2 text-gray-400" />
-                        <p>No classes created yet</p>
-                      </div>
-                    )}
-                  </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <XCircle className="h-6 w-6 mx-auto mb-1 text-red-500" />
+                  <div className="text-xl font-bold">{absentCount}</div>
+                  <div className="text-xs text-gray-500">Absent</div>
+                </div>
+                
+                <div className="bg-amber-50 rounded-lg p-4 text-center">
+                  <Clock className="h-6 w-6 mx-auto mb-1 text-amber-500" />
+                  <div className="text-xl font-bold">{lateCount}</div>
+                  <div className="text-xs text-gray-500">Late</div>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <Star className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+                  <div className="text-xl font-bold">{currentStreak}</div>
+                  <div className="text-xs text-gray-500">Streak</div>
                 </div>
               </div>
               
-              {/* Sessions and Attendance */}
-              <div className="md:col-span-2">
-                <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-                  <div className="bg-sfu-red text-white p-4">
-                    <h2 className="font-display font-semibold">Class Sessions</h2>
+              {totalRecords > 0 && (
+                <div className="mt-4 bg-gray-50 rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Attendance Rate</div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-sfu-red h-2.5 rounded-full" 
+                      style={{ width: `${attendanceRate}%` }}
+                    ></div>
                   </div>
-                  
-                  <div className="p-4">
-                    {sessions.length > 0 ? (
-                      <div className="overflow-hidden rounded-lg border border-gray-200">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Class</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Location</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sessions.map(session => (
-                              <TableRow key={session.id}>
-                                <TableCell>{session.classes.name}</TableCell>
-                                <TableCell>
-                                  {new Date(session.date).toLocaleDateString()}<br/>
-                                  <span className="text-xs text-gray-500">
-                                    {new Date(session.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </span>
-                                </TableCell>
-                                <TableCell>{session.location || 'N/A'}</TableCell>
-                                <TableCell>
-                                  <span className={`px-2 py-1 rounded-full text-xs ${
-                                    session.status === 'in-progress' ? 'bg-green-100 text-green-800' :
-                                    session.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                    session.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {session.status}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedSession(session.id);
-                                        fetchAttendanceRecords(session.id);
-                                        setShowAttendanceDialog(true);
-                                      }}
-                                    >
-                                      <Users className="h-4 w-4 mr-1" />
-                                      Attendance
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      className="bg-sfu-red hover:bg-sfu-red/90"
-                                      onClick={() => handleOpenQRCode(session.id)}
-                                    >
-                                      <QrCode className="h-4 w-4 mr-1" />
-                                      QR Code
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <p>No sessions found</p>
-                        {!selectedClass && classes.length > 0 && (
-                          <p className="mt-2 text-sm">Select a class from the sidebar to view its sessions</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <div className="text-right text-sm mt-1">{attendanceRate}%</div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Attendance Calendar */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Attendance Calendar</h2>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={getPrevMonth}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium">{formatMonth(currentMonth)}</span>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={getNextMonth}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Calendar grid */}
+              {renderCalendar()}
+              
+              {/* Legend */}
+              <div className="flex justify-center mt-4 gap-x-4 text-xs">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-green-100 mr-1"></div>
+                  <span>Present</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-amber-100 mr-1"></div>
+                  <span>Late</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-red-100 mr-1"></div>
+                  <span>Absent</span>
                 </div>
               </div>
             </div>
-          ) : (
-            // Student View
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Attendance Stats */}
-              <div className="md:col-span-1 space-y-6">
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-black text-white p-4">
-                    <h2 className="font-display font-semibold">Attendance Overview</h2>
-                  </div>
-                  
-                  <div className="p-6">
-                    {userAttendance.length > 0 ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                          <div className="bg-sfu-lightgray p-4 rounded-lg text-center">
-                            <div className="text-gray-500 text-sm mb-1">Attendance Rate</div>
-                            <div className="text-3xl font-bold text-sfu-black">
-                              {Math.round((userAttendance.filter(a => a.status === 'present').length / userAttendance.length) * 100)}%
-                            </div>
-                          </div>
-                          
-                          <div className="bg-sfu-lightgray p-4 rounded-lg text-center">
-                            <div className="text-gray-500 text-sm mb-1">Current Streak</div>
-                            <div className="text-3xl font-bold text-sfu-black">
-                              {/* Calculate streak logic would go here */}
-                              {userAttendance.filter(a => a.status === 'present').length} days
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle size={18} className="text-green-500" />
-                              <span>Present</span>
-                            </div>
-                            <div className="font-bold">{userAttendance.filter(a => a.status === 'present').length}</div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <XCircle size={18} className="text-red-500" />
-                              <span>Absent</span>
-                            </div>
-                            <div className="font-bold">{userAttendance.filter(a => a.status === 'absent').length}</div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Clock size={18} className="text-yellow-500" />
-                              <span>Late</span>
-                            </div>
-                            <div className="font-bold">{userAttendance.filter(a => a.status === 'late').length}</div>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        <CalendarCheck className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <p>No attendance records yet</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Teacher view components
+  const TeacherView = () => {
+    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+    const [attendanceList, setAttendanceList] = useState<any[]>([]);
+    
+    // When a class is selected, fetch its sessions
+    useEffect(() => {
+      if (selectedClass) {
+        fetchSessions(selectedClass);
+      }
+    }, [selectedClass]);
+    
+    // When a session is selected, fetch its attendance records
+    useEffect(() => {
+      if (activeSessionId) {
+        fetchAttendanceRecords(activeSessionId);
+      }
+    }, [activeSessionId]);
+    
+    // When attendance records are fetched, update the list
+    useEffect(() => {
+      if (attendanceRecords) {
+        setAttendanceList(attendanceRecords);
+      }
+    }, [attendanceRecords]);
+    
+    // Find active session for attendance display
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    
+    // Find today's sessions
+    const today = new Date();
+    const todaySessions = sessions.filter(session => {
+      const sessionDate = new Date(session.date);
+      return sessionDate.toDateString() === today.toDateString();
+    });
+    
+    const handleMarkAttendance = (studentId: string, status: string) => {
+      if (activeSessionId) {
+        // Update the local attendance list for immediate feedback
+        setAttendanceList(prev => 
+          prev.map(record => 
+            record.student_id === studentId 
+              ? {...record, status} 
+              : record
+          )
+        );
+      }
+    };
+    
+    return (
+      <div>
+        {/* Class selection tabs */}
+        <div className="mb-6">
+          <div className="flex overflow-x-auto gap-2 pb-2">
+            {classes.map(cls => (
+              <Button
+                key={cls.id}
+                variant={selectedClass === cls.id ? "default" : "outline"}
+                className={`whitespace-nowrap ${selectedClass === cls.id ? "bg-sfu-red hover:bg-sfu-red/90" : ""}`}
+                onClick={() => setSelectedClass(cls.id)}
+              >
+                {cls.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Left column - Today's Attendance Code */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Today's Attendance Code</h2>
+                
+                {todaySessions.length > 0 ? (
+                  <div className="text-center">
+                    <div className="border-2 border-gray-200 rounded-lg p-4 mb-4">
+                      <QrCode className="h-40 w-40 mx-auto mb-2" />
+                      <div className="text-sm text-gray-500">
+                        Code expires in: 4:56
                       </div>
-                    )}
+                    </div>
+                    
+                    <div className="flex justify-center gap-2 mb-4">
+                      <Button variant="outline">
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                      <Button 
+                        className="bg-sfu-red hover:bg-sfu-red/90"
+                        onClick={() => {
+                          if (todaySessions[0]) {
+                            setSelectedSession(todaySessions[0].id);
+                            setShowQRCode(true);
+                          }
+                        }}
+                      >
+                        <Redo className="h-4 w-4 mr-1" />
+                        Refresh
+                      </Button>
+                    </div>
+                    
+                    <p className="text-sm text-gray-500">
+                      Students must scan this code in class to mark attendance
+                    </p>
                   </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-gray-500 mb-4">No sessions scheduled for today</p>
+                    <Button 
+                      className="bg-sfu-red hover:bg-sfu-red/90"
+                      disabled={!selectedClass}
+                    >
+                      Create Session
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Select Date */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Select Date</h2>
+                
+                <div className="flex justify-between items-center mb-4">
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={getPrevMonth}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium">{formatMonth(currentMonth)}</span>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={getNextMonth}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
                 
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-black text-white p-4">
-                    <h2 className="font-display font-semibold">Today's Classes</h2>
-                  </div>
-                  
-                  <div className="p-4 space-y-3">
-                    {userEnrollments.length > 0 ? (
-                      userEnrollments.map(enrollment => (
-                        <div key={enrollment.id} className="p-3 border border-gray-200 bg-white rounded-lg">
-                          <div className="flex justify-between items-start">
+                {renderCalendar()}
+              </div>
+            </div>
+          </div>
+          
+          {/* Right columns - Attendance Records */}
+          <div className="md:col-span-2">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  {activeSession 
+                    ? `Attendance for ${new Date(activeSession.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`
+                    : "Select a session to view attendance"
+                  }
+                </h2>
+                
+                {selectedClass && sessions.length > 0 ? (
+                  activeSessionId ? (
+                    <div>
+                      {attendanceList.length > 0 ? (
+                        <div className="overflow-hidden rounded-lg border border-gray-200">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Check-in Time</TableHead>
+                                <TableHead>Method</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {attendanceList.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell>
+                                    {record.profiles?.name || 'Unknown'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs ${
+                                      record.status === 'present' ? 'bg-green-100 text-green-800' :
+                                      record.status === 'late' ? 'bg-amber-100 text-amber-800' :
+                                      record.status === 'excused' ? 'bg-blue-100 text-blue-800' :
+                                      'bg-red-100 text-red-800'
+                                    }`}>
+                                      {record.status}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    {record.marked_at ? new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {record.scan_method === 'qr' ? 'QR Scan' : 
+                                     record.scan_method === 'manual' ? 'Manual' : 'System'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant={record.status === 'present' ? "default" : "outline"}
+                                        className="text-xs py-0 h-7"
+                                        onClick={() => handleMarkAttendance(record.student_id, 'present')}
+                                      >
+                                        Present
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={record.status === 'late' ? "default" : "outline"}
+                                        className="text-xs py-0 h-7"
+                                        onClick={() => handleMarkAttendance(record.student_id, 'late')}
+                                      >
+                                        Late
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={record.status === 'absent' ? "default" : "outline"}
+                                        className="text-xs py-0 h-7"
+                                        onClick={() => handleMarkAttendance(record.student_id, 'absent')}
+                                      >
+                                        Absent
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 text-gray-500">
+                          <p>No attendance records found for this session</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-gray-500 mb-4">Select a session to view attendance:</p>
+                      {sessions.map(session => (
+                        <div 
+                          key={session.id}
+                          className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-sfu-red"
+                          onClick={() => setActiveSessionId(session.id)}
+                        >
+                          <div className="flex justify-between">
                             <div>
-                              <div className="font-medium">{enrollment.classes.name}</div>
-                              <div className="text-xs text-gray-500">
-                                Teacher: {enrollment.classes.profiles?.name || 'Unknown'}
+                              <div className="font-medium">
+                                {new Date(session.date).toLocaleDateString('en-US', {
+                                  weekday: 'long',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {new Date(session.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </div>
                             </div>
                             <Button 
-                              size="sm" 
-                              className="text-xs bg-sfu-red hover:bg-sfu-red/90"
-                              onClick={() => {
-                                // In a real app, you would get active sessions for this class
-                                // For demo, we'll just show the QR scanner
-                                handleOpenQRScanner("demo-session-id");
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSession(session.id);
+                                setShowQRCode(true);
                               }}
                             >
-                              <QrCode className="h-3 w-3 mr-1" />
-                              Check In
+                              <QrCode className="h-4 w-4 mr-1" />
+                              Generate QR
                             </Button>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        <School className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <p>You are not enrolled in any classes</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Calendar */}
-              <div className="md:col-span-2">
-                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-black text-white p-4 flex justify-between items-center">
-                    <h2 className="font-display font-semibold">Attendance Calendar</h2>
-                    
-                    <div className="flex items-center gap-3">
-                      <button 
-                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-                        onClick={getPrevMonth}
-                      >
-                        <ChevronLeft size={18} />
-                      </button>
-                      
-                      <div className="text-sm">{formatDate(currentMonth)}</div>
-                      
-                      <button 
-                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-                        onClick={getNextMonth}
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    <div className="grid grid-cols-7 gap-1 mb-2">
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="text-center text-sm font-medium text-gray-500">
-                          {day}
-                        </div>
                       ))}
                     </div>
-                    
-                    <div className="grid grid-cols-7 gap-1 mb-6">
-                      {renderCalendar()}
-                    </div>
-                    
-                    <div className="flex items-center justify-center gap-6 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-100"></div>
-                        <span>Present</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-yellow-100"></div>
-                        <span>Late</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-100"></div>
-                        <span>Absent</span>
-                      </div>
-                    </div>
+                  )
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <p>{selectedClass ? "No sessions found for this class" : "Select a class to view sessions"}</p>
                   </div>
-                </div>
-                
-                <div className="mt-6 bg-white rounded-xl shadow-md overflow-hidden">
-                  <div className="bg-sfu-red text-white p-4">
-                    <h2 className="font-display font-semibold">Recent Attendance</h2>
-                  </div>
-                  
-                  <div className="p-4">
-                    {userAttendance.length > 0 ? (
-                      <div className="overflow-hidden rounded-lg border border-gray-200">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Class</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Method</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {userAttendance.slice(0, 5).map(record => (
-                              <TableRow key={record.id}>
-                                <TableCell>{record.class_sessions.classes.name}</TableCell>
-                                <TableCell>
-                                  {new Date(record.class_sessions.date).toLocaleDateString()}<br/>
-                                  <span className="text-xs text-gray-500">
-                                    {new Date(record.class_sessions.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`px-2 py-1 rounded-full text-xs ${
-                                    record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                    record.status === 'late' ? 'bg-yellow-100 text-yellow-800' :
-                                    record.status === 'excused' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {record.status}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-xs">
-                                    {record.scan_method === 'qr' ? 'QR Scan' : 
-                                     record.scan_method === 'manual' ? 'Manual' : 'Auto'}
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <CalendarCheck className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <p>No attendance records found</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <main className="pt-24 pb-16">
+        <div className="container max-w-6xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Attendance Management</h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Secure and efficient attendance tracking with QR codes. Scan the code in your class to mark your attendance.
+            </p>
+          </div>
+
+          <Tabs 
+            defaultValue={isTeacher ? "teacher" : "student"} 
+            value={viewMode}
+            onValueChange={(value) => setViewMode(value as 'student' | 'teacher')}
+            className="mb-8"
+          >
+            <div className="flex justify-center">
+              <TabsList className="grid grid-cols-2 w-[400px]">
+                <TabsTrigger value="student">Student View</TabsTrigger>
+                <TabsTrigger value="teacher">Teacher View</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="student">
+              <StudentView />
+            </TabsContent>
+            <TabsContent value="teacher">
+              <TeacherView />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       
       {/* QR Code Scanner Modal */}
-      {showQRScanner && selectedSession && (
+      {showQRScanner && (
         <QRScanner 
-          sessionId={selectedSession}
+          sessionId={selectedSession || 'demo-session-id'}
           onSuccess={() => {
             setShowQRScanner(false);
             fetchUserAttendance();
@@ -565,190 +651,6 @@ const Attendance = () => {
           onClose={() => setShowQRCode(false)}
         />
       )}
-      
-      {/* Create Class Dialog */}
-      <Dialog open={showCreateClassDialog} onOpenChange={setShowCreateClassDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Class</DialogTitle>
-            <DialogDescription>
-              Create a new class to manage attendance for students.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="class-name">Class Name *</Label>
-              <Input 
-                id="class-name" 
-                placeholder="e.g. Computer Science 101"
-                value={newClass.name}
-                onChange={(e) => setNewClass({...newClass, name: e.target.value})}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="class-description">Description (Optional)</Label>
-              <Textarea 
-                id="class-description" 
-                placeholder="Class description or additional information"
-                value={newClass.description}
-                onChange={(e) => setNewClass({...newClass, description: e.target.value})}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateClassDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateClass}>
-              Create Class
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Create Session Dialog */}
-      <Dialog open={showCreateSessionDialog} onOpenChange={setShowCreateSessionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Class Session</DialogTitle>
-            <DialogDescription>
-              Schedule a new session for one of your classes.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="session-class">Class *</Label>
-              <select 
-                id="session-class"
-                className="w-full p-2 border border-gray-300 rounded-md"
-                value={selectedClass || ""}
-                onChange={(e) => setSelectedClass(e.target.value)}
-              >
-                <option value="">Select a class</option>
-                {classes.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="session-date">Date and Time *</Label>
-              <Input 
-                id="session-date" 
-                type="datetime-local"
-                value={newSession.date}
-                onChange={(e) => setNewSession({...newSession, date: e.target.value})}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="session-location">Location (Optional)</Label>
-              <Input 
-                id="session-location" 
-                placeholder="e.g. Room 101, Building A"
-                value={newSession.location}
-                onChange={(e) => setNewSession({...newSession, location: e.target.value})}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateSessionDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateSession}>
-              Create Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Attendance Management Dialog */}
-      <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Manage Attendance</DialogTitle>
-            <DialogDescription>
-              View and update attendance for this session.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            {attendanceRecords.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Marked At</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {attendanceRecords.map(record => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.profiles?.name || 'Unknown'}</TableCell>
-                        <TableCell>{record.profiles?.student_id || 'N/A'}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            record.status === 'present' ? 'bg-green-100 text-green-800' :
-                            record.status === 'late' ? 'bg-yellow-100 text-yellow-800' :
-                            record.status === 'excused' ? 'bg-blue-100 text-blue-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(record.marked_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            {['present', 'late', 'absent', 'excused'].map(status => (
-                              <Button
-                                key={status}
-                                size="sm"
-                                variant={record.status === status ? "default" : "outline"}
-                                className={`text-xs px-2 ${
-                                  record.status === status ? "opacity-100" : "opacity-60"
-                                }`}
-                                onClick={() => {
-                                  if (selectedSession) {
-                                    markAttendance(selectedSession, record.student_id, status);
-                                  }
-                                }}
-                              >
-                                {status.charAt(0).toUpperCase() + status.slice(1)}
-                              </Button>
-                            ))}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>No attendance records found for this session</p>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button onClick={() => setShowAttendanceDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       
       <Footer />
     </div>
