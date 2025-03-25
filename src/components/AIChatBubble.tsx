@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageCircle, X, Sparkles, Brain, Briefcase } from 'lucide-react';
 import { 
   Collapsible, 
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const getWelcomeMessage = () => {
     if (activeTab === 'mental-health') {
@@ -38,7 +40,7 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
   };
 
   // Initialize welcome message when tab changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (messages.length === 0 || messages[0].sender !== 'ai') {
       setMessages([
         {
@@ -81,18 +83,42 @@ const AIChatBubble: React.FC<AIChatBubbleProps> = ({ apiKey }) => {
     setInputValue('');
     setIsLoading(true);
     
-    // Simulate AI response for now - this would be replaced with actual API call
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: generateMockResponse(inputValue, activeTab),
-        sender: 'ai',
-        timestamp: new Date()
-      };
+    try {
+      // Check if we have an API key
+      if (!apiKey) {
+        throw new Error("API key not configured");
+      }
       
-      setMessages(prev => [...prev, aiResponse]);
+      // Prepare the prompt based on active tab
+      const systemPrompt = activeTab === 'mental-health' 
+        ? "You are a compassionate mental health assistant. Provide supportive, empathetic responses to students who may be dealing with stress, anxiety, or other mental health challenges. Suggest coping strategies and resources when appropriate. Never provide medical advice or diagnosis."
+        : "You are a knowledgeable career guide assistant. Help students explore career paths, provide information about job opportunities in different fields, and offer advice on resume building, interview preparation, and professional development.";
+      
+      // Call AI API here - for now we'll use a mock response while waiting for actual API integration
+      // This is where you would integrate the actual API call
+      
+      // Simulate API response delay
+      setTimeout(() => {
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          content: generateMockResponse(inputValue, activeTab),
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, aiResponse]);
+        setIsLoading(false);
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to get AI response",
+        variant: "destructive"
+      });
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   // Temporary mock response generator

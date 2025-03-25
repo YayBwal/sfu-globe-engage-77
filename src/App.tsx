@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Index from '@/pages/Index';
 import Study from '@/pages/Study';
@@ -55,8 +55,8 @@ function App() {
     createStorageBuckets();
   }, []);
   
-  // Replace this with your actual API key when available
-  const aiApiKey = "your-ai-api-key";
+  // Add your AI API key here
+  const aiApiKey = "your-ai-api-key"; // Replace with your actual API key
   
   return (
     <Router>
