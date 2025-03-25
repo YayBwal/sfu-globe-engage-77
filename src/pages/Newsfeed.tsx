@@ -37,12 +37,7 @@ const Newsfeed = () => {
             media_type,
             view_count,
             created_at,
-            updated_at,
-            profiles:profiles!user_id(
-              name,
-              student_id,
-              profile_pic
-            )
+            updated_at
           `)
           .order('created_at', { ascending: false })
           .limit(20);
@@ -50,6 +45,25 @@ const Newsfeed = () => {
         if (postsError) {
           throw postsError;
         }
+        
+        // Get author profiles for posts
+        const userIds = [...new Set(postsData.map(post => post.user_id))];
+        
+        // Fetch profiles separately
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, student_id, profile_pic')
+          .in('id', userIds);
+        
+        if (profilesError) {
+          throw profilesError;
+        }
+        
+        // Create a profiles lookup object
+        const profilesLookup: Record<string, any> = {};
+        profilesData.forEach(profile => {
+          profilesLookup[profile.id] = profile;
+        });
         
         // Get reaction counts for each post
         const reactionPromises = postsData.map(post => 
@@ -85,6 +99,9 @@ const Newsfeed = () => {
         
         // Format the post data
         const formattedPosts = postsData.map((post, index) => {
+          // Get the profile for this post
+          const profile = profilesLookup[post.user_id];
+          
           // Process reactions
           const reactions: any = { like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 };
           if (reactionResults[index].data) {
@@ -103,9 +120,9 @@ const Newsfeed = () => {
             created_at: post.created_at,
             updated_at: post.updated_at,
             author: {
-              name: post.profiles?.name || 'Anonymous',
-              username: `student_${post.profiles?.student_id || '0000'}`,
-              avatar: post.profiles?.profile_pic
+              name: profile?.name || 'Anonymous',
+              username: `student_${profile?.student_id || '0000'}`,
+              avatar: profile?.profile_pic
             },
             reactions,
             _count: {
@@ -138,7 +155,7 @@ const Newsfeed = () => {
         (payload) => {
           // When a new post is created, fetch it with complete information
           const fetchNewPost = async () => {
-            const { data, error } = await supabase
+            const { data: postData, error: postError } = await supabase
               .from('posts')
               .select(`
                 id,
@@ -148,34 +165,41 @@ const Newsfeed = () => {
                 media_type,
                 view_count,
                 created_at,
-                updated_at,
-                profiles:profiles!user_id(
-                  name,
-                  student_id,
-                  profile_pic
-                )
+                updated_at
               `)
               .eq('id', payload.new.id)
               .single();
               
-            if (error) {
-              console.error("Error fetching new post:", error);
+            if (postError) {
+              console.error("Error fetching new post:", postError);
+              return;
+            }
+            
+            // Get author profile
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('name, student_id, profile_pic')
+              .eq('id', postData.user_id)
+              .single();
+            
+            if (profileError) {
+              console.error("Error fetching profile for new post:", profileError);
               return;
             }
             
             const newPost: Post = {
-              id: data.id,
-              user_id: data.user_id,
-              content: data.content,
-              media_url: data.media_url,
-              media_type: data.media_type as 'image' | 'video' | 'none',
-              view_count: data.view_count,
-              created_at: data.created_at,
-              updated_at: data.updated_at,
+              id: postData.id,
+              user_id: postData.user_id,
+              content: postData.content,
+              media_url: postData.media_url,
+              media_type: postData.media_type as 'image' | 'video' | 'none',
+              view_count: postData.view_count,
+              created_at: postData.created_at,
+              updated_at: postData.updated_at,
               author: {
-                name: data.profiles?.name || 'Anonymous',
-                username: `student_${data.profiles?.student_id || '0000'}`,
-                avatar: data.profiles?.profile_pic
+                name: profileData?.name || 'Anonymous',
+                username: `student_${profileData?.student_id || '0000'}`,
+                avatar: profileData?.profile_pic
               },
               reactions: { like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 },
               _count: { comments: 0, shares: 0 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ThumbsUp, MessageSquare, Share2, MoreHorizontal, Trash2, 
@@ -120,6 +121,36 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostDeleted }) => {
         
     } catch (error) {
       console.error("Error updating view count:", error);
+    }
+  };
+  
+  // Function to fetch reaction counts
+  const fetchReactionCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('post_reactions')
+        .select('reaction_type, count')
+        .eq('post_id', post.id)
+        .select('reaction_type, count');
+      
+      if (error) {
+        console.error("Error fetching reactions:", error);
+        return;
+      }
+      
+      const newReactions = { 
+        like: 0, sad: 0, haha: 0, wow: 0, angry: 0, smile: 0 
+      };
+      
+      if (data) {
+        data.forEach((item: any) => {
+          newReactions[item.reaction_type as keyof typeof newReactions] = parseInt(item.count);
+        });
+      }
+      
+      setReactionsCount(newReactions);
+    } catch (error) {
+      console.error("Error fetching reaction counts:", error);
     }
   };
   

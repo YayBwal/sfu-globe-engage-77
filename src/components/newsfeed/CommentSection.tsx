@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -43,37 +44,51 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       try {
         setIsLoading(true);
         
-        // Fix the query to properly join the profiles table
-        const { data, error } = await supabase
+        // Fetch comments
+        const { data: commentsData, error: commentsError } = await supabase
           .from('post_comments')
           .select(`
             id,
             user_id,
             content,
-            created_at,
-            profiles:profiles!user_id(
-              name,
-              profile_pic
-            )
+            created_at
           `)
           .eq('post_id', postId)
           .order('created_at', { ascending: true });
         
-        if (error) {
-          throw error;
+        if (commentsError) {
+          throw commentsError;
         }
         
-        // Transform data to add user property
-        const formattedComments = data.map(item => ({
-          id: item.id,
-          user_id: item.user_id,
-          content: item.content,
-          created_at: item.created_at,
-          user: item.profiles ? {
-            name: item.profiles.name,
-            profile_pic: item.profiles.profile_pic
-          } : undefined
-        }));
+        // Fetch user profiles separately
+        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, profile_pic')
+          .in('id', userIds);
+          
+        if (profilesError) {
+          throw profilesError;
+        }
+        
+        // Create a profiles lookup
+        const profilesLookup: Record<string, any> = {};
+        profilesData.forEach(profile => {
+          profilesLookup[profile.id] = profile;
+        });
+        
+        // Add user data to comments
+        const formattedComments = commentsData.map(comment => {
+          const profile = profilesLookup[comment.user_id];
+          return {
+            ...comment,
+            user: profile ? {
+              name: profile.name,
+              profile_pic: profile.profile_pic
+            } : undefined
+          };
+        });
         
         setComments(formattedComments);
       } catch (error) {
@@ -96,14 +111,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const fetchComment = async () => {
-              const { data, error } = await supabase
+              const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('name, profile_pic')
                 .eq('id', payload.new.user_id)
                 .single();
                 
-              if (error) {
-                console.error("Error fetching user for comment:", error);
+              if (profileError) {
+                console.error("Error fetching user for comment:", profileError);
                 return;
               }
               
@@ -113,8 +128,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                 content: payload.new.content,
                 created_at: payload.new.created_at,
                 user: {
-                  name: data.name,
-                  profile_pic: data.profile_pic
+                  name: profileData.name,
+                  profile_pic: profileData.profile_pic
                 }
               };
               
