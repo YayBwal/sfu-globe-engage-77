@@ -11,6 +11,7 @@ export type Notification = {
   title: string;
   message: string;
   type: NotificationType;
+  source: string;
   is_read: boolean;
   created_at: string;
   user_id: string;
@@ -21,6 +22,7 @@ type NotificationContextType = {
   unreadCount: number;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
   loading: boolean;
 };
 
@@ -152,6 +154,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setNotifications(notifications.filter(notification => notification.id !== notificationId));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -160,7 +181,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         notifications, 
         unreadCount, 
         markAsRead, 
-        markAllAsRead, 
+        markAllAsRead,
+        deleteNotification,
         loading 
       }}
     >

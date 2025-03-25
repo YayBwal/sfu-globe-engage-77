@@ -343,6 +343,7 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          source: string
           title: string
           type: string
           user_id: string
@@ -352,6 +353,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          source: string
           title: string
           type?: string
           user_id: string
@@ -361,6 +363,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          source?: string
           title?: string
           type?: string
           user_id?: string

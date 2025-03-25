@@ -131,6 +131,7 @@ const FriendMessageModal: React.FC<FriendMessageModalProps> = ({
           user_id: friend.id,
           title: 'New Message',
           message: `You have a new message from ${user.email || 'a friend'}`,
+          source: 'friend',
           type: 'info',
           is_read: false
         });

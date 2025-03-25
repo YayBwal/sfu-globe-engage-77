@@ -6,6 +6,9 @@ export const generateTestNotification = async (userId: string) => {
     const types = ['info', 'success', 'warning', 'error'];
     const randomType = types[Math.floor(Math.random() * types.length)];
     
+    const sources = ['friend', 'marketplace', 'newsfeed', 'clubs', 'study'];
+    const randomSource = sources[Math.floor(Math.random() * sources.length)];
+    
     const titles = [
       'New message received',
       'Study session created',
@@ -34,6 +37,7 @@ export const generateTestNotification = async (userId: string) => {
         user_id: userId,
         title: randomTitle,
         message: randomMessage,
+        source: randomSource,
         type: randomType,
         is_read: false
       });

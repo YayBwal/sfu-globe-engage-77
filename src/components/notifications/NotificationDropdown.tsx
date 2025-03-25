@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BellDot, Bell, CheckCheck } from 'lucide-react';
+import { BellDot, Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications, Notification, NotificationType } from '@/contexts/NotificationContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -13,14 +13,21 @@ import { format, formatDistanceToNow } from 'date-fns';
 
 const NotificationItem = ({ 
   notification, 
-  onMarkAsRead 
+  onMarkAsRead,
+  onDelete 
 }: { 
   notification: Notification; 
   onMarkAsRead: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) => {
   const handleMarkAsRead = async (e: React.MouseEvent) => {
     e.stopPropagation();
     await onMarkAsRead(notification.id);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onDelete(notification.id);
   };
 
   const getTypeStyles = () => {
@@ -36,6 +43,23 @@ const NotificationItem = ({
     }
   };
 
+  const getSourceIcon = () => {
+    switch (notification.source) {
+      case 'friend':
+        return '👥';
+      case 'marketplace':
+        return '🛒';
+      case 'newsfeed':
+        return '📰';
+      case 'clubs':
+        return '🎭';
+      case 'study':
+        return '📚';
+      default:
+        return '📣';
+    }
+  };
+
   const date = new Date(notification.created_at);
   const timeAgo = formatDistanceToNow(date, { addSuffix: true });
   const fullDate = format(date, 'PPp');
@@ -46,7 +70,10 @@ const NotificationItem = ({
       onClick={!notification.is_read ? handleMarkAsRead : undefined}
     >
       <div className="flex justify-between items-start">
-        <h4 className="text-sm font-medium">{notification.title}</h4>
+        <div className="flex items-center gap-2">
+          <span className="text-lg" aria-hidden="true">{getSourceIcon()}</span>
+          <h4 className="text-sm font-medium">{notification.title}</h4>
+        </div>
         {!notification.is_read && (
           <div className="h-2 w-2 rounded-full bg-blue-500" />
         )}
@@ -54,18 +81,23 @@ const NotificationItem = ({
       <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
       <div className="flex justify-between items-center mt-2">
         <span className="text-xs text-gray-500" title={fullDate}>{timeAgo}</span>
-        {!notification.is_read && (
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleMarkAsRead}>
-            Mark as read
+        <div className="flex gap-1">
+          {!notification.is_read && (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleMarkAsRead}>
+              Mark as read
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleDelete}>
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
 export const NotificationDropdown = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
 
   return (
     <Popover>
@@ -111,6 +143,7 @@ export const NotificationDropdown = () => {
                   key={notification.id}
                   notification={notification}
                   onMarkAsRead={markAsRead}
+                  onDelete={deleteNotification}
                 />
               ))
             )}

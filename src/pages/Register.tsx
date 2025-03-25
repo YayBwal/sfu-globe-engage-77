@@ -55,6 +55,10 @@ const Register = () => {
         values.batch
       );
       
+      // Create a welcome notification for the new user
+      // Note: This won't be visible until after they log in since we don't have the user ID yet
+      // A better approach would be to create this notification in a Supabase trigger or edge function
+      
       toast({
         title: 'Registration successful',
         description: 'You have been registered successfully',
