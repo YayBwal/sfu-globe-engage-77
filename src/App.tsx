@@ -15,6 +15,7 @@ import Login from '@/pages/Login';
 import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
+import GamingHub from '@/pages/GamingHub';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -69,9 +70,10 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/study" element={<Study />} />
                 <Route path="/clubs/*" element={<Clubs />} />
-                <Route path="/quizzes" element={<Quizzes />} />
-                <Route path="/leaderboard" element={<Leaderboard />} />
-                <Route path="/games" element={<MinorGames />} />
+                <Route path="/quizzes" element={<GamingHub />} />
+                <Route path="/leaderboard" element={<GamingHub />} />
+                <Route path="/games" element={<GamingHub />} />
+                <Route path="/gaming-hub" element={<GamingHub />} />
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
