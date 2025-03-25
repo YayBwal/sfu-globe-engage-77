@@ -1,11 +1,11 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { User, GraduationCap, School, Mail, Lock, UserCircle, ArrowLeft } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -13,62 +13,72 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/contexts/AuthContext";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  studentId: z.string().min(5, { message: "Student ID must be at least 5 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  major: z.string({ required_error: "Please select your major." }),
-  batch: z.string({ required_error: "Please enter your batch." })
+  name: z.string().min(2, { message: 'Name must be at least 2 characters long' }),
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
+  studentId: z.string().min(3, { message: 'Student ID is required' }),
+  major: z.string().min(1, { message: 'Major is required' }),
+  batch: z.string().min(1, { message: 'Batch is required' }),
 });
 
 const Register = () => {
-  const { register: registerUser } = useAuth();
-  
+  const { register } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      studentId: "",
-      email: "",
-      password: "",
-      major: "",
-      batch: ""
+      name: '',
+      email: '',
+      password: '',
+      studentId: '',
+      major: '',
+      batch: '',
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    registerUser({
-      name: values.name,
-      email: values.email,
-      password: values.password,
-      studentId: values.studentId,
-      major: values.major,
-      batch: values.batch,
-    });
-  }
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
+    try {
+      await register(
+        values.email, 
+        values.password, 
+        values.name, 
+        values.studentId, 
+        values.major, 
+        values.batch
+      );
+      
+      toast({
+        title: 'Registration successful',
+        description: 'You have been registered successfully',
+      });
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-100 flex flex-col items-center justify-center p-4">
-      <Link to="/" className="absolute top-4 left-4 text-sfu-black hover:text-sfu-red transition-colors">
-        <ArrowLeft className="h-6 w-6" />
-        <span className="sr-only">Back to home</span>
-      </Link>
-      
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 space-y-8">
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-white to-gray-100">
+      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-md">
         <div className="text-center">
-          <div className="mx-auto w-12 h-12 bg-sfu-red rounded-xl flex items-center justify-center mb-4">
-            <UserCircle className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-sfu-black">Join SFU Globe</h1>
-          <p className="text-gray-500 mt-2">Create your account to get started</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create an account</h1>
+          <p className="mt-2 text-gray-600">Join the student community</p>
         </div>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -78,96 +88,27 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input placeholder="John Doe" className="pl-10" {...field} />
-                    </div>
+                    <Input placeholder="John Doe" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <FormField
-              control={form.control}
-              name="studentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Student ID</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <School className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input placeholder="e.g. 301462789" className="pl-10" {...field} />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="major"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Major</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <div className="flex items-center">
-                            <GraduationCap className="mr-2 h-4 w-4 text-gray-400" />
-                            <SelectValue placeholder="Select major" />
-                          </div>
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="DC">DC</SelectItem>
-                        <SelectItem value="DCBM">DCBM</SelectItem>
-                        <SelectItem value="BM">BM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="batch"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Batch</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="text" 
-                        placeholder="e.g. 2023" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
+
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="email" placeholder="name@example.com" className="pl-10" {...field} />
-                    </div>
+                    <Input type="email" placeholder="you@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="password"
@@ -175,26 +116,69 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="password" className="pl-10" {...field} />
-                    </div>
+                    <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <Button type="submit" className="w-full bg-sfu-red hover:bg-sfu-red/90">
-              Create Account
+
+            <FormField
+              control={form.control}
+              name="studentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Student ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your student ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="major"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Major</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Computer Science" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="batch"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Batch</FormLabel>
+                  <FormControl>
+                    <Input placeholder="2023" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Registering...' : 'Register'}
             </Button>
           </form>
         </Form>
-        
-        <div className="text-center text-sm">
-          <p className="text-gray-500">
-            Already have an account?{" "}
-            <Link to="/login" className="text-sfu-red font-medium hover:underline">
+
+        <div className="text-center mt-4">
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
               Sign in
             </Link>
           </p>

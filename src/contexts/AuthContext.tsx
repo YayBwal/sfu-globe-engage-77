@@ -26,6 +26,8 @@ type UserProfile = {
   availability: string;
   profilePic: string | null;
   coverPic: string | null;
+  profile_pic?: string | null; // For compatibility with DB
+  cover_pic?: string | null; // For compatibility with DB
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,8 +68,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Error fetching profile:", error);
           }
 
-          setProfile(profileData as UserProfile);
-          setIsAuthenticated(true);
+          if (profileData) {
+            // Map database fields to our UserProfile type
+            const mappedProfile: UserProfile = {
+              id: profileData.id,
+              name: profileData.name,
+              student_id: profileData.student_id,
+              major: profileData.major,
+              batch: profileData.batch,
+              email: profileData.email,
+              online: profileData.online,
+              bio: profileData.bio || "",
+              interests: profileData.interests || [],
+              availability: profileData.availability || "",
+              profilePic: profileData.profile_pic,
+              coverPic: profileData.cover_pic,
+              // Keep original DB fields for compatibility
+              profile_pic: profileData.profile_pic,
+              cover_pic: profileData.cover_pic
+            };
+            
+            setProfile(mappedProfile);
+            setIsAuthenticated(true);
+          } else {
+            setProfile(null);
+            setIsAuthenticated(false);
+          }
         } else {
           setProfile(null);
           setIsAuthenticated(false);
@@ -162,9 +188,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error("No user logged in");
       }
 
+      // Convert from our UserProfile type to database field names if needed
+      const dbUpdates: any = { ...updates };
+      if ('profilePic' in updates) {
+        dbUpdates.profile_pic = updates.profilePic;
+        delete dbUpdates.profilePic;
+      }
+      if ('coverPic' in updates) {
+        dbUpdates.cover_pic = updates.coverPic;
+        delete dbUpdates.coverPic;
+      }
+      if ('student_id' in updates) {
+        dbUpdates.student_id = updates.student_id;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', user.id)
         .select()
         .single();
@@ -173,7 +213,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
-      setProfile(data as UserProfile);
+      if (data) {
+        // Map DB fields back to our UserProfile type
+        const updatedProfile: UserProfile = {
+          id: data.id,
+          name: data.name,
+          student_id: data.student_id,
+          major: data.major,
+          batch: data.batch,
+          email: data.email,
+          online: data.online,
+          bio: data.bio || "",
+          interests: data.interests || [],
+          availability: data.availability || "",
+          profilePic: data.profile_pic,
+          coverPic: data.cover_pic,
+          profile_pic: data.profile_pic,
+          cover_pic: data.cover_pic
+        };
+        
+        setProfile(updatedProfile);
+      }
     } catch (error: any) {
       console.error("Profile update failed:", error.message);
       // Handle update error (e.g., display error message)

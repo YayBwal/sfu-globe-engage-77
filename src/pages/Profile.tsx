@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -88,8 +87,84 @@ interface Friend {
   major: string;
 }
 
+// Create Friend Message component to avoid rendering hooks directly in map function
+const FriendCard = ({ friend, onRemove }: { friend: Friend, onRemove: (id: string) => Promise<void> }) => {
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+  
+  return (
+    <Card key={friend.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
+      <div className={`h-2 ${friend.online ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-gray-300 to-gray-200'}`} />
+      <CardContent className="p-4 pt-5">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white relative">
+            {friend.profile_pic ? (
+              <AvatarImage src={friend.profile_pic} alt={friend.name} className="p-1" />
+            ) : (
+              <AvatarFallback className="rounded-full bg-gradient-to-br from-sfu-red to-amber-500 text-white">
+                {getInitials(friend.name)}
+              </AvatarFallback>
+            )}
+            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${friend.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+          </Avatar>
+          <div className="flex-1">
+            <h4 className="font-semibold text-slate-900">{friend.name}</h4>
+            <div className="flex gap-1.5 mt-1">
+              <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                <School className="h-3 w-3 mr-1" />
+                {friend.major}
+              </span>
+              <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                <Hash className="h-3 w-3 mr-1" />
+                {friend.student_id}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+          <Button 
+            size="sm" 
+            variant="message"
+            className="flex-1 text-xs"
+            onClick={() => setIsMessageOpen(true)}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Message
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="text-xs text-gray-500"
+            onClick={() => onRemove(friend.id)}
+          >
+            <UserX className="h-3.5 w-3.5" />
+            Remove
+          </Button>
+        </div>
+        {isMessageOpen && (
+          <FriendMessageModal
+            isOpen={isMessageOpen}
+            onClose={() => setIsMessageOpen(false)}
+            friend={{
+              id: friend.id,
+              name: friend.name
+            }}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const Profile = () => {
-  const { profile, user, logout, updateUserStatus } = useAuth();
+  const { profile, user, logout } = useAuth();
   const { userClubs } = useClub();
   const { toast } = useToast();
   
@@ -109,7 +184,7 @@ const Profile = () => {
       name: profile?.name || "",
       bio: profile?.bio || "",
       major: profile?.major || "",
-      studentId: profile?.studentId || "",
+      studentId: profile?.student_id || "", // Fixed property name
       batch: profile?.batch || "",
     },
   });
@@ -132,7 +207,7 @@ const Profile = () => {
         name: profile.name,
         bio: profile.bio || "",
         major: profile.major,
-        studentId: profile.studentId,
+        studentId: profile.student_id, // Fixed property name
         batch: profile.batch,
       });
     }
@@ -266,7 +341,7 @@ const Profile = () => {
           name: values.name,
           bio: values.bio,
           major: values.major,
-          student_id: values.studentId,
+          student_id: values.studentId, // Fixed property name
           batch: values.batch,
         })
         .eq('id', user?.id);
@@ -736,7 +811,7 @@ const Profile = () => {
                             </span>
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               <Hash className="h-3 w-3 mr-1" />
-                              ID: {profile?.studentId}
+                              ID: {profile?.student_id}
                             </span>
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${profile?.online ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                               <Circle className={`h-3 w-3 mr-1 ${profile?.online ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'}`} />
@@ -822,71 +897,13 @@ const Profile = () => {
             <TabsContent value="friends" className="bg-white rounded-xl shadow-sm p-6 mt-0">
               {friends.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {friends.map((friend) => {
-                    const [isMessageOpen, setIsMessageOpen] = useState(false);
-                    return (
-                      <Card key={friend.id} className="overflow-hidden group hover:shadow-lg transition duration-200">
-                        <div className={`h-2 ${friend.online ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-gray-300 to-gray-200'}`} />
-                        <CardContent className="p-4 pt-5">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 ring-2 ring-white relative">
-                              {friend.profile_pic ? (
-                                <AvatarImage src={friend.profile_pic} alt={friend.name} className="p-1" />
-                              ) : (
-                                <AvatarFallback className="rounded-full bg-gradient-to-br from-sfu-red to-amber-500 text-white">
-                                  {getInitials(friend.name)}
-                                </AvatarFallback>
-                              )}
-                              <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${friend.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                            </Avatar>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-slate-900">{friend.name}</h4>
-                              <div className="flex gap-1.5 mt-1">
-                                <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                                  <School className="h-3 w-3 mr-1" />
-                                  {friend.major}
-                                </span>
-                                <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                                  <Hash className="h-3 w-3 mr-1" />
-                                  {friend.student_id}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                            <Button 
-                              size="sm" 
-                              variant="message"
-                              className="flex-1 text-xs"
-                              onClick={() => setIsMessageOpen(true)}
-                            >
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              Message
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="text-xs text-gray-500"
-                              onClick={() => removeFriend(friend.id)}
-                            >
-                              <UserX className="h-3.5 w-3.5" />
-                              Remove
-                            </Button>
-                          </div>
-                          {isMessageOpen && (
-                            <FriendMessageModal
-                              isOpen={isMessageOpen}
-                              onClose={() => setIsMessageOpen(false)}
-                              friend={{
-                                id: friend.id,
-                                name: friend.name
-                              }}
-                            />
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {friends.map((friend) => (
+                    <FriendCard 
+                      key={friend.id} 
+                      friend={friend} 
+                      onRemove={removeFriend} 
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
