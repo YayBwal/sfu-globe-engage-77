@@ -54,9 +54,19 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Fetch sessions
   const fetchSessions = async () => {
     setIsLoading(true);
-    const fetchedSessions = await sessionService.fetchSessions();
-    setSessions(fetchedSessions);
-    setIsLoading(false);
+    try {
+      const fetchedSessions = await sessionService.fetchSessions();
+      setSessions(fetchedSessions);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      toast({
+        title: "Error fetching sessions",
+        description: "Failed to load gaming sessions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Create a new session
@@ -70,12 +80,27 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return '';
     }
     
-    const sessionId = await sessionService.createSession(name, user.id, courseId);
-    
-    // Refresh sessions
-    await fetchSessions();
-    
-    return sessionId;
+    try {
+      const sessionId = await sessionService.createSession(name, user.id, courseId);
+      
+      // Refresh sessions
+      await fetchSessions();
+      
+      toast({
+        title: 'Session created',
+        description: 'Gaming session created successfully',
+      });
+      
+      return sessionId;
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast({
+        title: 'Error creating session',
+        description: 'Failed to create gaming session. Please try again.',
+        variant: 'destructive',
+      });
+      return '';
+    }
   };
 
   // Delete a session
@@ -89,39 +114,82 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     
-    await sessionService.deleteSession(sessionId);
-    
-    // Refresh sessions and leaderboard
-    await fetchSessions();
-    await fetchLeaderboards();
+    try {
+      await sessionService.deleteSession(sessionId);
+      
+      // Refresh sessions and leaderboard
+      await fetchSessions();
+      await fetchLeaderboards();
+      
+      toast({
+        title: 'Session deleted',
+        description: 'Gaming session deleted successfully',
+      });
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      toast({
+        title: 'Error deleting session',
+        description: 'Failed to delete gaming session. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Fetch quizzes
   const fetchQuizzes = async () => {
     setIsLoading(true);
-    const fetchedQuizzes = await quizService.fetchQuizzes();
-    setQuizzes(fetchedQuizzes);
-    setIsLoading(false);
+    try {
+      const fetchedQuizzes = await quizService.fetchQuizzes();
+      setQuizzes(fetchedQuizzes);
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+      toast({
+        title: "Error fetching quizzes",
+        description: "Failed to load quizzes. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Fetch leaderboards
   const fetchLeaderboards = async () => {
     setIsLoading(true);
-    
-    const data = await leaderboardService.fetchLeaderboards();
-    
-    setQuizScores(data.quizScores);
-    setGameScores(data.gameScores);
-    setLeaderboard(data.leaderboard);
-    setIsLoading(false);
+    try {
+      const data = await leaderboardService.fetchLeaderboards();
+      
+      setQuizScores(data.quizScores);
+      setGameScores(data.gameScores);
+      setLeaderboard(data.leaderboard);
+    } catch (error) {
+      console.error("Error fetching leaderboards:", error);
+      toast({
+        title: "Error fetching leaderboards",
+        description: "Failed to load leaderboard data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Fetch questions from the database
   const fetchQuestions = async (courseId?: string) => {
     setIsLoading(true);
-    const fetchedQuestions = await quizService.fetchQuestions(courseId);
-    setQuestions(fetchedQuestions);
-    setIsLoading(false);
+    try {
+      const fetchedQuestions = await quizService.fetchQuestions(courseId);
+      setQuestions(fetchedQuestions);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      toast({
+        title: "Error fetching questions",
+        description: "Failed to load quiz questions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Save quiz score
@@ -135,19 +203,33 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     
-    await quizService.saveQuizScore(
-      user.id, 
-      profile?.name || 'Anonymous',
-      profile?.profile_pic,
-      quizId,
-      quizName,
-      score,
-      timeTaken,
-      sessionId
-    );
-    
-    // Refresh leaderboards
-    await fetchLeaderboards();
+    try {
+      await quizService.saveQuizScore(
+        user.id, 
+        profile?.name || 'Anonymous',
+        profile?.profile_pic,
+        quizId,
+        quizName,
+        score,
+        timeTaken,
+        sessionId
+      );
+      
+      // Refresh leaderboards
+      await fetchLeaderboards();
+      
+      toast({
+        title: 'Score saved',
+        description: 'Your quiz score has been saved successfully',
+      });
+    } catch (error) {
+      console.error("Error saving quiz score:", error);
+      toast({
+        title: 'Error saving score',
+        description: 'Failed to save your quiz score. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Save game score
@@ -161,19 +243,33 @@ export const GamingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     
-    await gameService.saveGameScore(
-      user.id,
-      profile?.name || 'Anonymous',
-      profile?.profile_pic,
-      gameId,
-      gameName,
-      score,
-      level,
-      sessionId
-    );
-    
-    // Refresh leaderboards
-    await fetchLeaderboards();
+    try {
+      await gameService.saveGameScore(
+        user.id,
+        profile?.name || 'Anonymous',
+        profile?.profile_pic,
+        gameId,
+        gameName,
+        score,
+        level,
+        sessionId
+      );
+      
+      // Refresh leaderboards
+      await fetchLeaderboards();
+      
+      toast({
+        title: 'Score saved',
+        description: 'Your game score has been saved successfully',
+      });
+    } catch (error) {
+      console.error("Error saving game score:", error);
+      toast({
+        title: 'Error saving score',
+        description: 'Failed to save your game score. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

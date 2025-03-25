@@ -1,6 +1,8 @@
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
   user: any;
@@ -38,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const session = async () => {
@@ -125,14 +128,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        toast({
+          title: "Registration failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
       }
 
+      toast({
+        title: "Registration successful",
+        description: "Your account has been created successfully.",
+      });
+      
       // After successful registration, navigate to profile setup or home
       navigate('/profile');
     } catch (error: any) {
       console.error("Registration failed:", error.message);
-      // Handle registration error (e.g., display error message)
+      // Error is already handled above
     } finally {
       setLoading(false);
     }
@@ -147,13 +160,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
       }
+
+      toast({
+        title: "Login successful",
+        description: "You have been logged in successfully.",
+      });
+
       // After successful login, navigate to home
       navigate('/');
     } catch (error: any) {
       console.error("Login failed:", error.message);
-      // Handle login error (e.g., display error message)
+      // Error is already handled above
     } finally {
       setLoading(false);
     }
@@ -165,17 +189,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
 
       if (error) {
+        toast({
+          title: "Logout failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
       }
 
       setUser(null);
       setProfile(null);
       setIsAuthenticated(false);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully.",
+      });
+      
       // After successful logout, navigate to login page
       navigate('/login');
     } catch (error: any) {
       console.error("Logout failed:", error.message);
-      // Handle logout error (e.g., display error message)
+      // Error is already handled above
     } finally {
       setLoading(false);
     }
@@ -185,6 +220,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       if (!user) {
+        toast({
+          title: "Not authenticated",
+          description: "You need to be logged in to update your profile.",
+          variant: "destructive",
+        });
         throw new Error("No user logged in");
       }
 
@@ -210,6 +250,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
+        toast({
+          title: "Profile update failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
       }
 
@@ -233,10 +278,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         setProfile(updatedProfile);
+
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been updated successfully.",
+        });
       }
     } catch (error: any) {
       console.error("Profile update failed:", error.message);
-      // Handle update error (e.g., display error message)
+      // Error is already handled above
     } finally {
       setLoading(false);
     }
