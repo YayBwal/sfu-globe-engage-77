@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ const CATEGORY_HEADERS = {
 };
 
 // OpenAI API Key - in production, this should be stored securely
-const OPENAI_API_KEY = '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';
+const OPENAI_API_KEY = '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';
 
 export const ChatBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
