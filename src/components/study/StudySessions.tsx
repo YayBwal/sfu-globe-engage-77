@@ -1,128 +1,71 @@
 
-import React, { useState, useEffect } from "react";
-import { Calendar, Clock, MapPin, Video, User, Users, Lock, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { StudySession } from "@/pages/Study";
-import { useToast } from "@/hooks/use-toast";
+import React from 'react';
+import { format } from 'date-fns';
+import { StudySession } from '@/pages/Study';
+import { MapPin, Clock, Users, ExternalLink, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
 
 interface StudySessionsProps {
   upcomingSessions: StudySession[];
 }
 
 const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions }) => {
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const [joiningSessionId, setJoiningSessionId] = React.useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSessionsFromSupabase();
-  }, []);
-
-  const fetchSessionsFromSupabase = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('study_sessions')
-        .select(`
-          *,
-          participants:session_participants(count)
-        `)
-        .gte('date', new Date().toISOString())
-        .order('date', { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      // Format the data to include the participants count
-      const formattedSessions = data.map(session => ({
-        id: session.id,
-        subject: session.subject,
-        date: session.date,
-        location: session.location,
-        type: session.type as "online" | "offline",
-        password: session.password,
-        host_id: session.host_id,
-        description: session.description,
-        meeting_link: session.meeting_link,
-        participants_count: session.participants[0]?.count || 0
-      }));
-
-      setSessions(formattedSessions);
-    } catch (error) {
-      console.error("Error fetching study sessions:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const joinSession = async (session: StudySession) => {
+  const handleJoin = async (sessionId: string) => {
     if (!user) {
       toast({
         title: "Login required",
         description: "Please login to join a study session",
         variant: "destructive",
       });
+      navigate('/login?redirect=/study');
       return;
     }
 
-    // For online sessions with passwords
-    if (session.type === "online" && session.password) {
-      setSelectedSession(session);
-      setShowPasswordDialog(true);
-      return;
-    }
-
-    // For in-person sessions or online without password
     try {
+      setJoiningSessionId(sessionId);
+
+      // Check if user already joined this session
+      const { data: existingParticipant } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingParticipant) {
+        toast({
+          title: "Already joined",
+          description: "You are already participating in this session",
+        });
+        return;
+      }
+
+      // Add user as participant
       const { error } = await supabase
         .from('session_participants')
         .insert({
-          session_id: session.id,
-          user_id: user.id
-        });
-
-      if (error) {
-        // Check if it's because user is already in the session
-        if (error.code === '23505') { // Unique violation
-          toast({
-            title: "Already joined",
-            description: "You've already joined this study session",
-          });
-          return;
-        }
-        throw error;
-      }
-
-      // Also log this activity
-      await supabase
-        .from('user_activities')
-        .insert({
+          session_id: sessionId,
           user_id: user.id,
-          activity_type: 'study_session_join',
-          activity_detail: {
-            session_id: session.id,
-            subject: session.subject
-          }
+          joined_at: new Date().toISOString(),
         });
+
+      if (error) throw error;
 
       toast({
-        title: "Session joined",
-        description: `You've successfully joined the ${session.subject} study session`,
+        title: "Success",
+        description: "You have joined the study session",
       });
 
-      // Refresh the sessions list
-      fetchSessionsFromSupabase();
     } catch (error) {
       console.error("Error joining session:", error);
       toast({
@@ -130,201 +73,117 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions }) => {
         description: "Failed to join study session",
         variant: "destructive",
       });
+    } finally {
+      setJoiningSessionId(null);
     }
   };
 
-  const verifySessionPassword = async () => {
-    if (!selectedSession || !user) return;
-
-    if (passwordInput === selectedSession.password) {
-      try {
-        const { error } = await supabase
-          .from('session_participants')
-          .insert({
-            session_id: selectedSession.id,
-            user_id: user.id
-          });
-
-        if (error) {
-          if (error.code === '23505') { // Unique violation
-            toast({
-              title: "Already joined",
-              description: "You've already joined this study session",
-            });
-            setShowPasswordDialog(false);
-            setPasswordInput("");
-            return;
-          }
-          throw error;
-        }
-
-        // Also log this activity
-        await supabase
-          .from('user_activities')
-          .insert({
-            user_id: user.id,
-            activity_type: 'study_session_join',
-            activity_detail: {
-              session_id: selectedSession.id,
-              subject: selectedSession.subject
-            }
-          });
-
-        toast({
-          title: "Session joined",
-          description: selectedSession.meeting_link 
-            ? "Session joined! You can now access the meeting link."
-            : `You've successfully joined the ${selectedSession.subject} study session`,
-        });
-
-        setShowPasswordDialog(false);
-        setPasswordInput("");
-        fetchSessionsFromSupabase();
-      } catch (error) {
-        console.error("Error joining session:", error);
-        toast({
-          title: "Error",
-          description: "Failed to join study session",
-          variant: "destructive",
-        });
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
       }
-    } else {
-      toast({
-        title: "Incorrect password",
-        description: "The password you entered is incorrect",
-        variant: "destructive",
-      });
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, { 
-      weekday: 'short',
-      month: 'short', 
-      day: 'numeric'
-    });
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
+    }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString(undefined, { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
-  };
-
-  if (loading) {
+  if (upcomingSessions.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p>Loading study sessions...</p>
+      <div className="bg-white rounded-xl shadow-md p-6 text-center">
+        <h3 className="text-xl font-semibold mb-4">No Upcoming Sessions</h3>
+        <p className="text-gray-600 mb-6">
+          There are no study sessions scheduled at the moment. Be the first to create one!
+        </p>
       </div>
     );
   }
 
-  const allSessions = [...sessions, ...upcomingSessions];
-
   return (
-    <div>
-      <div className="mb-4 flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Upcoming Study Sessions</h3>
-        <Button size="sm" variant="outline">
-          Create Session
-        </Button>
-      </div>
-
-      {allSessions.length === 0 ? (
-        <div className="text-center py-8">
-          <Users className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No upcoming sessions</h3>
-          <p className="text-gray-500">Create a session to start studying with others</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {allSessions.map((session) => (
-            <Card key={session.id} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">{session.subject}</h4>
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span>{formatDate(session.date)}</span>
-                        <span className="mx-1">•</span>
-                        <Clock className="h-4 w-4 mr-1" />
-                        <span>{formatTime(session.date)}</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
-                        {session.type === "online" ? (
-                          <>
-                            <Video className="h-4 w-4 mr-1" />
-                            <span>Online Session</span>
-                            {session.password && (
-                              <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0 flex items-center">
-                                <Lock className="h-3 w-3 mr-1" />
-                                Protected
-                              </Badge>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="h-4 w-4 mr-1" />
-                            <span>{session.location}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="flex items-center">
-                      <Users className="h-3 w-3 mr-1" />
-                      {session.participants || session.participants_count || 0} joined
-                    </Badge>
-                  </div>
-                  
-                  <div className="mt-4 flex justify-end">
-                    <Button 
-                      size="sm"
-                      onClick={() => joinSession(session)}
-                      className="bg-sfu-red hover:bg-sfu-red/90"
-                    >
-                      Join Session
-                    </Button>
-                  </div>
+    <motion.div 
+      className="space-y-4"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      <h3 className="text-xl font-semibold mb-2">Upcoming Study Sessions</h3>
+      
+      {upcomingSessions.map((session) => (
+        <motion.div
+          key={session.id}
+          className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow"
+          variants={item}
+          whileHover={{ y: -5, transition: { duration: 0.2 } }}
+        >
+          <div className="p-5">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+              <div>
+                <h4 className="text-lg font-semibold mb-2">{session.subject}</h4>
+                
+                <div className="flex items-center text-gray-600 mb-1">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="text-sm">
+                    {format(new Date(session.date), 'EEEE, MMMM d, yyyy • h:mm a')}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enter Session Password</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-500 mb-4">
-              This study session is password protected. Please enter the password provided by the session host.
-            </p>
-            <Input
-              type="password"
-              placeholder="Password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              className="mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={verifySessionPassword} className="bg-sfu-red hover:bg-sfu-red/90">
-                Join Session
+                
+                <div className="flex items-center text-gray-600 mb-1">
+                  {session.type === 'offline' ? (
+                    <>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span className="text-sm">{session.location}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      <span className="text-sm">Online Session</span>
+                    </>
+                  )}
+                </div>
+                
+                <div className="flex items-center text-gray-600">
+                  <Users className="h-4 w-4 mr-2" />
+                  <span className="text-sm">{session.participants} participants</span>
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => handleJoin(session.id)}
+                disabled={joiningSessionId === session.id}
+                className="bg-sfu-red hover:bg-sfu-red/90 self-end md:self-center"
+              >
+                {joiningSessionId === session.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Joining...
+                  </>
+                ) : (
+                  'Join Session'
+                )}
               </Button>
             </div>
+            
+            {session.description && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-sm text-gray-600">{session.description}</p>
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </motion.div>
+      ))}
+    </motion.div>
   );
 };
 
