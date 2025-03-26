@@ -803,6 +803,38 @@ export type Database = {
         }
         Relationships: []
       }
+      session_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "study_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_participants: {
         Row: {
           id: string
@@ -841,6 +873,7 @@ export type Database = {
       }
       study_sessions: {
         Row: {
+          access_code: string | null
           created_at: string | null
           date: string
           description: string | null
@@ -850,10 +883,12 @@ export type Database = {
           max_participants: number | null
           meeting_link: string | null
           password: string | null
+          status: string
           subject: string
           type: string
         }
         Insert: {
+          access_code?: string | null
           created_at?: string | null
           date: string
           description?: string | null
@@ -863,10 +898,12 @@ export type Database = {
           max_participants?: number | null
           meeting_link?: string | null
           password?: string | null
+          status?: string
           subject: string
           type: string
         }
         Update: {
+          access_code?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -876,6 +913,7 @@ export type Database = {
           max_participants?: number | null
           meeting_link?: string | null
           password?: string | null
+          status?: string
           subject?: string
           type?: string
         }

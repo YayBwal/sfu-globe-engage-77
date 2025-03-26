@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import StudySessions from '@/components/study/StudySessions';
@@ -24,10 +25,13 @@ export interface StudySession {
   meeting_link?: string | null;
   participants?: number;
   participants_count?: number;
+  access_code?: string | null;
+  status?: string;
 }
 
 const Study = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [upcomingSessions, setUpcomingSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
@@ -57,67 +61,110 @@ const Study = () => {
     }
   };
 
-  // Fetch upcoming study sessions
+  // Handle direct access via link with session ID and code
   useEffect(() => {
-    const fetchUpcomingSessions = async () => {
-      try {
-        setLoading(true);
-        
-        // Get upcoming sessions
-        const { data, error } = await supabase
-          .from('study_sessions')
-          .select('*')
-          .gte('date', new Date().toISOString())
-          .order('date', { ascending: true })
-          .limit(5);
-          
-        if (error) {
-          throw error;
-        }
-        
-        // Format the sessions
-        const formattedSessions = data.map(session => ({
-          id: session.id,
-          subject: session.subject,
-          date: session.date,
-          location: session.location || 'Online',
-          type: session.type as "online" | "offline",
-          password: session.password,
-          host_id: session.host_id,
-          description: session.description,
-          meeting_link: session.meeting_link,
-          participants: 0 // We'll get this in a separate query
-        }));
-        
-        // Get participant counts for each session
-        const participantPromises = formattedSessions.map(session => 
-          supabase
-            .from('session_participants')
-            .select('id', { count: 'exact', head: true })
-            .eq('session_id', session.id)
-        );
-        
-        const participantResults = await Promise.all(participantPromises);
-        
-        // Add participant counts to sessions
-        formattedSessions.forEach((session, index) => {
-          session.participants = participantResults[index].count || 0;
-        });
-        
-        setUpcomingSessions(formattedSessions);
-        
-      } catch (error) {
-        console.error("Error fetching study sessions:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load study sessions",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+    const sessionId = searchParams.get('session');
+    const accessCode = searchParams.get('code');
     
+    if (sessionId && accessCode) {
+      // Automatically verify and join session
+      const autoJoinSession = async () => {
+        try {
+          // Verify session exists and code matches
+          const { data, error } = await supabase
+            .from('study_sessions')
+            .select('*')
+            .eq('id', sessionId)
+            .eq('access_code', accessCode)
+            .single();
+            
+          if (error || !data) {
+            toast({
+              title: "Invalid link",
+              description: "The session link is invalid or expired",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          // The session and code are valid - now fetch sessions to ensure this one is loaded
+          await fetchUpcomingSessions();
+          
+          // Simulate clicking the join button for this session
+          // This will be handled by the StudySessions component
+        } catch (error) {
+          console.error("Error auto-joining session:", error);
+        }
+      };
+      
+      autoJoinSession();
+    }
+  }, [searchParams, toast]);
+
+  // Fetch upcoming study sessions
+  const fetchUpcomingSessions = async () => {
+    try {
+      setLoading(true);
+      
+      // Get upcoming sessions
+      const { data, error } = await supabase
+        .from('study_sessions')
+        .select('*')
+        .eq('status', 'active')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(5);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Format the sessions
+      const formattedSessions = data.map(session => ({
+        id: session.id,
+        subject: session.subject,
+        date: session.date,
+        location: session.location || 'Online',
+        type: session.type as "online" | "offline",
+        password: session.password,
+        access_code: session.access_code,
+        host_id: session.host_id,
+        description: session.description,
+        meeting_link: session.meeting_link,
+        status: session.status,
+        participants: 0 // We'll get this in a separate query
+      }));
+      
+      // Get participant counts for each session
+      const participantPromises = formattedSessions.map(session => 
+        supabase
+          .from('session_participants')
+          .select('id', { count: 'exact', head: true })
+          .eq('session_id', session.id)
+      );
+      
+      const participantResults = await Promise.all(participantPromises);
+      
+      // Add participant counts to sessions
+      formattedSessions.forEach((session, index) => {
+        session.participants = participantResults[index].count || 0;
+      });
+      
+      setUpcomingSessions(formattedSessions);
+      
+    } catch (error) {
+      console.error("Error fetching study sessions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load study sessions",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUpcomingSessions();
   }, [toast]);
 
@@ -186,7 +233,10 @@ const Study = () => {
               <TabsContent value="sessions" className="animate-in fade-in-50 slide-in-from-bottom-5 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="md:col-span-2">
-                    <StudySessions upcomingSessions={upcomingSessions} />
+                    <StudySessions 
+                      upcomingSessions={upcomingSessions} 
+                      refetchSessions={fetchUpcomingSessions}
+                    />
                   </div>
                   
                   <div className="glass rounded-xl p-6 shadow-md">
@@ -268,6 +318,7 @@ const Study = () => {
       <CreateSessionDialog 
         open={isCreateSessionOpen} 
         onOpenChange={setIsCreateSessionOpen} 
+        onSessionCreated={fetchUpcomingSessions}
       />
       
       <Footer />

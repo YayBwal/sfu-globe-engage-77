@@ -14,7 +14,8 @@ import {
   BookOpen,
   User,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -29,10 +30,12 @@ import { format, addDays } from 'date-fns';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Switch } from '@/components/ui/switch';
 
 interface CreateSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSessionCreated?: () => void;
 }
 
 type SessionFormValues = {
@@ -44,15 +47,22 @@ type SessionFormValues = {
   description: string;
   password?: string;
   meeting_link?: string;
+  isSecure: boolean;
+  access_code?: string;
 };
 
-const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenChange }) => {
+const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ 
+  open, 
+  onOpenChange,
+  onSessionCreated
+}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStep, setFormStep] = useState(1);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [generatedAccessCode, setGeneratedAccessCode] = useState<string>('');
   
   const form = useForm<SessionFormValues>({
     defaultValues: {
@@ -64,10 +74,13 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
       date: addDays(new Date(), 1),
       password: '',
       meeting_link: '',
+      isSecure: false,
+      access_code: '',
     }
   });
   
   const sessionType = form.watch('type');
+  const isSecure = form.watch('isSecure');
   
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -87,6 +100,16 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
         duration: 0.2
       } 
     }
+  };
+
+  const generateAccessCode = () => {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    form.setValue('access_code', result);
+    setGeneratedAccessCode(result);
   };
 
   const onSubmit = async (values: SessionFormValues) => {
@@ -118,6 +141,8 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
         location: values.type === 'offline' ? values.location : null,
         password: values.type === 'online' ? values.password : null,
         meeting_link: values.type === 'online' ? values.meeting_link : null,
+        access_code: values.isSecure ? values.access_code : null,
+        status: 'active'
       };
       
       // Insert into database
@@ -134,6 +159,11 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
         form.reset();
         setFormStep(1);
         setFormSubmitted(false);
+
+        // Call the onSessionCreated callback to refresh the sessions list
+        if (onSessionCreated) {
+          onSessionCreated();
+        }
 
         toast({
           title: "Study session created",
@@ -196,6 +226,22 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
               <p className="text-gray-600 text-center mb-6">
                 Others will now be able to find and join your session
               </p>
+              {isSecure && generatedAccessCode && (
+                <div className="w-full max-w-md p-4 bg-amber-50 rounded-lg border border-amber-200 mb-6">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-800 mb-1">Secure Access Code</h4>
+                      <p className="text-sm text-amber-700 mb-2">
+                        Share this code with people you want to invite:
+                      </p>
+                      <div className="bg-white px-4 py-2 rounded border border-amber-200 font-mono text-lg text-center">
+                        {generatedAccessCode}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             <Form {...form}>
@@ -297,6 +343,72 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
                           )}
                         />
                       </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="isSecure"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50 space-y-0">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base flex items-center">
+                                <ShieldCheck className="mr-2 h-4 w-4 text-amber-500" />
+                                Secure Study Session
+                              </FormLabel>
+                              <FormDescription className="text-xs">
+                                Restrict access with a passcode that only you can share
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked);
+                                  if (checked && !form.getValues('access_code')) {
+                                    generateAccessCode();
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {isSecure && (
+                        <FormField
+                          control={form.control}
+                          name="access_code"
+                          rules={{ required: "Access code is required for secure sessions" }}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-medium">Access Code</FormLabel>
+                              <div className="flex gap-2">
+                                <FormControl>
+                                  <div className="relative flex-1">
+                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                    <Input 
+                                      placeholder="Access code" 
+                                      className="pl-10 bg-gray-50 border-gray-200 font-mono"
+                                      {...field} 
+                                    />
+                                  </div>
+                                </FormControl>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={generateAccessCode}
+                                  className="shrink-0"
+                                >
+                                  Generate
+                                </Button>
+                              </div>
+                              <FormDescription className="text-xs">
+                                Only people with this code can join your study session
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </>
                   )}
                   
@@ -390,14 +502,14 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({ open, onOpenC
                                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                                     <Input 
                                       type="text" 
-                                      placeholder="Session password" 
+                                      placeholder="Meeting password" 
                                       className="pl-10 bg-gray-50 border-gray-200"
                                       {...field}
                                     />
                                   </div>
                                 </FormControl>
                                 <FormDescription className="text-xs">
-                                  Add a password if you want to restrict access
+                                  This is different from the access code - it's the password for your meeting service
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>
