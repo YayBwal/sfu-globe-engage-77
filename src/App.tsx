@@ -13,6 +13,10 @@ import Profile from '@/pages/Profile';
 import Marketplace from '@/pages/Marketplace';
 import Newsfeed from '@/pages/Newsfeed';
 import Friends from '@/pages/Friends';
+import GamingHub from '@/pages/gaming/GamingHub';
+import QuizHub from '@/pages/gaming/QuizHub';
+import GamesHub from '@/pages/gaming/GamesHub';
+import Leaderboard from '@/pages/gaming/Leaderboard';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -85,6 +89,13 @@ function App() {
                     <Route path="/marketplace" element={<Marketplace />} />
                     <Route path="/newsfeed" element={<Newsfeed />} />
                     <Route path="/friends" element={<Friends />} />
+                    
+                    {/* Gaming Hub Routes */}
+                    <Route path="/gaming" element={<GamingHub />} />
+                    <Route path="/gaming/quiz" element={<QuizHub />} />
+                    <Route path="/gaming/games" element={<GamesHub />} />
+                    <Route path="/gaming/leaderboard" element={<Leaderboard />} />
+                    
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                   <Toaster />

@@ -429,6 +429,33 @@ export type Database = {
           },
         ]
       }
+      game_results: {
+        Row: {
+          completed_at: string
+          game_type: string
+          id: string
+          metadata: Json | null
+          score: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          game_type: string
+          id?: string
+          metadata?: Json | null
+          score: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          game_type?: string
+          id?: string
+          metadata?: Json | null
+          score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       marketplace_items: {
         Row: {
           category: string
@@ -969,6 +996,18 @@ export type Database = {
           session_uuid: string
         }
         Returns: string
+      }
+      get_user_combined_score: {
+        Args: {
+          user_id: string
+        }
+        Returns: number
+      }
+      get_user_total_game_score: {
+        Args: {
+          user_id: string
+        }
+        Returns: number
       }
       get_user_total_score: {
         Args: {

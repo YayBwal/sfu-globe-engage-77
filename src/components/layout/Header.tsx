@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users } from 'lucide-react';
+import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
+import GamingNavigation from '@/components/gaming/GamingNavigation';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -117,6 +118,9 @@ const Header: React.FC = () => {
               {item.name}
             </Link>
           ))}
+          
+          {/* Gaming Hub Navigation */}
+          <GamingNavigation />
         </nav>
 
         {/* User Actions */}
@@ -184,6 +188,37 @@ const Header: React.FC = () => {
               {item.name}
             </Link>
           ))}
+
+          {/* Gaming Hub Links for Mobile */}
+          <div className="w-full border-t border-gray-100 pt-4">
+            <div className="text-lg font-medium text-sfu-black mb-2 flex items-center">
+              <Gamepad className="mr-2 h-5 w-5 text-purple-600" />
+              Gaming Hub
+            </div>
+            <div className="flex flex-col space-y-3 pl-7">
+              <Link
+                to="/gaming/quiz"
+                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+              >
+                <Award className="mr-2 h-4 w-4 text-indigo-500" />
+                Quizzes
+              </Link>
+              <Link
+                to="/gaming/games"
+                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+              >
+                <Puzzle className="mr-2 h-4 w-4 text-green-500" />
+                Mini Games
+              </Link>
+              <Link
+                to="/gaming/leaderboard"
+                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+              >
+                <BarChart className="mr-2 h-4 w-4 text-amber-500" />
+                Leaderboard
+              </Link>
+            </div>
+          </div>
           
           {!isAuthenticated && (
             <>
