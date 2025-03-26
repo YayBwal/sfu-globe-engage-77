@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -96,7 +95,8 @@ function App() {
                     <Route path="/gaming/games" element={<GamesHub />} />
                     <Route path="/gaming/leaderboard" element={<Leaderboard />} />
                     
-                    <Route path="*" element={<NotFound />} />
+                    <Route path="/not-found" element={<NotFound />} />
+                    <Route path="*" element={<Navigate to="/not-found" replace />} />
                   </Routes>
                   <Toaster />
                   <ChatBubble />

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ClubsList from "@/components/clubs/ClubsList";
@@ -8,6 +8,8 @@ import ClubDetail from "@/components/clubs/ClubDetail";
 import { ClubProvider } from "@/contexts/ClubContext";
 
 const Clubs = () => {
+  const location = useLocation();
+  
   return (
     <div className="min-h-screen bg-white">
       <ClubProvider>
@@ -27,6 +29,7 @@ const Clubs = () => {
             </main>
           } />
           <Route path=":id" element={<ClubDetail />} />
+          <Route path="*" element={<Navigate to="/not-found" replace />} />
         </Routes>
         <Footer />
       </ClubProvider>
