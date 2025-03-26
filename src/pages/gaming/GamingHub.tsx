@@ -48,7 +48,7 @@ const GamingHub = () => {
         >
           <motion.div variants={itemVariants} className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4 flex items-center justify-center">
-              <Gamepad className="mr-3 h-8 w-8 text-purple-600" />
+              <Gamepad className="mr-3 h-8 w-8 text-sfu-red" />
               Gaming Hub
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -58,7 +58,7 @@ const GamingHub = () => {
           
           <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-sfu-red to-red-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <Award className="h-5 w-5" />
                   <span>Quizzes</span>
@@ -71,14 +71,14 @@ const GamingHub = () => {
                 <p className="text-gray-600 mb-6">
                   Challenge yourself with a variety of quizzes across different subjects. Earn points and climb the leaderboard.
                 </p>
-                <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700">
+                <Button asChild className="w-full">
                   <Link to="/gaming/quiz">Start Quiz</Link>
                 </Button>
               </CardContent>
             </Card>
             
             <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-sfu-red to-red-800 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <Puzzle className="h-5 w-5" />
                   <span>Mini Games</span>
@@ -91,14 +91,14 @@ const GamingHub = () => {
                 <p className="text-gray-600 mb-6">
                   Enjoy a collection of mini-games designed to test your reflexes, memory, and problem-solving skills.
                 </p>
-                <Button asChild className="w-full bg-green-600 hover:bg-green-700">
+                <Button asChild className="w-full">
                   <Link to="/gaming/games">Play Games</Link>
                 </Button>
               </CardContent>
             </Card>
             
             <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-sfu-red to-red-900 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart className="h-5 w-5" />
                   <span>Leaderboard</span>
@@ -111,17 +111,17 @@ const GamingHub = () => {
                 <p className="text-gray-600 mb-6">
                   View the leaderboard to see how you rank against other players. Compete for the top spot!
                 </p>
-                <Button asChild className="w-full bg-amber-600 hover:bg-amber-700">
+                <Button asChild className="w-full">
                   <Link to="/gaming/leaderboard">View Rankings</Link>
                 </Button>
               </CardContent>
             </Card>
           </motion.div>
           
-          <motion.div variants={itemVariants} className="glass rounded-xl p-8 mb-12">
+          <motion.div variants={itemVariants} className="glass rounded-xl p-8 mb-12 border border-gray-200 shadow-sm">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="bg-purple-100 rounded-full p-5">
-                <Trophy className="h-12 w-12 text-purple-600" />
+              <div className="bg-sfu-red/10 rounded-full p-5">
+                <Trophy className="h-12 w-12 text-sfu-red" />
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">Ready to compete?</h3>
@@ -130,11 +130,11 @@ const GamingHub = () => {
                   Complete quizzes and play games to earn points and climb the leaderboard.
                 </p>
                 {isAuthenticated ? (
-                  <Button asChild className="bg-purple-600 hover:bg-purple-700">
+                  <Button asChild>
                     <Link to="/gaming/quiz">Start Playing Now</Link>
                   </Button>
                 ) : (
-                  <Button asChild className="bg-purple-600 hover:bg-purple-700">
+                  <Button asChild>
                     <Link to="/login">Sign in to Start</Link>
                   </Button>
                 )}
