@@ -30,18 +30,15 @@ export const setupStorageBuckets = async () => {
       });
     }
     
-    // Create additional policy for profile-images bucket to fix upload permission error
-    try {
-      const policyName = "Public access to profile-images";
-      await supabase.rpc('create_storage_policy', {
-        bucket_name: 'profile-images',
-        policy_name: policyName,
-        definition: `bucket_id = 'profile-images'`, 
-        operation: 'ALL',
-        role_name: 'anon'
+    // Instead of trying to create a policy for profile-images which causes the error,
+    // we'll make sure the bucket exists with the right permissions
+    const { data: profileImagesBucket, error: profileImagesBucketError } = await supabase.storage.getBucket('profile-images');
+    if (profileImagesBucketError && profileImagesBucketError.message.includes('The resource was not found')) {
+      await supabase.storage.createBucket('profile-images', {
+        public: true, // Make it public by default
+        fileSizeLimit: 1024 * 1024 * 2, // 2MB limit
       });
-    } catch (policyError) {
-      console.log('Policy might already exist or could not be created:', policyError);
+      console.log('Created profile-images bucket with public access');
     }
   } catch (error) {
     console.error('Error setting up storage buckets:', error);
@@ -67,7 +64,7 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
       }
       
       const { error: createError } = await supabase.storage.createBucket(bucketName, {
-        public: true,
+        public: true,  // Make all buckets public by default
         fileSizeLimit: fileSizeLimit,
       });
       
@@ -76,19 +73,7 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
         return false;
       }
       
-      // After creating the bucket, add public policies
-      try {
-        const policyName = `Public access to ${bucketName}`;
-        await supabase.rpc('create_storage_policy', {
-          bucket_name: bucketName,
-          policy_name: policyName,
-          definition: `bucket_id = '${bucketName}'`, 
-          operation: 'ALL',
-          role_name: 'anon'
-        });
-      } catch (policyError) {
-        console.log(`Policy for ${bucketName} might already exist:`, policyError);
-      }
+      console.log(`Successfully created bucket: ${bucketName}`);
     } else if (error) {
       console.error(`Error checking bucket ${bucketName}:`, error);
       return false;

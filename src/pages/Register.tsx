@@ -182,6 +182,13 @@ const Register = () => {
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-white to-gray-100">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-md">
         <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
+              alt="S1st Logo" 
+              className="h-16 w-auto" 
+            />
+          </div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create an account</h1>
           <p className="mt-2 text-gray-600">Join the student community</p>
         </div>

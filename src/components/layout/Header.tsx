@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +38,44 @@ const Header = () => {
     setActiveTab(location.pathname);
   }, [location]);
 
+  // Define nav items for consistent rendering and positioning
+  const navItems = [
+    { path: '/', label: 'Home', width: 50 },
+    { path: '/study', label: 'Study', width: 56 },
+    { path: '/clubs', label: 'Clubs', width: 56 },
+    { path: '/attendance', label: 'Attendance', width: 90 },
+    { path: '/marketplace', label: 'Marketplace', width: 96 },
+    { path: '/newsfeed', label: 'Newsfeed', width: 76 },
+    { path: '/friends', label: 'Friends', width: 64 },
+  ];
+  
+  if (isAdmin) {
+    navItems.push({ path: '/admin/review', label: 'Review', width: 65 });
+  }
+
+  // Calculate indicator position and width
+  const getIndicatorStyle = () => {
+    let leftPosition = 0;
+    let width = 0;
+    let found = false;
+    
+    for (let i = 0; i < navItems.length; i++) {
+      const item = navItems[i];
+      if (activeTab === item.path || 
+         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
+        width = item.width;
+        found = true;
+        break;
+      }
+      leftPosition += item.width + 24; // 24px for space-x-6
+    }
+    
+    return {
+      left: `${leftPosition}px`,
+      width: found ? `${width}px` : '0px',
+    };
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
       {isMobile && (
@@ -46,7 +83,7 @@ const Header = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
               <img 
-                src="/lovable-uploads/1a943c74-9571-4314-af02-4ff9e85fff9d.png" 
+                src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
                 alt="S1st Globe Logo" 
                 className="h-8 w-auto mr-2" 
               />
@@ -129,12 +166,10 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/1a943c74-9571-4314-af02-4ff9e85fff9d.png" 
+              src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
               alt="S1st Globe Logo" 
-              className="h-10 w-auto mr-2" 
+              className="h-12 w-auto mr-2" 
             />
-            <span className="font-bold text-xl text-red-600">S1st</span>
-            <span className="ml-1 text-gray-800 font-semibold">Globe</span>
           </Link>
         </div>
           
@@ -142,157 +177,23 @@ const Header = () => {
           <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
             <ul className="flex space-x-6 relative">
               <div 
-                className="absolute bottom-0 h-0.5 bg-red-600 transition-all duration-300 ease-in-out"
-                style={{
-                  left: (() => {
-                    const navItems = [
-                      { path: '/', width: 50 },
-                      { path: '/study', width: 56 },
-                      { path: '/clubs', width: 56 },
-                      { path: '/attendance', width: 90 },
-                      { path: '/marketplace', width: 96 },
-                      { path: '/newsfeed', width: 76 },
-                      { path: '/friends', width: 64 },
-                      { path: '/admin/review', width: 65 },
-                    ];
-                    
-                    let leftPosition = 0;
-                    let width = 0;
-                    
-                    for (let i = 0; i < navItems.length; i++) {
-                      const item = navItems[i];
-                      if (activeTab === item.path || 
-                         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
-                        width = item.width;
-                        break;
-                      }
-                      leftPosition += item.width + 24; // 24px for space-x-6
-                    }
-                    
-                    return `${leftPosition}px`;
-                  })(),
-                  width: (() => {
-                    const navItems = [
-                      { path: '/', width: 50 },
-                      { path: '/study', width: 56 },
-                      { path: '/clubs', width: 56 },
-                      { path: '/attendance', width: 90 },
-                      { path: '/marketplace', width: 96 },
-                      { path: '/newsfeed', width: 76 },
-                      { path: '/friends', width: 64 },
-                      { path: '/admin/review', width: 65 },
-                    ];
-                    
-                    for (const item of navItems) {
-                      if (activeTab === item.path || 
-                         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
-                        return `${item.width}px`;
-                      }
-                    }
-                    
-                    return '0px';
-                  })(),
-                }}
+                className="absolute bottom-0 h-[3px] bg-red-600 rounded-full transition-all duration-300 ease-in-out"
+                style={getIndicatorStyle()}
               />
-              <li>
-                <Link
-                  to="/"
-                  className={`${
-                    activeTab === '/'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/study"
-                  className={`${
-                    activeTab === '/study'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Study
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/clubs"
-                  className={`${
-                    activeTab.startsWith('/clubs')
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Clubs
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/attendance"
-                  className={`${
-                    activeTab === '/attendance'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Attendance
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/marketplace"
-                  className={`${
-                    activeTab === '/marketplace'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Marketplace
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/newsfeed"
-                  className={`${
-                    activeTab === '/newsfeed'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Newsfeed
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/friends"
-                  className={`${
-                    activeTab === '/friends'
-                      ? 'text-red-600 font-semibold'
-                      : 'text-gray-600 hover:text-red-600'
-                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
-                >
-                  Friends
-                </Link>
-              </li>
-              
-              {isAdmin && (
-                <li>
+              {navItems.map((item) => (
+                <li key={item.path}>
                   <Link
-                    to="/admin/review"
+                    to={item.path}
                     className={`${
-                      activeTab === '/admin/review'
+                      (activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs')))
                         ? 'text-red-600 font-semibold'
                         : 'text-gray-600 hover:text-red-600'
                     } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
                   >
-                    Review
+                    {item.label}
                   </Link>
                 </li>
-              )}
+              ))}
             </ul>
           </nav>
         )}
