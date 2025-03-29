@@ -110,8 +110,10 @@ const Register = () => {
           cacheControl: '3600',
           upsert: false,
           onUploadProgress: (progress) => {
-            const percent = (progress.loaded / progress.total) * 100;
-            setUploadProgress(Math.round(percent));
+            if (progress.total) {
+              const percent = (progress.loaded / progress.total) * 100;
+              setUploadProgress(Math.round(percent));
+            }
           },
         });
         
@@ -358,7 +360,12 @@ const Register = () => {
                             type="button"
                             variant="outline"
                             className="mt-2"
-                            onClick={() => document.querySelector('input[type="file"]')?.click()}
+                            onClick={() => {
+                              const fileInput = document.querySelector('input[type="file"]');
+                              if (fileInput) {
+                                fileInput.click();
+                              }
+                            }}
                             disabled={isUploading}
                           >
                             Select File
