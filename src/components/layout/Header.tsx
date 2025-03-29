@@ -43,7 +43,7 @@ const Header = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
               <img 
-                src="/lovable-uploads/534fee46-9698-4758-b6e0-0ab24e892ec4.png" 
+                src="/lovable-uploads/1a943c74-9571-4314-af02-4ff9e85fff9d.png" 
                 alt="S1st Globe Logo" 
                 className="h-8 w-auto mr-2" 
               />
@@ -126,7 +126,7 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/534fee46-9698-4758-b6e0-0ab24e892ec4.png" 
+              src="/lovable-uploads/1a943c74-9571-4314-af02-4ff9e85fff9d.png" 
               alt="S1st Globe Logo" 
               className="h-10 w-auto mr-2" 
             />
@@ -144,7 +144,7 @@ const Header = () => {
                       location.pathname === '/'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Home
                   </Link>
@@ -156,7 +156,7 @@ const Header = () => {
                       location.pathname === '/study'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Study
                   </Link>
@@ -168,7 +168,7 @@ const Header = () => {
                       location.pathname.startsWith('/clubs')
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Clubs
                   </Link>
@@ -180,7 +180,7 @@ const Header = () => {
                       location.pathname === '/attendance'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Attendance
                   </Link>
@@ -192,7 +192,7 @@ const Header = () => {
                       location.pathname === '/marketplace'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Marketplace
                   </Link>
@@ -204,7 +204,7 @@ const Header = () => {
                       location.pathname === '/newsfeed'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Newsfeed
                   </Link>
@@ -216,7 +216,7 @@ const Header = () => {
                       location.pathname === '/friends'
                         ? 'text-red-600 font-semibold border-red-600'
                         : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors`}
+                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                   >
                     Friends
                   </Link>
@@ -230,7 +230,7 @@ const Header = () => {
                         location.pathname === '/admin/review'
                           ? 'text-red-600 font-semibold border-red-600'
                           : 'text-gray-600 hover:text-red-600 border-transparent'
-                      } border-b-2 pb-1 transition-colors`}
+                      } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
                     >
                       Review
                     </Link>

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { School, Lock, ArrowLeft } from "lucide-react";
+import { School, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ const formSchema = z.object({
 const Login = () => {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,14 +59,14 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-100 flex flex-col items-center justify-center p-4">
-      <Link to="/" className="absolute top-4 left-4 text-sfu-black hover:text-sfu-red transition-colors">
+      <Link to="/" className="absolute top-4 left-4 text-sfu-black hover:text-red-600 transition-colors">
         <ArrowLeft className="h-6 w-6" />
         <span className="sr-only">Back to home</span>
       </Link>
       
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 space-y-8">
         <div className="text-center">
-          <div className="mx-auto w-12 h-12 bg-sfu-red rounded-xl flex items-center justify-center mb-4">
+          <div className="mx-auto w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center mb-4">
             <span className="text-white font-display font-bold text-lg">SG</span>
           </div>
           <h1 className="text-2xl font-display font-bold text-sfu-black">Welcome Back</h1>
@@ -100,7 +101,20 @@ const Login = () => {
                   <FormControl>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="password" className="pl-10" {...field} />
+                      <Input 
+                        type={showPassword ? "text" : "password"} 
+                        className="pl-10" 
+                        {...field} 
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -110,7 +124,7 @@ const Login = () => {
             
             <Button 
               type="submit" 
-              className="w-full bg-sfu-red hover:bg-sfu-red/90"
+              className="w-full bg-red-600 hover:bg-red-700"
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -121,7 +135,7 @@ const Login = () => {
         <div className="text-center text-sm">
           <p className="text-gray-500">
             Don't have an account?{" "}
-            <Link to="/register" className="text-sfu-red font-medium hover:underline">
+            <Link to="/register" className="text-red-600 font-medium hover:underline">
               Sign up
             </Link>
           </p>

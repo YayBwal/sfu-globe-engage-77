@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -25,7 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
 
@@ -51,6 +52,8 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -96,15 +99,15 @@ const Register = () => {
     try {
       setIsUploading(true);
       
-      // Create a unique filename with improved formatting
+      // Create a unique filename with improved formatting (avoid special characters)
       const timestamp = new Date().getTime();
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
       const fileName = `${timestamp}_${cleanFileName}`;
       
-      // Upload to Supabase storage - using a folder path without slashes
+      // Upload to Supabase storage - using a simplified structure
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(`student_id_photos_${fileName}`, file, {
+        .upload(`student_id_${timestamp}`, file, {
           cacheControl: '3600',
           upsert: false,
         });
@@ -114,7 +117,7 @@ const Register = () => {
       // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
-        .getPublicUrl(`student_id_photos_${fileName}`);
+        .getPublicUrl(`student_id_${timestamp}`);
       
       setPhotoUrl(publicUrlData.publicUrl);
       
@@ -221,7 +224,22 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <div className="relative">
+                        <Input 
+                          type={showPassword ? "text" : "password"} 
+                          placeholder="••••••••" 
+                          {...field} 
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -235,7 +253,22 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <div className="relative">
+                        <Input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          placeholder="••••••••" 
+                          {...field} 
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -336,6 +369,7 @@ const Register = () => {
                           <p className="text-xs text-gray-400">JPG, PNG, GIF up to 2MB</p>
                           <Input
                             {...field}
+                            id="file-upload"
                             type="file"
                             accept="image/*"
                             className="hidden" 
@@ -352,10 +386,7 @@ const Register = () => {
                             variant="outline"
                             className="mt-2"
                             onClick={() => {
-                              const fileInput = document.querySelector('input[type="file"]') as HTMLElement;
-                              if (fileInput) {
-                                (fileInput as HTMLInputElement).click();
-                              }
+                              document.getElementById('file-upload')?.click();
                             }}
                             disabled={isUploading}
                           >
@@ -417,7 +448,7 @@ const Register = () => {
         <div className="text-center mt-4">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/login" className="font-medium text-red-600 hover:text-red-500">
               Sign in
             </Link>
           </p>
