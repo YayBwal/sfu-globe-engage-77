@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,6 +172,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
   };
 
   const initiateVideoCall = () => {
+    // Fixed: Added null check to prevent accessing properties of undefined objects
     const recipient = currentRecipient || student;
     if (!recipient?.online) {
       toast({
@@ -213,7 +215,9 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
     }
   };
 
-  const displayName = currentRecipient?.name || student?.name || sessionSubject || "Chat";
+  // Fixed: Added null check and fallback values to prevent accessing properties of undefined objects
+  const recipient = currentRecipient || student;
+  const displayName = sessionSubject || (recipient ? recipient.name : "Chat");
 
   // If we're in a session context but not open, don't render
   if (sessionId && isOpen === false) {
@@ -232,17 +236,17 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-display font-semibold">{displayName}</h2>
-              {(student?.online || currentRecipient?.online) && (
-                <span className={`w-2 h-2 rounded-full ${(student?.online || currentRecipient?.online) ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+              {(recipient?.online) && (
+                <span className={`w-2 h-2 rounded-full ${recipient?.online ? 'bg-green-500' : 'bg-gray-300'}`}></span>
               )}
             </div>
-            {(student?.course || currentRecipient?.major) && (
+            {(recipient?.course || recipient?.major) && (
               <div className="text-xs text-gray-500">
-                {student?.course || currentRecipient?.major} 
-                {(student?.major || currentRecipient?.batch) && ` • ${student?.major || currentRecipient?.batch}`}
+                {recipient?.course || recipient?.major} 
+                {(recipient?.major || recipient?.batch) && ` • ${recipient?.major || recipient?.batch}`}
               </div>
             )}
-            {sessionSubject && !student?.course && !currentRecipient?.major && (
+            {sessionSubject && !recipient?.course && !recipient?.major && (
               <div className="text-xs text-gray-500">Study Session</div>
             )}
           </div>
@@ -261,9 +265,9 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             <Button 
               variant="outline" 
               size="sm"
-              disabled={isCallPending || !(student?.online || currentRecipient?.online)}
+              disabled={isCallPending || !(recipient?.online)}
               onClick={initiateVideoCall}
-              className={!(student?.online || currentRecipient?.online) ? "opacity-50" : ""}
+              className={!(recipient?.online) ? "opacity-50" : ""}
             >
               <Video className="h-4 w-4 mr-1" />
               {isCallPending ? "Calling..." : "Video Call"}

@@ -33,7 +33,6 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ text: string; sender: string; timestamp: Date }[]>([]);
   
   // Function to handle joining a session
   const handleJoinSession = async (session: StudySession) => {
@@ -127,14 +126,6 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
     } finally {
       setIsJoining(false);
     }
-  };
-  
-  // Generate a shareable link
-  const getShareableLink = (session: StudySession) => {
-    if (!session.access_code) return '';
-    
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/study?session=${session.id}&code=${session.access_code}`;
   };
   
   // Close the messaging panel
