@@ -1,15 +1,19 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Award, BookOpen, CheckCircle, Clock, Star, ArrowLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import BackButton from '@/components/gaming/BackButton';
+import { Award, BookOpen, CheckCircle, Clock, Star, ArrowLeft, ChevronRight, AlertCircle, Upload, File, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
 
 // Sample quiz data
 const sampleQuizzes = [
@@ -98,6 +102,10 @@ const QuizHub = () => {
   const [quizzes, setQuizzes] = useState(sampleQuizzes);
   const [myResults, setMyResults] = useState(sampleResults);
   const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [generatedQuizzes, setGeneratedQuizzes] = useState<any[]>([]);
   
   // Quiz taking state
   const [currentQuiz, setCurrentQuiz] = useState<any>(null);
@@ -244,6 +252,70 @@ const QuizHub = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!file) return;
+    
+    try {
+      setFileUploading(true);
+      
+      // Mock the file upload and quiz generation process
+      // In a real app, this would call an API endpoint to process the file and generate a quiz
+      setTimeout(() => {
+        const newQuiz = {
+          id: `generated-${Date.now()}`,
+          title: `Quiz from ${file.name}`,
+          description: "Automatically generated from your uploaded content",
+          total_questions: 5,
+          questions: [
+            {
+              id: "gq1",
+              question: "What is the main topic of the uploaded document?",
+              options: ["Topic A", "Topic B", "Topic C", "Topic D"],
+              correct_answer: 0
+            },
+            {
+              id: "gq2",
+              question: "According to the document, which of the following is true?",
+              options: ["Statement 1", "Statement 2", "Statement 3", "Statement 4"],
+              correct_answer: 1
+            },
+            {
+              id: "gq3",
+              question: "What conclusion can be drawn from the content?",
+              options: ["Conclusion A", "Conclusion B", "Conclusion C", "Conclusion D"],
+              correct_answer: 2
+            }
+          ]
+        };
+        
+        setGeneratedQuizzes(prev => [newQuiz, ...prev]);
+        setQuizzes(prev => [newQuiz, ...prev]);
+        setFile(null);
+        setFileUploading(false);
+        
+        toast({
+          title: "Quiz Generated!",
+          description: "A new quiz has been created based on your document.",
+          variant: "default",
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setFileUploading(false);
+      toast({
+        title: "Upload Error",
+        description: "There was a problem processing your file.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Header />
@@ -258,22 +330,11 @@ const QuizHub = () => {
           {currentQuiz ? (
             // Quiz taking view
             <motion.div variants={itemVariants}>
-              <div className="flex items-center mb-6">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => {
-                    setCurrentQuiz(null);
-                    navigate('/gaming/quiz');
-                  }}
-                  className="mr-4"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Quizzes
-                </Button>
-                <h1 className="text-2xl md:text-3xl font-bold">
-                  {currentQuiz.title}
-                </h1>
-              </div>
+              <BackButton to="/gaming/quiz" label="Back to Quizzes" />
+              
+              <h1 className="text-2xl md:text-3xl font-bold mb-6">
+                {currentQuiz.title}
+              </h1>
               
               {quizCompleted ? (
                 // Quiz results
@@ -404,6 +465,8 @@ const QuizHub = () => {
           ) : (
             // Quiz hub view
             <>
+              <BackButton to="/gaming" label="Back to Gaming Hub" />
+              
               <motion.div variants={itemVariants} className="text-center mb-12">
                 <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4 flex items-center justify-center">
                   <Award className="mr-3 h-8 w-8 text-indigo-600" />
@@ -427,46 +490,119 @@ const QuizHub = () => {
                     </TabsList>
                     
                     <TabsContent value="available" className="space-y-4">
-                      {loading ? (
-                        <div className="text-center py-12">
-                          <p className="text-gray-600">Loading quizzes...</p>
-                        </div>
-                      ) : quizzes.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {quizzes.map((quiz) => (
-                            <Card key={quiz.id} className="hover:shadow-md transition-shadow">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="flex items-center gap-2">
-                                  <BookOpen className="h-5 w-5 text-indigo-600" />
-                                  <span>{quiz.title}</span>
-                                </CardTitle>
-                                <CardDescription>
-                                  {quiz.description || 'Test your knowledge with this quiz'}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                                  <div className="flex items-center">
-                                    <CheckCircle className="h-4 w-4 mr-1 text-indigo-600" />
-                                    <span>{quiz.total_questions} questions</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="h-4 w-4 mr-1 text-indigo-600" />
-                                    <span>~{Math.ceil(quiz.total_questions * 0.5)} min</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* File Upload Section */}
+                        <Card className="md:col-span-1">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <Upload className="h-5 w-5 text-indigo-600" />
+                              <span>Generate Quiz</span>
+                            </CardTitle>
+                            <CardDescription>
+                              Upload a file to generate a custom quiz based on its content
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="file-upload">Upload Document</Label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                                  <Input 
+                                    id="file-upload" 
+                                    type="file" 
+                                    className="hidden" 
+                                    onChange={handleFileChange}
+                                    accept=".pdf,.docx,.pptx,.txt,image/*"
+                                  />
+                                  <Label 
+                                    htmlFor="file-upload" 
+                                    className="cursor-pointer flex flex-col items-center"
+                                  >
+                                    <FileText className="h-10 w-10 text-gray-400 mb-2" />
+                                    {file ? (
+                                      <span className="text-sm text-gray-700 font-medium">{file.name}</span>
+                                    ) : (
+                                      <>
+                                        <span className="text-sm font-medium text-indigo-600">Click to upload</span>
+                                        <span className="text-xs text-gray-500 mt-1">PDF, DOCX, PPTX, or images</span>
+                                      </>
+                                    )}
+                                  </Label>
+                                </div>
+                              </div>
+
+                              <Button 
+                                className="w-full"
+                                disabled={!file || fileUploading}
+                                onClick={handleFileUpload}
+                              >
+                                {fileUploading ? "Generating..." : "Generate Quiz"}
+                              </Button>
+
+                              {generatedQuizzes.length > 0 && (
+                                <div className="space-y-2 mt-4">
+                                  <h3 className="text-sm font-medium">Generated Quizzes</h3>
+                                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {generatedQuizzes.map((quiz) => (
+                                      <div 
+                                        key={quiz.id} 
+                                        className="p-2 bg-indigo-50 rounded text-sm hover:bg-indigo-100 cursor-pointer"
+                                        onClick={() => navigate(`/gaming/quiz/${quiz.id}`)}
+                                      >
+                                        {quiz.title}
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
-                                <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700">
-                                  <Link to={`/gaming/quiz/${quiz.id}`}>Start Quiz</Link>
-                                </Button>
-                              </CardContent>
-                            </Card>
-                          ))}
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Available Quizzes */}
+                        <div className="md:col-span-2">
+                          {loading ? (
+                            <div className="text-center py-12">
+                              <p className="text-gray-600">Loading quizzes...</p>
+                            </div>
+                          ) : quizzes.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {quizzes.map((quiz) => (
+                                <Card key={quiz.id} className="hover:shadow-md transition-shadow">
+                                  <CardHeader className="pb-2">
+                                    <CardTitle className="flex items-center gap-2">
+                                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                                      <span>{quiz.title}</span>
+                                    </CardTitle>
+                                    <CardDescription>
+                                      {quiz.description || 'Test your knowledge with this quiz'}
+                                    </CardDescription>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                                      <div className="flex items-center">
+                                        <CheckCircle className="h-4 w-4 mr-1 text-indigo-600" />
+                                        <span>{quiz.total_questions} questions</span>
+                                      </div>
+                                      <div className="flex items-center">
+                                        <Clock className="h-4 w-4 mr-1 text-indigo-600" />
+                                        <span>~{Math.ceil(quiz.total_questions * 0.5)} min</span>
+                                      </div>
+                                    </div>
+                                    <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700">
+                                      <Link to={`/gaming/quiz/${quiz.id}`}>Start Quiz</Link>
+                                    </Button>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-12">
+                              <p className="text-gray-600">No quizzes available at the moment. Check back later!</p>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <p className="text-gray-600">No quizzes available at the moment. Check back later!</p>
-                        </div>
-                      )}
+                      </div>
                     </TabsContent>
                     
                     <TabsContent value="my-results" className="space-y-4">

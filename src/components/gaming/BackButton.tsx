@@ -7,9 +7,10 @@ import { ArrowLeft, Home } from 'lucide-react';
 interface BackButtonProps {
   to?: string;
   label?: string;
+  showHomeLink?: boolean;
 }
 
-const BackButton = ({ to, label = 'Back' }: BackButtonProps) => {
+const BackButton = ({ to, label = 'Back', showHomeLink = true }: BackButtonProps) => {
   const navigate = useNavigate();
   
   const handleClick = () => {
@@ -34,17 +35,19 @@ const BackButton = ({ to, label = 'Back' }: BackButtonProps) => {
         {label}
       </Button>
       
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
-        className="flex items-center gap-1"
-      >
-        <Link to="/gaming">
-          <Home size={16} />
-          Gaming Hub
-        </Link>
-      </Button>
+      {showHomeLink && (
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="flex items-center gap-1"
+        >
+          <Link to="/gaming">
+            <Home size={16} />
+            Gaming Hub
+          </Link>
+        </Button>
+      )}
     </div>
   );
 };
