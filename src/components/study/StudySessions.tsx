@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { StudySession } from '@/pages/Study';
-import { MapPin, Clock, Users, ExternalLink, Loader2, Lock, MessageSquare, Copy, Check } from 'lucide-react';
+import { MapPin, Clock, Users, ExternalLink, Loader2, Lock, MessageSquare, Copy, Check, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +37,32 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
   const [messages, setMessages] = useState<{ text: string; sender: string; timestamp: Date }[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [joinedSessions, setJoinedSessions] = useState<string[]>([]);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  // Check which sessions the user has already joined
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchJoinedSessions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('session_participants')
+          .select('session_id')
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        if (data) {
+          setJoinedSessions(data.map(item => item.session_id));
+        }
+      } catch (error) {
+        console.error('Error fetching joined sessions:', error);
+      }
+    };
+    
+    fetchJoinedSessions();
+  }, [user]);
 
   // Add real-time subscription to session participants
   useEffect(() => {
@@ -56,6 +82,11 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
         (payload) => {
           console.log('Session participants changed:', payload);
           refetchSessions();
+          
+          // If this is a new participant and it's the current user, add to joinedSessions
+          if (payload.eventType === 'INSERT' && payload.new && payload.new.user_id === user?.id) {
+            setJoinedSessions(prev => [...prev, payload.new.session_id]);
+          }
         }
       )
       .subscribe();
@@ -81,11 +112,13 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
               .eq('id', payload.new.user_id)
               .single();
             
+            const senderName = userData?.name || 'Unknown';
+            
             setMessages(prev => [
               ...prev,
               {
                 text: payload.new.content,
-                sender: payload.new.user_id === user?.id ? 'me' : userData?.name || 'Unknown',
+                sender: payload.new.user_id === user?.id ? 'me' : senderName,
                 timestamp: new Date(payload.new.created_at)
               }
             ]);
@@ -108,7 +141,13 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
       try {
         const { data, error } = await supabase
           .from('session_messages')
-          .select('*, profiles(name)')
+          .select(`
+            id,
+            content,
+            created_at,
+            user_id,
+            profiles:profiles!inner(name)
+          `)
           .eq('session_id', selectedSession.id)
           .order('created_at', { ascending: true });
 
@@ -117,7 +156,7 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
         if (data) {
           const formattedMessages = data.map(msg => ({
             text: msg.content,
-            sender: msg.user_id === user?.id ? 'me' : msg.profiles?.name || 'Unknown',
+            sender: msg.user_id === user?.id ? 'me' : msg.profiles.name || 'Unknown',
             timestamp: new Date(msg.created_at)
           }));
           setMessages(formattedMessages);
@@ -138,6 +177,15 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
         variant: "destructive",
       });
       navigate('/login?redirect=/study');
+      return;
+    }
+
+    // Check if already joined
+    if (joinedSessions.includes(session.id)) {
+      toast({
+        title: "Already joined",
+        description: "You are already participating in this session",
+      });
       return;
     }
 
@@ -169,11 +217,15 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
           description: "You are already participating in this session",
         });
         
+        // Update local state to reflect joined status
+        if (!joinedSessions.includes(sessionId)) {
+          setJoinedSessions(prev => [...prev, sessionId]);
+        }
+        
         // Select the session to show chat
         const session = upcomingSessions.find(s => s.id === sessionId);
         if (session) {
           setSelectedSession(session);
-          setIsChatOpen(true);
         }
         return;
       }
@@ -189,11 +241,13 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
 
       if (error) throw error;
 
+      // Update local state to reflect joined status
+      setJoinedSessions(prev => [...prev, sessionId]);
+
       // Select the session to show chat
       const session = upcomingSessions.find(s => s.id === sessionId);
       if (session) {
         setSelectedSession(session);
-        setIsChatOpen(true);
       }
 
       toast({
@@ -227,6 +281,11 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewDetails = (session: StudySession) => {
+    setSelectedSession(session);
+    setIsDetailsModalOpen(true);
   };
 
   const handleSendMessage = async (text: string) => {
@@ -273,6 +332,10 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
 
   const isSessionHost = (session: StudySession) => {
     return user?.id === session.host_id;
+  };
+
+  const isUserJoined = (sessionId: string) => {
+    return joinedSessions.includes(sessionId);
   };
 
   const container = {
@@ -379,6 +442,18 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  {isUserJoined(session.id) && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => handleViewDetails(session)}
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span className="hidden sm:inline">View Details</span>
+                    </Button>
+                  )}
+                  
                   <Sheet
                     open={isChatOpen && selectedSession?.id === session.id}
                     onOpenChange={(isOpen) => {
@@ -426,13 +501,15 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
                   <Button
                     onClick={() => handleJoin(session)}
                     disabled={joiningSessionId === session.id}
-                    className="bg-sfu-red hover:bg-sfu-red/90"
+                    className={isUserJoined(session.id) ? "bg-green-600 hover:bg-green-700" : "bg-sfu-red hover:bg-sfu-red/90"}
                   >
                     {joiningSessionId === session.id ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         Joining...
                       </>
+                    ) : isUserJoined(session.id) ? (
+                      'Joined Session'
                     ) : (
                       'Join Session'
                     )}
@@ -483,6 +560,100 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
               Join Session
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Session Details Modal */}
+      <Dialog
+        open={isDetailsModalOpen}
+        onOpenChange={setIsDetailsModalOpen}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Study Session Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedSession && (
+            <div className="py-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold">{selectedSession.subject}</h3>
+                <p className="text-sm text-gray-500">
+                  {format(new Date(selectedSession.date), 'EEEE, MMMM d, yyyy • h:mm a')}
+                </p>
+              </div>
+              
+              <div className="grid gap-4">
+                <div className="flex items-start gap-2">
+                  <div className="mt-1">
+                    {selectedSession.type === 'offline' ? (
+                      <MapPin className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ExternalLink className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">Location</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedSession.type === 'offline' 
+                        ? selectedSession.location 
+                        : 'Online Session'
+                      }
+                      {selectedSession.meeting_link && (
+                        <a 
+                          href={selectedSession.meeting_link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block text-blue-600 hover:underline mt-1"
+                        >
+                          Join Meeting Link
+                        </a>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Users className="h-5 w-5 text-gray-500 mt-1" />
+                  <div>
+                    <p className="font-medium">Participants</p>
+                    <p className="text-sm text-gray-600">{selectedSession.participants} people joined</p>
+                  </div>
+                </div>
+                
+                {selectedSession.description && (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1">
+                      <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium">Description</p>
+                      <p className="text-sm text-gray-600">{selectedSession.description}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDetailsModalOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setIsChatOpen(true);
+                    setIsDetailsModalOpen(false);
+                  }}
+                  className="bg-sfu-red hover:bg-sfu-red/90"
+                >
+                  Open Chat
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
