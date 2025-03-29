@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +54,14 @@ const Header = () => {
     navItems.push({ path: '/admin/review', label: 'Review' });
   }
 
+  // Helper function to determine if a nav item is active
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return activeTab === path;
+    }
+    return activeTab === path || (path !== '/' && activeTab.startsWith(path));
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
       {isMobile && (
@@ -72,48 +81,18 @@ const Header = () => {
           </div>
           <nav className="p-4">
             <ul className="space-y-4">
-              <li>
-                <Link to="/" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link to="/study" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Study
-                </Link>
-              </li>
-              <li>
-                <Link to="/clubs" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Clubs
-                </Link>
-              </li>
-              <li>
-                <Link to="/attendance" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Attendance
-                </Link>
-              </li>
-              <li>
-                <Link to="/marketplace" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Marketplace
-                </Link>
-              </li>
-              <li>
-                <Link to="/newsfeed" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Newsfeed
-                </Link>
-              </li>
-              <li>
-                <Link to="/friends" className="block text-gray-700 hover:text-red-600 font-medium">
-                  Friends
-                </Link>
-              </li>
-              {isAdmin && (
-                <li>
-                  <Link to="/admin/review" className="block text-gray-700 hover:text-red-600 font-medium">
-                    Review
+              {navItems.map((item) => (
+                <li key={item.path}>
+                  <Link 
+                    to={item.path} 
+                    className={`block text-gray-700 hover:text-red-600 font-medium ${
+                      isActive(item.path) ? 'text-red-600 font-semibold' : ''
+                    }`}
+                  >
+                    {item.label}
                   </Link>
                 </li>
-              )}
+              ))}
               {isAuthenticated ? (
                 <li>
                   <button onClick={logout} className="block text-gray-700 hover:text-red-600 font-medium">
@@ -154,20 +133,22 @@ const Header = () => {
           <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
             <ul className="flex space-x-6 relative">
               {navItems.map((item) => (
-                <li key={item.path} className="relative">
+                <li key={item.path} className="relative group">
                   <Link
                     to={item.path}
                     className={`${
-                      (activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs')))
+                      isActive(item.path)
                         ? 'text-red-600 font-semibold'
                         : 'text-gray-600 hover:text-red-600'
                     } py-2 block transition-colors duration-200 hover:scale-105`}
                   >
                     {item.label}
                   </Link>
-                  {(activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs'))) && (
-                    <span className="absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full transition-all duration-300 ease-in-out transform" />
-                  )}
+                  <span 
+                    className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
+                      transition-all duration-300 ease-in-out transform 
+                      ${isActive(item.path) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'}`} 
+                  />
                 </li>
               ))}
             </ul>

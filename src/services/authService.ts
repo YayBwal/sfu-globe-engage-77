@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -10,52 +9,53 @@ export const registerUser = async (
   batch: string,
   studentIdPhoto?: string
 ): Promise<void> => {
-  // First check if the student ID already exists in the profiles table
-  const { data: existingProfile, error: checkError } = await supabase
-    .from('profiles')
-    .select('student_id')
-    .eq('student_id', studentId)
-    .single();
-  
-  if (checkError && checkError.code !== 'PGRST116') {
-    // PGRST116 is the error code for "no rows returned" which is what we want
-    throw checkError;
-  }
-  
-  if (existingProfile) {
-    throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
-  }
-
-  // Then check if the email already exists
-  const { data: existingAuth, error: emailCheckError } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: false
+  try {
+    // First check if the student ID already exists in the profiles table
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('student_id')
+      .eq('student_id', studentId)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error("Error checking for existing profile:", checkError);
+      throw new Error('Error checking for existing student ID. Please try again.');
     }
-  });
+    
+    if (existingProfile) {
+      throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
+    }
 
-  // If authentication attempt doesn't error with "user not found", the email exists
-  if (existingAuth?.user) {
-    throw new Error('A user with this email already exists. Please use a different email or try logging in.');
-  }
-  
-  // Now proceed with registration since both checks passed
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        student_id: studentId,
-        major,
-        batch,
-        student_id_photo: studentIdPhoto,
-        approval_status: 'pending'
+    // Check if the email already exists
+    const { data: { user: existingUser }, error: emailError } = await supabase.auth.admin.getUserByEmail(email);
+    
+    if (existingUser) {
+      throw new Error('A user with this email already exists. Please use a different email or try logging in.');
+    }
+    
+    // Now proceed with registration since both checks passed
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          student_id: studentId,
+          major,
+          batch,
+          student_id_photo: studentIdPhoto,
+          approval_status: 'pending'
+        }
       }
-    }
-  });
+    });
 
-  if (error) {
+    if (error) {
+      throw error;
+    }
+  } catch (error: any) {
+    if (error.message.includes('duplicate key')) {
+      throw new Error('A user with this Student ID or email already exists. Please try a different one or contact support.');
+    }
     throw error;
   }
 };
@@ -178,6 +178,21 @@ export const logoutUser = async (): Promise<void> => {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
+    throw error;
+  }
+};
+
+export const resetPassword = async (email: string): Promise<void> => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/update-password',
+    });
+    
+    if (error) {
+      throw error;
+    }
+  } catch (error: any) {
+    console.error("Password reset error:", error);
     throw error;
   }
 };

@@ -18,22 +18,45 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { resetPassword } from "@/services/authService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const formSchema = z.object({
   identifier: z.string().min(1, { message: "Student ID or Email is required." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
+const resetPasswordSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+});
+
 const Login = () => {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       identifier: "",
       password: "",
+    },
+  });
+
+  const resetForm = useForm<z.infer<typeof resetPasswordSchema>>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      email: "",
     },
   });
 
@@ -46,7 +69,7 @@ const Login = () => {
         description: "You have been logged in successfully",
       });
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Login failed:", error);
       toast({
         title: "Login failed",
         description: error.message || "There was a problem logging in",
@@ -54,6 +77,28 @@ const Login = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleResetPassword(values: z.infer<typeof resetPasswordSchema>) {
+    setIsResettingPassword(true);
+    try {
+      await resetPassword(values.email);
+      toast({
+        title: "Password reset email sent",
+        description: "Please check your email for instructions to reset your password",
+      });
+      setIsResetPasswordOpen(false);
+      resetForm.reset();
+    } catch (error: any) {
+      console.error("Password reset failed:", error);
+      toast({
+        title: "Password reset failed",
+        description: error.message || "There was a problem sending the password reset email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResettingPassword(false);
     }
   }
 
@@ -121,6 +166,52 @@ const Login = () => {
                 </FormItem>
               )}
             />
+            
+            <div className="flex justify-end">
+              <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="link" className="text-sm text-red-600 p-0 h-auto" type="button">
+                    Forgot password?
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Reset Password</DialogTitle>
+                    <DialogDescription>
+                      Enter your email address and we'll send you a link to reset your password.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <Form {...resetForm}>
+                    <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-4">
+                      <FormField
+                        control={resetForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="your@email.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <DialogFooter>
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={isResettingPassword}
+                        >
+                          {isResettingPassword ? "Sending..." : "Send Reset Link"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
             
             <Button 
               type="submit" 
