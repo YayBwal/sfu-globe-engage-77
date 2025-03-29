@@ -170,7 +170,7 @@ const Header: React.FC = () => {
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - Fixed the background to be solid white with no transparency */}
       <div className={cn(
         "fixed inset-0 z-40 bg-white p-4 pt-20 transform transition-transform duration-300 ease-in-out md:hidden",
         isMenuOpen ? "translate-x-0" : "translate-x-full"
