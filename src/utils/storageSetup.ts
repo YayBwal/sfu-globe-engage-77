@@ -10,6 +10,14 @@ export const setupStorageBuckets = async () => {
         public: true,
         fileSizeLimit: 1024 * 1024 * 3, // 3MB limit
       });
+      
+      // Create RLS policy for public access to gaming-images bucket
+      const { error: policyError } = await supabase.rpc('create_storage_policy', {
+        bucket_name: 'gaming-images',
+        policy_name: 'Public Access Policy'
+      });
+      
+      if (policyError) console.error('Error creating policy for gaming-images:', policyError);
     }
     
     // Check if post-images bucket exists and create it if it doesn't
@@ -19,6 +27,14 @@ export const setupStorageBuckets = async () => {
         public: true,
         fileSizeLimit: 1024 * 1024 * 5, // 5MB limit
       });
+      
+      // Create RLS policy for public access to post-images bucket
+      const { error: policyError } = await supabase.rpc('create_storage_policy', {
+        bucket_name: 'post-images',
+        policy_name: 'Public Access Policy'
+      });
+      
+      if (policyError) console.error('Error creating policy for post-images:', policyError);
     }
     
     // Create post-videos bucket if it doesn't exist
@@ -28,17 +44,52 @@ export const setupStorageBuckets = async () => {
         public: true,
         fileSizeLimit: 1024 * 1024 * 50, // 50MB limit
       });
+      
+      // Create RLS policy for public access to post-videos bucket
+      const { error: policyError } = await supabase.rpc('create_storage_policy', {
+        bucket_name: 'post-videos',
+        policy_name: 'Public Access Policy'
+      });
+      
+      if (policyError) console.error('Error creating policy for post-videos:', policyError);
     }
     
-    // Instead of trying to create a policy for profile-images which causes the error,
-    // we'll make sure the bucket exists with the right permissions
+    // Check if profile-images bucket exists and create it if it doesn't
     const { data: profileImagesBucket, error: profileImagesBucketError } = await supabase.storage.getBucket('profile-images');
     if (profileImagesBucketError && profileImagesBucketError.message.includes('The resource was not found')) {
       await supabase.storage.createBucket('profile-images', {
         public: true, // Make it public by default
         fileSizeLimit: 1024 * 1024 * 2, // 2MB limit
       });
-      console.log('Created profile-images bucket with public access');
+      
+      try {
+        // Create explicit policies for profile-images bucket
+        await supabase.rpc('create_comprehensive_storage_policies', {
+          bucket_name: 'profile-images'
+        });
+        console.log('Created comprehensive policies for profile-images bucket');
+      } catch (policyError) {
+        console.error('Error creating policies for profile-images:', policyError);
+        
+        // Fallback: try to create RPC function if it doesn't exist
+        const { error: rpcError } = await supabase.rpc('create_storage_rpc_function');
+        if (!rpcError) {
+          // Try again with the newly created function
+          await supabase.rpc('create_comprehensive_storage_policies', {
+            bucket_name: 'profile-images'
+          });
+        }
+      }
+    }
+    
+    // Additional RLS management for existing profile-images bucket
+    if (!profileImagesBucketError) {
+      try {
+        // Attempt to create or update policies for existing bucket
+        await supabase.rpc('ensure_profile_images_policies');
+      } catch (err) {
+        console.error('Error updating policies for existing profile-images bucket:', err);
+      }
     }
   } catch (error) {
     console.error('Error setting up storage buckets:', error);
@@ -71,6 +122,15 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
       if (createError) {
         console.error(`Error creating bucket ${bucketName}:`, createError);
         return false;
+      }
+      
+      // Create public access policies for the new bucket
+      try {
+        await supabase.rpc('create_comprehensive_storage_policies', {
+          bucket_name: bucketName
+        });
+      } catch (policyError) {
+        console.error(`Error creating policies for ${bucketName}:`, policyError);
       }
       
       console.log(`Successfully created bucket: ${bucketName}`);

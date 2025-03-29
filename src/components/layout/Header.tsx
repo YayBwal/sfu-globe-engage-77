@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,41 +41,18 @@ const Header = () => {
 
   // Define nav items for consistent rendering and positioning
   const navItems = [
-    { path: '/', label: 'Home', width: 50 },
-    { path: '/study', label: 'Study', width: 56 },
-    { path: '/clubs', label: 'Clubs', width: 56 },
-    { path: '/attendance', label: 'Attendance', width: 90 },
-    { path: '/marketplace', label: 'Marketplace', width: 96 },
-    { path: '/newsfeed', label: 'Newsfeed', width: 76 },
-    { path: '/friends', label: 'Friends', width: 64 },
+    { path: '/', label: 'Home' },
+    { path: '/study', label: 'Study' },
+    { path: '/clubs', label: 'Clubs' },
+    { path: '/attendance', label: 'Attendance' },
+    { path: '/marketplace', label: 'Marketplace' },
+    { path: '/newsfeed', label: 'Newsfeed' },
+    { path: '/friends', label: 'Friends' },
   ];
   
   if (isAdmin) {
-    navItems.push({ path: '/admin/review', label: 'Review', width: 65 });
+    navItems.push({ path: '/admin/review', label: 'Review' });
   }
-
-  // Calculate indicator position and width
-  const getIndicatorStyle = () => {
-    let leftPosition = 0;
-    let width = 0;
-    let found = false;
-    
-    for (let i = 0; i < navItems.length; i++) {
-      const item = navItems[i];
-      if (activeTab === item.path || 
-         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
-        width = item.width;
-        found = true;
-        break;
-      }
-      leftPosition += item.width + 24; // 24px for space-x-6
-    }
-    
-    return {
-      left: `${leftPosition}px`,
-      width: found ? `${width}px` : '0px',
-    };
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
@@ -83,7 +61,7 @@ const Header = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
               <img 
-                src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
+                src="/lovable-uploads/408379a6-aa7b-4337-bca8-d96cfa744243.png" 
                 alt="S1st Globe Logo" 
                 className="h-8 w-auto mr-2" 
               />
@@ -166,7 +144,7 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
+              src="/lovable-uploads/408379a6-aa7b-4337-bca8-d96cfa744243.png" 
               alt="S1st Globe Logo" 
               className="h-12 w-auto mr-2" 
             />
@@ -176,22 +154,21 @@ const Header = () => {
         {isAuthenticated && (
           <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
             <ul className="flex space-x-6 relative">
-              <div 
-                className="absolute bottom-0 h-[3px] bg-red-600 rounded-full transition-all duration-300 ease-in-out"
-                style={getIndicatorStyle()}
-              />
-              {navItems.map((item) => (
-                <li key={item.path}>
+              {navItems.map((item, index) => (
+                <li key={item.path} className="relative">
                   <Link
                     to={item.path}
                     className={`${
                       (activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs')))
                         ? 'text-red-600 font-semibold'
                         : 'text-gray-600 hover:text-red-600'
-                    } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                    } py-2 block transition-colors duration-200 hover:scale-105`}
                   >
                     {item.label}
                   </Link>
+                  {(activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs'))) && (
+                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 transition-all duration-300 ease-in-out rounded-full" />
+                  )}
                 </li>
               ))}
             </ul>
