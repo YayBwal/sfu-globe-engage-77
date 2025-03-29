@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,11 +39,15 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
       {isMobile && (
-        <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
-              <span className="font-bold text-xl text-sfu-red">SFU</span>
-              <span className="ml-1 text-gray-800 font-semibold">Student</span>
+              <img 
+                src="/lovable-uploads/534fee46-9698-4758-b6e0-0ab24e892ec4.png" 
+                alt="S1st Globe Logo" 
+                className="h-8 w-auto mr-2" 
+              />
+              <span className="ml-1 text-gray-800 font-semibold">S1st Globe</span>
             </Link>
             <button onClick={toggleMenu} className="p-2">
               <X className="h-6 w-6" />
@@ -51,62 +56,62 @@ const Header = () => {
           <nav className="p-4">
             <ul className="space-y-4">
               <li>
-                <Link to="/" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/" className="block text-gray-700 hover:text-red-600 font-medium">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/study" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/study" className="block text-gray-700 hover:text-red-600 font-medium">
                   Study
                 </Link>
               </li>
               <li>
-                <Link to="/clubs" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/clubs" className="block text-gray-700 hover:text-red-600 font-medium">
                   Clubs
                 </Link>
               </li>
               <li>
-                <Link to="/attendance" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/attendance" className="block text-gray-700 hover:text-red-600 font-medium">
                   Attendance
                 </Link>
               </li>
               <li>
-                <Link to="/marketplace" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/marketplace" className="block text-gray-700 hover:text-red-600 font-medium">
                   Marketplace
                 </Link>
               </li>
               <li>
-                <Link to="/newsfeed" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/newsfeed" className="block text-gray-700 hover:text-red-600 font-medium">
                   Newsfeed
                 </Link>
               </li>
               <li>
-                <Link to="/friends" className="block text-gray-700 hover:text-sfu-red font-medium">
+                <Link to="/friends" className="block text-gray-700 hover:text-red-600 font-medium">
                   Friends
                 </Link>
               </li>
               {isAdmin && (
                 <li>
-                  <Link to="/admin/review" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  <Link to="/admin/review" className="block text-gray-700 hover:text-red-600 font-medium">
                     Review
                   </Link>
                 </li>
               )}
               {isAuthenticated ? (
                 <li>
-                  <button onClick={logout} className="block text-gray-700 hover:text-sfu-red font-medium">
+                  <button onClick={logout} className="block text-gray-700 hover:text-red-600 font-medium">
                     Logout
                   </button>
                 </li>
               ) : (
                 <>
                   <li>
-                    <Link to="/login" className="block text-gray-700 hover:text-sfu-red font-medium">
+                    <Link to="/login" className="block text-gray-700 hover:text-red-600 font-medium">
                       Login
                     </Link>
                   </li>
                   <li>
-                    <Link to="/register" className="block text-gray-700 hover:text-sfu-red font-medium">
+                    <Link to="/register" className="block text-gray-700 hover:text-red-600 font-medium">
                       Register
                     </Link>
                   </li>
@@ -120,8 +125,13 @@ const Header = () => {
       <div className="container mx-auto flex items-center justify-between p-4">
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
-            <span className="font-bold text-xl text-sfu-red">SFU</span>
-            <span className="ml-1 text-gray-800 font-semibold">Student</span>
+            <img 
+              src="/lovable-uploads/534fee46-9698-4758-b6e0-0ab24e892ec4.png" 
+              alt="S1st Globe Logo" 
+              className="h-10 w-auto mr-2" 
+            />
+            <span className="font-bold text-xl text-red-600">S1st</span>
+            <span className="ml-1 text-gray-800 font-semibold">Globe</span>
           </Link>
           
           {isAuthenticated && !isMobile && (
@@ -132,8 +142,8 @@ const Header = () => {
                     to="/"
                     className={`${
                       location.pathname === '/'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Home
@@ -144,8 +154,8 @@ const Header = () => {
                     to="/study"
                     className={`${
                       location.pathname === '/study'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Study
@@ -156,8 +166,8 @@ const Header = () => {
                     to="/clubs"
                     className={`${
                       location.pathname.startsWith('/clubs')
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Clubs
@@ -168,8 +178,8 @@ const Header = () => {
                     to="/attendance"
                     className={`${
                       location.pathname === '/attendance'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Attendance
@@ -180,8 +190,8 @@ const Header = () => {
                     to="/marketplace"
                     className={`${
                       location.pathname === '/marketplace'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Marketplace
@@ -192,8 +202,8 @@ const Header = () => {
                     to="/newsfeed"
                     className={`${
                       location.pathname === '/newsfeed'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Newsfeed
@@ -204,23 +214,22 @@ const Header = () => {
                     to="/friends"
                     className={`${
                       location.pathname === '/friends'
-                        ? 'text-sfu-red font-semibold border-sfu-red'
-                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                        ? 'text-red-600 font-semibold border-red-600'
+                        : 'text-gray-600 hover:text-red-600 border-transparent'
                     } border-b-2 pb-1 transition-colors`}
                   >
                     Friends
                   </Link>
                 </li>
                 
-                {/* Admin Review Link - Only visible to admins */}
                 {isAdmin && (
                   <li>
                     <Link
                       to="/admin/review"
                       className={`${
                         location.pathname === '/admin/review'
-                          ? 'text-sfu-red font-semibold border-sfu-red'
-                          : 'text-gray-600 hover:text-sfu-red border-transparent'
+                          ? 'text-red-600 font-semibold border-red-600'
+                          : 'text-gray-600 hover:text-red-600 border-transparent'
                       } border-b-2 pb-1 transition-colors`}
                     >
                       Review
@@ -241,7 +250,7 @@ const Header = () => {
                     <button className="relative">
                       <Bell className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                       {unreadCount > 0 && (
-                        <span className="absolute top-[-3px] right-[-3px] bg-sfu-red text-white rounded-full text-xs px-1">{unreadCount}</span>
+                        <span className="absolute top-[-3px] right-[-3px] bg-red-600 text-white rounded-full text-xs px-1">{unreadCount}</span>
                       )}
                     </button>
                   </DropdownMenuTrigger>
@@ -287,10 +296,10 @@ const Header = () => {
           ) : (
             !isMobile ? (
               <div>
-                <Link to="/login" className="text-gray-600 hover:text-sfu-red mr-4">
+                <Link to="/login" className="text-gray-600 hover:text-red-600 mr-4">
                   Login
                 </Link>
-                <Link to="/register" className="bg-sfu-red text-white py-2 px-4 rounded hover:bg-sfu-red/90 transition-colors">
+                <Link to="/register" className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors">
                   Register
                 </Link>
               </div>

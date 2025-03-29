@@ -24,7 +24,6 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload } from 'lucide-react';
 
@@ -50,7 +49,6 @@ const formSchema = z.object({
 const Register = () => {
   const { register } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -98,14 +96,15 @@ const Register = () => {
     try {
       setIsUploading(true);
       
-      // Create a unique filename
+      // Create a unique filename with improved formatting
       const timestamp = new Date().getTime();
-      const fileName = `${timestamp}_${file.name}`;
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const fileName = `${timestamp}_${cleanFileName}`;
       
-      // Upload to Supabase storage
+      // Upload to Supabase storage - using a folder path without slashes
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(`student-id-photos/${fileName}`, file, {
+        .upload(`student_id_photos_${fileName}`, file, {
           cacheControl: '3600',
           upsert: false,
         });
@@ -115,7 +114,7 @@ const Register = () => {
       // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
-        .getPublicUrl(`student-id-photos/${fileName}`);
+        .getPublicUrl(`student_id_photos_${fileName}`);
       
       setPhotoUrl(publicUrlData.publicUrl);
       
@@ -133,7 +132,6 @@ const Register = () => {
       });
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -329,7 +327,7 @@ const Register = () => {
                       ) : isUploading ? (
                         <div className="space-y-2">
                           <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                          <p className="text-sm text-gray-500">Uploading... {uploadProgress}%</p>
+                          <p className="text-sm text-gray-500">Uploading...</p>
                         </div>
                       ) : (
                         <div>
