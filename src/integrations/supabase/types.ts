@@ -937,6 +937,7 @@ export type Database = {
           created_at: string | null
           date: string
           description: string | null
+          end_date: string | null
           host_id: string
           id: string
           location: string | null
@@ -952,6 +953,7 @@ export type Database = {
           created_at?: string | null
           date: string
           description?: string | null
+          end_date?: string | null
           host_id: string
           id?: string
           location?: string | null
@@ -967,6 +969,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           description?: string | null
+          end_date?: string | null
           host_id?: string
           id?: string
           location?: string | null

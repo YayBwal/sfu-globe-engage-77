@@ -1,277 +1,357 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Shuffle, Brain, Trophy, Home, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Shuffle, Timer, Trophy, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
-import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import confetti from 'canvas-confetti';
 
-type CardType = {
+// Define card types
+interface MemoryCard {
   id: number;
-  content: string;
-  isFlipped: boolean;
-  isMatched: boolean;
+  emoji: string;
+  flipped: boolean;
+  matched: boolean;
+}
+
+// Game difficulty levels
+const DIFFICULTY_LEVELS = {
+  easy: { pairs: 6, timeLimit: 60 },
+  medium: { pairs: 8, timeLimit: 90 },
+  hard: { pairs: 12, timeLimit: 120 }
 };
 
-const MemoryGame = () => {
-  const { toast } = useToast();
-  const { user, profile } = useAuth();
-  const navigate = useNavigate();
-  const [cards, setCards] = useState<CardType[]>([]);
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+const MemoryGame: React.FC = () => {
+  const [cards, setCards] = useState<MemoryCard[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [matchedPairs, setMatchedPairs] = useState<number>(0);
   const [moves, setMoves] = useState<number>(0);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
-  const [gameCompleted, setGameCompleted] = useState<boolean>(false);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [score, setScore] = useState<number>(0);
-
-  const emojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
   
-  const initializeGame = () => {
-    // Create a pair of cards for each emoji
-    const initialCards = [...emojis, ...emojis]
-      .map((content, index) => ({
-        id: index,
-        content,
-        isFlipped: false,
-        isMatched: false
-      }))
-      .sort(() => Math.random() - 0.5); // Shuffle the cards
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Emojis for cards
+  const emojis = [
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+    '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔',
+    '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗'
+  ];
+  
+  // Initialize game
+  const initializeGame = useCallback(() => {
+    const { pairs } = DIFFICULTY_LEVELS[difficulty];
+    const selectedEmojis = emojis.slice(0, pairs);
     
-    setCards(initialCards);
+    // Create pairs of cards
+    const newCards: MemoryCard[] = [...selectedEmojis, ...selectedEmojis]
+      .map((emoji, index) => ({
+        id: index,
+        emoji,
+        flipped: false,
+        matched: false
+      }))
+      .sort(() => Math.random() - 0.5); // Shuffle cards
+    
+    setCards(newCards);
     setFlippedCards([]);
     setMatchedPairs(0);
     setMoves(0);
-    setGameStarted(true);
-    setGameCompleted(false);
+    setGameOver(false);
+    setTimeLeft(DIFFICULTY_LEVELS[difficulty].timeLimit);
     setScore(0);
+  }, [difficulty]);
+  
+  // Start game
+  const startGame = () => {
+    initializeGame();
+    setGameStarted(true);
   };
-
-  const saveGameScore = async (finalScore: number) => {
+  
+  // Reset game
+  const resetGame = () => {
+    setGameStarted(false);
+    setGameOver(false);
+  };
+  
+  // Save game result to database
+  const saveGameResult = async (finalScore: number) => {
     if (!user) return;
     
     try {
-      // Save game result to the database
-      await supabase
-        .from('game_results')
-        .insert({
-          user_id: user.id,
-          game_type: 'memory',
-          score: finalScore,
-          metadata: { moves, pairs: emojis.length }
-        });
-      
-      // Also update the leaderboard points for game category
-      const { data: existingPoints } = await supabase
-        .from('leaderboard_points')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('category', 'game')
-        .single();
-      
-      if (existingPoints) {
-        // Update existing entry
-        await supabase
-          .from('leaderboard_points')
-          .update({
-            points: existingPoints.points + Math.floor(finalScore/10),
-            weekly_change: existingPoints.weekly_change + Math.floor(finalScore/10),
-            updated_at: new Date()
-          })
-          .eq('id', existingPoints.id);
-      } else if (profile) {
-        // Create new entry
-        await supabase
-          .from('leaderboard_points')
-          .insert({
-            user_id: user.id,
-            username: profile.name,
-            category: 'game',
-            points: Math.floor(finalScore/10),
-            weekly_change: Math.floor(finalScore/10)
-          });
-      }
+      await supabase.from('game_results').insert({
+        user_id: user.id,
+        game_type: 'memory',
+        score: finalScore,
+        completed_at: new Date().toISOString(),
+        metadata: {
+          difficulty,
+          moves,
+          timeLeft,
+          matchedPairs
+        }
+      });
     } catch (error) {
-      console.error('Error saving game score:', error);
+      console.error('Error saving game result:', error);
     }
   };
-
+  
+  // Handle card click
   const handleCardClick = (id: number) => {
-    // Ignore if the card is already flipped or matched
-    if (cards[id].isFlipped || cards[id].isMatched) return;
-    
-    // Ignore if two cards are already flipped
-    if (flippedCards.length === 2) return;
+    // Prevent clicking if game is over or card is already flipped/matched
+    if (
+      gameOver || 
+      flippedCards.length >= 2 || 
+      flippedCards.includes(id) || 
+      cards[id].matched
+    ) {
+      return;
+    }
     
     // Flip the card
     const newCards = [...cards];
-    newCards[id].isFlipped = true;
+    newCards[id].flipped = true;
     setCards(newCards);
     
-    // Add the card to flipped cards
+    // Add to flipped cards
     const newFlippedCards = [...flippedCards, id];
     setFlippedCards(newFlippedCards);
     
-    // If two cards are flipped, check if they match
+    // Check for match if two cards are flipped
     if (newFlippedCards.length === 2) {
       setMoves(moves + 1);
-      const [firstId, secondId] = newFlippedCards;
       
-      if (cards[firstId].content === cards[secondId].content) {
+      const [firstId, secondId] = newFlippedCards;
+      if (cards[firstId].emoji === cards[secondId].emoji) {
         // Match found
         setTimeout(() => {
           const matchedCards = [...cards];
-          matchedCards[firstId].isMatched = true;
-          matchedCards[secondId].isMatched = true;
+          matchedCards[firstId].matched = true;
+          matchedCards[secondId].matched = true;
           setCards(matchedCards);
           setFlippedCards([]);
           setMatchedPairs(matchedPairs + 1);
           
-          // Calculate score for this match
-          const basePoints = 100;
-          const timeBonus = Math.max(0, 20 - moves) * 5;
-          const matchPoints = basePoints + timeBonus;
-          setScore(score + matchPoints);
+          // Calculate points for this match
+          const timeBonus = Math.floor(timeLeft / 5);
+          const matchPoints = 100 + timeBonus;
+          setScore(prevScore => prevScore + matchPoints);
           
+          // Show toast for match
           toast({
-            title: "Match Found!",
-            description: `+${matchPoints} points added to your score`,
-            variant: "default",
+            title: "Match found!",
+            description: `+${matchPoints} points`,
+            variant: "default"
           });
           
           // Check if all pairs are matched
-          if (matchedPairs + 1 === emojis.length) {
-            setGameCompleted(true);
-            // Final score calculation
-            const finalScore = score + matchPoints + (emojis.length * 50);
+          if (matchedPairs + 1 === DIFFICULTY_LEVELS[difficulty].pairs) {
+            // Game completed
+            const finalScore = score + matchPoints + (timeLeft * 10);
             setScore(finalScore);
+            setGameOver(true);
+            saveGameResult(finalScore);
             
-            // Save score to database
-            saveGameScore(finalScore);
+            // Celebrate with confetti
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
             
             toast({
-              title: "Game Completed!",
-              description: `Final Score: ${finalScore} points`,
-              variant: "default",
+              title: "Congratulations!",
+              description: `You completed the game with ${moves + 1} moves and ${finalScore} points!`,
+              variant: "default"
             });
           }
         }, 500);
       } else {
         // No match
         setTimeout(() => {
-          const unmatchedCards = [...cards];
-          unmatchedCards[firstId].isFlipped = false;
-          unmatchedCards[secondId].isFlipped = false;
-          setCards(unmatchedCards);
+          const unflippedCards = [...cards];
+          unflippedCards[firstId].flipped = false;
+          unflippedCards[secondId].flipped = false;
+          setCards(unflippedCards);
           setFlippedCards([]);
         }, 1000);
       }
     }
   };
-
-  // Initialize the game when component mounts
+  
+  // Timer effect
   useEffect(() => {
-    initializeGame();
-  }, []);
-
-  return (
-    <div className="w-full max-w-3xl mx-auto p-4">
-      <div className="flex items-center gap-2 mb-6">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => navigate('/gaming/games')}
-          className="flex items-center gap-1"
-        >
-          <ArrowLeft size={16} />
-          Back to Games
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="flex items-center gap-1"
-        >
-          <Link to="/gaming">
-            <Home size={16} />
-            Gaming Hub
-          </Link>
-        </Button>
-      </div>
+    let timer: NodeJS.Timeout;
     
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
-          <Brain className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold">Memory Match</h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-            Moves: {moves}
-          </div>
-          <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-            <Trophy size={14} />
-            <span>Score: {score}</span>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={initializeGame}
-            className="flex items-center gap-1"
-          >
-            <Shuffle size={14} />
-            Restart
-          </Button>
-        </div>
-      </div>
-      
-      {gameCompleted ? (
-        <Card className="mb-6">
-          <CardContent className="py-6 text-center">
-            <h3 className="text-xl font-bold mb-2">Congratulations!</h3>
-            <p className="mb-4">You completed the game in {moves} moves</p>
-            <p className="text-2xl font-bold text-amber-600 mb-4">Final Score: {score}</p>
-            <div className="flex justify-center gap-3">
-              <Button onClick={initializeGame}>Play Again</Button>
-              <Button variant="outline" asChild>
-                <Link to="/gaming/leaderboard">View Leaderboard</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-4 gap-4">
-          {cards.map((card) => (
-            <motion.div
-              key={card.id}
-              className={`aspect-square rounded-xl cursor-pointer shadow-md flex items-center justify-center text-3xl`}
-              onClick={() => handleCardClick(card.id)}
-              initial={{ rotateY: 0 }}
-              animate={{ 
-                rotateY: card.isFlipped || card.isMatched ? 180 : 0,
-                backgroundColor: card.isMatched ? '#4ade80' : card.isFlipped ? '#ffffff' : '#2563eb'
-              }}
-              transition={{ duration: 0.3 }}
-            >
-              {(card.isFlipped || card.isMatched) && (
-                <motion.div
-                  initial={{ rotateY: -180 }}
-                  animate={{ rotateY: 0 }}
-                  transition={{ duration: 0.3 }}
+    if (gameStarted && !gameOver && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            clearInterval(timer);
+            setGameOver(true);
+            saveGameResult(score);
+            
+            toast({
+              title: "Time's up!",
+              description: `Game over! You matched ${matchedPairs} pairs with ${moves} moves.`,
+              variant: "destructive"
+            });
+            
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [gameStarted, gameOver, timeLeft, matchedPairs, moves, score, toast]);
+  
+  // Initialize game on mount or difficulty change
+  useEffect(() => {
+    if (!gameStarted) {
+      initializeGame();
+    }
+  }, [difficulty, gameStarted, initializeGame]);
+  
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 className="text-2xl font-bold text-center mb-4">Memory Game</h2>
+        
+        {!gameStarted ? (
+          <div className="space-y-6">
+            <p className="text-center text-gray-600">
+              Flip cards and find matching pairs. The faster you match, the higher your score!
+            </p>
+            
+            <div className="space-y-2">
+              <h3 className="font-medium">Select Difficulty:</h3>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setDifficulty('easy')}
+                  variant={difficulty === 'easy' ? 'default' : 'outline'}
+                  className="flex-1"
                 >
-                  {card.content}
-                </motion.div>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      )}
-      
-      <div className="mt-6 bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-        <p><strong>How to play:</strong> Click on cards to flip them and find matching pairs. The fewer moves you make, the higher your score!</p>
+                  Easy
+                </Button>
+                <Button 
+                  onClick={() => setDifficulty('medium')}
+                  variant={difficulty === 'medium' ? 'default' : 'outline'}
+                  className="flex-1"
+                >
+                  Medium
+                </Button>
+                <Button 
+                  onClick={() => setDifficulty('hard')}
+                  variant={difficulty === 'hard' ? 'default' : 'outline'}
+                  className="flex-1"
+                >
+                  Hard
+                </Button>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={startGame}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              Start Game
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Timer className="h-5 w-5 text-blue-600" />
+                <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                <span className="font-mono text-lg">{score}</span>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                Moves: {moves}
+              </div>
+            </div>
+            
+            {gameOver && (
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <h3 className="font-bold text-lg mb-2">
+                  {matchedPairs === DIFFICULTY_LEVELS[difficulty].pairs 
+                    ? "Congratulations!" 
+                    : "Game Over!"}
+                </h3>
+                <p className="mb-2">
+                  {matchedPairs === DIFFICULTY_LEVELS[difficulty].pairs 
+                    ? `You matched all pairs with ${moves} moves!` 
+                    : `You matched ${matchedPairs} out of ${DIFFICULTY_LEVELS[difficulty].pairs} pairs.`}
+                </p>
+                <p className="font-bold">Final Score: {score}</p>
+                <Button 
+                  onClick={resetGame}
+                  className="mt-3"
+                  variant="outline"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Play Again
+                </Button>
+              </div>
+            )}
+            
+            {!gameOver && (
+              <div className={`grid grid-cols-${difficulty === 'hard' ? '4' : '3'} gap-2`}>
+                {cards.map(card => (
+                  <motion.div
+                    key={card.id}
+                    className={`aspect-square cursor-pointer rounded-lg overflow-hidden`}
+                    onClick={() => handleCardClick(card.id)}
+                    animate={{ rotateY: card.flipped ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className={`w-full h-full flex items-center justify-center text-2xl
+                      ${card.flipped 
+                        ? 'bg-white border-2 border-blue-300' 
+                        : 'bg-blue-600'}`}
+                    >
+                      {card.flipped && card.emoji}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+            
+            {!gameOver && (
+              <Button 
+                onClick={resetGame}
+                variant="outline"
+                className="w-full"
+              >
+                <Shuffle className="h-4 w-4 mr-2" />
+                Reset Game
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
