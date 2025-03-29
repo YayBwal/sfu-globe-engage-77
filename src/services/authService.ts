@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -26,10 +27,18 @@ export const registerUser = async (
       throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
     }
 
-    // Check if the email already exists
-    const { data: { user: existingUser }, error: emailError } = await supabase.auth.admin.getUserByEmail(email);
+    // Check if the email already exists by trying to get user data
+    const { data: existingUsers, error: emailCheckError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (emailCheckError) {
+      console.error("Error checking for existing email:", emailCheckError);
+    }
     
-    if (existingUser) {
+    if (existingUsers) {
       throw new Error('A user with this email already exists. Please use a different email or try logging in.');
     }
     
