@@ -1048,6 +1048,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_comprehensive_storage_policies: {
+        Args: {
+          bucket_name: string
+        }
+        Returns: undefined
+      }
+      create_storage_policy: {
+        Args: {
+          bucket_name: string
+          policy_name: string
+        }
+        Returns: undefined
+      }
+      ensure_profile_images_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_session_qr: {
         Args: {
           session_uuid: string

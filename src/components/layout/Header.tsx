@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -154,7 +153,7 @@ const Header = () => {
         {isAuthenticated && (
           <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
             <ul className="flex space-x-6 relative">
-              {navItems.map((item, index) => (
+              {navItems.map((item) => (
                 <li key={item.path} className="relative">
                   <Link
                     to={item.path}
@@ -167,7 +166,7 @@ const Header = () => {
                     {item.label}
                   </Link>
                   {(activeTab === item.path || (item.path === '/clubs' && activeTab.startsWith('/clubs'))) && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 transition-all duration-300 ease-in-out rounded-full" />
+                    <span className="absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full transition-all duration-300 ease-in-out transform" />
                   )}
                 </li>
               ))}
