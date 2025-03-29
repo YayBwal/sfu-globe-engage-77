@@ -1,13 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad, Award, Puzzle, BarChart, ArrowLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
-import GamingNavigation from '@/components/gaming/GamingNavigation';
-import { 
+import { useMobile } from '@/hooks/useMobile';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Bell, Menu, X } from 'lucide-react';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,314 +13,295 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/hooks/use-toast";
-import { useIsMobile } from '@/hooks/use-mobile';
 
-const Header: React.FC = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
+const Header = () => {
+  const { isAuthenticated, profile, logout, isAdmin } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const isMobile = useMobile();
+  const { notifications, markAllAsRead } = useNotifications();
+  const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
   const navigate = useNavigate();
-  const { user, profile, isAuthenticated, logout } = useAuth();
-  const isMobile = useIsMobile();
+  const location = useLocation();
 
-  // Add class to body when menu is open to prevent scrolling
-  useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isMenuOpen]);
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Close mobile menu when route changes
-  useEffect(() => {
+  const closeMenu = () => {
     setIsMenuOpen(false);
+  };
+
+  useEffect(() => {
+    closeMenu();
   }, [location]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-    } catch (error) {
-      console.error("Logout failed:", error);
-      toast({
-        title: "Logout failed",
-        description: "There was an error logging you out",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditProfile = () => {
-    navigate('/profile');
-    setIsMenuOpen(false);
-  };
-  
-  const handleBackButton = () => {
-    setIsMenuOpen(false);
-  };
-
-  const navItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Study', path: '/study' },
-    { name: 'Clubs', path: '/clubs' },
-    { name: 'Attendance', path: '/attendance' },
-    { name: 'Marketplace', path: '/marketplace' },
-    { name: 'Newsfeed', path: '/newsfeed' },
-    { name: 'Friends', path: '/friends' },
-  ];
-
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
-  };
-
   return (
-    <header 
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out px-4 md:px-8",
-        isScrolled 
-          ? "bg-white/80 backdrop-blur-md border-b border-gray-200/50 py-3" 
-          : "bg-transparent py-6"
-      )}
-    >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <Link 
-          to="/" 
-          className="flex items-center space-x-2"
-        >
-          <div className="h-10 w-10">
-            <img src="/lovable-uploads/6b2792e9-40c8-412d-8f43-0d697f2e4cfc.png" alt="S1st Globe Logo" className="h-full w-full object-contain" />
-          </div>
-          <span className={cn(
-            "font-display font-semibold text-xl transition-all duration-300",
-            isScrolled ? "text-sfu-black" : "text-sfu-black"
-          )}>
-            S1st Globe
-          </span>
-        </Link>
-
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center space-x-6">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "text-sm font-medium transition-all duration-200 hover:text-sfu-red relative",
-                isScrolled ? "text-sfu-black" : "text-sfu-black",
-                isActive(item.path) ? "text-sfu-red" : "",
-                "after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-sfu-red after:left-0 after:-bottom-1 after:transition-all after:duration-300 hover:after:w-full",
-                isActive(item.path) ? "after:w-full" : ""
-              )}
-            >
-              {item.name}
-            </Link>
-          ))}
-          
-          {/* Gaming Hub Navigation */}
-          <GamingNavigation />
-        </nav>
-
-        {/* User Actions */}
-        <div className="hidden md:flex items-center space-x-4">
-          {isAuthenticated && <NotificationDropdown />}
-          
-          {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="outline-none focus:outline-none">
-                  <Avatar className="h-9 w-9 border-2 border-white hover:border-sfu-red transition-colors cursor-pointer">
-                    <AvatarImage src={profile?.profilePic} alt={profile?.name} />
-                    <AvatarFallback className="bg-sfu-red text-white">
-                      {profile?.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleEditProfile} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Edit Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Link 
-              to="/login" 
-              className="px-4 py-2 rounded-lg bg-sfu-red text-white text-sm font-medium hover:bg-sfu-red/90 transition-colors"
-            >
-              Sign In
-            </Link>
-          )}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-        >
-          {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
-
-      {/* Mobile menu with completely solid background */}
+    <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
       {isMobile && (
-        <div 
-          className={cn(
-            "fixed inset-0 z-40 bg-white transition-transform duration-300 ease-in-out md:hidden overflow-hidden",
-            isMenuOpen ? "translate-x-0" : "translate-x-full"
-          )}
-          style={{ 
-            backgroundColor: "white", 
-            boxShadow: isMenuOpen ? "0 0 15px rgba(0,0,0,0.1)" : "none",
-            top: 0
-          }}
-        >
-          <div className="p-4 pt-20 h-full overflow-y-auto">
-            {/* Back button at the top */}
-            <button 
-              onClick={handleBackButton}
-              className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all"
-              aria-label="Back"
-            >
-              <ArrowLeft size={20} />
+        <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <Link to="/" className="flex items-center">
+              <span className="font-bold text-xl text-sfu-red">SFU</span>
+              <span className="ml-1 text-gray-800 font-semibold">Student</span>
+            </Link>
+            <button onClick={toggleMenu} className="p-2">
+              <X className="h-6 w-6" />
             </button>
-            
-            <nav className="flex flex-col space-y-6 items-center">
-              {navItems.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "text-lg font-medium transition-all duration-200",
-                    isActive(item.path) ? "text-sfu-red" : "text-sfu-black hover:text-sfu-red"
-                  )}
-                >
-                  {item.name}
+          </div>
+          <nav className="p-4">
+            <ul className="space-y-4">
+              <li>
+                <Link to="/" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Home
                 </Link>
-              ))}
-
-              {/* Gaming Hub Links for Mobile */}
-              <div className="w-full border-t border-gray-100 pt-4">
-                <div className="text-lg font-medium text-sfu-black mb-2 flex items-center">
-                  <Gamepad className="mr-2 h-5 w-5 text-purple-600" />
-                  Gaming Hub
-                </div>
-                <div className="flex flex-col space-y-3 pl-7">
-                  <Link
-                    to="/gaming/quiz"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <Award className="mr-2 h-4 w-4 text-indigo-500" />
-                    Quizzes
+              </li>
+              <li>
+                <Link to="/study" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Study
+                </Link>
+              </li>
+              <li>
+                <Link to="/clubs" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Clubs
+                </Link>
+              </li>
+              <li>
+                <Link to="/attendance" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Attendance
+                </Link>
+              </li>
+              <li>
+                <Link to="/marketplace" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Marketplace
+                </Link>
+              </li>
+              <li>
+                <Link to="/newsfeed" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Newsfeed
+                </Link>
+              </li>
+              <li>
+                <Link to="/friends" className="block text-gray-700 hover:text-sfu-red font-medium">
+                  Friends
+                </Link>
+              </li>
+              {isAdmin && (
+                <li>
+                  <Link to="/admin/review" className="block text-gray-700 hover:text-sfu-red font-medium">
+                    Review
                   </Link>
-                  <Link
-                    to="/gaming/games"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <Puzzle className="mr-2 h-4 w-4 text-green-500" />
-                    Mini Games
-                  </Link>
-                  <Link
-                    to="/gaming/leaderboard"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <BarChart className="mr-2 h-4 w-4 text-amber-500" />
-                    Leaderboard
-                  </Link>
-                </div>
-              </div>
-              
-              {!isAuthenticated && (
+                </li>
+              )}
+              {isAuthenticated ? (
+                <li>
+                  <button onClick={logout} className="block text-gray-700 hover:text-sfu-red font-medium">
+                    Logout
+                  </button>
+                </li>
+              ) : (
                 <>
-                  <Link
-                    to="/login"
-                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-                  >
-                    Register
-                  </Link>
+                  <li>
+                    <Link to="/login" className="block text-gray-700 hover:text-sfu-red font-medium">
+                      Login
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/register" className="block text-gray-700 hover:text-sfu-red font-medium">
+                      Register
+                    </Link>
+                  </li>
                 </>
               )}
-              
-              <div className="pt-6 border-t border-gray-100 w-full flex justify-center space-x-4">
-                <Link 
-                  to="/marketplace" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <ShoppingBag size={20} />
-                </Link>
-                <Link 
-                  to="/newsfeed" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <Radio size={20} />
-                </Link>
-                <Link 
-                  to="/friends" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <Users size={20} />
-                </Link>
-                <Link 
-                  to="/attendance" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <CalendarCheck size={20} />
-                </Link>
-                {isAuthenticated && <NotificationDropdown />}
-              </div>
-              
-              {isAuthenticated && (
-                <div className="w-full">
-                  <button 
-                    onClick={handleEditProfile}
-                    className="w-full text-left px-4 py-2 rounded-lg my-2 hover:bg-gray-100 transition-colors flex items-center"
-                  >
-                    <User size={18} className="mr-2" />
-                    Edit Profile
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </nav>
-          </div>
+            </ul>
+          </nav>
         </div>
       )}
+      
+      <div className="container mx-auto flex items-center justify-between p-4">
+        <div className="flex items-center">
+          <Link to="/" className="flex items-center">
+            <span className="font-bold text-xl text-sfu-red">SFU</span>
+            <span className="ml-1 text-gray-800 font-semibold">Student</span>
+          </Link>
+          
+          {isAuthenticated && !isMobile && (
+            <nav className="ml-8">
+              <ul className="flex space-x-6">
+                <li>
+                  <Link
+                    to="/"
+                    className={`${
+                      location.pathname === '/'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/study"
+                    className={`${
+                      location.pathname === '/study'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Study
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/clubs"
+                    className={`${
+                      location.pathname.startsWith('/clubs')
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Clubs
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/attendance"
+                    className={`${
+                      location.pathname === '/attendance'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Attendance
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/marketplace"
+                    className={`${
+                      location.pathname === '/marketplace'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Marketplace
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/newsfeed"
+                    className={`${
+                      location.pathname === '/newsfeed'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Newsfeed
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/friends"
+                    className={`${
+                      location.pathname === '/friends'
+                        ? 'text-sfu-red font-semibold border-sfu-red'
+                        : 'text-gray-600 hover:text-sfu-red border-transparent'
+                    } border-b-2 pb-1 transition-colors`}
+                  >
+                    Friends
+                  </Link>
+                </li>
+                
+                {/* Admin Review Link - Only visible to admins */}
+                {isAdmin && (
+                  <li>
+                    <Link
+                      to="/admin/review"
+                      className={`${
+                        location.pathname === '/admin/review'
+                          ? 'text-sfu-red font-semibold border-sfu-red'
+                          : 'text-gray-600 hover:text-sfu-red border-transparent'
+                      } border-b-2 pb-1 transition-colors`}
+                    >
+                      Review
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </nav>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          {isAuthenticated ? (
+            <>
+              {!isMobile && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative">
+                      <Bell className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-[-3px] right-[-3px] bg-sfu-red text-white rounded-full text-xs px-1">{unreadCount}</span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80 md:w-96">
+                    <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {notifications && notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <DropdownMenuItem key={notification.id} className="break-words">
+                          <div className="font-semibold">{notification.title}</div>
+                          <div className="text-sm text-gray-500">{notification.message}</div>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem className="justify-center">No notifications</DropdownMenuItem>
+                    )}
+                    {notifications && notifications.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={markAllAsRead} className="justify-center">Mark all as read</DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="outline-none">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.profilePic || "https://github.com/shadcn.png"} alt={profile?.name || "Avatar"} />
+                      <AvatarFallback>{profile?.name?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-48">
+                  <DropdownMenuLabel>{profile?.name}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>Profile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            !isMobile ? (
+              <div>
+                <Link to="/login" className="text-gray-600 hover:text-sfu-red mr-4">
+                  Login
+                </Link>
+                <Link to="/register" className="bg-sfu-red text-white py-2 px-4 rounded hover:bg-sfu-red/90 transition-colors">
+                  Register
+                </Link>
+              </div>
+            ) : (
+              <button onClick={toggleMenu} className="p-2">
+                <Menu className="h-6 w-6" />
+              </button>
+            )
+          )}
+        </div>
+      </div>
     </header>
   );
 };

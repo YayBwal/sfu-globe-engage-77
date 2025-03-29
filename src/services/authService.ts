@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -6,7 +7,8 @@ export const registerUser = async (
   name: string, 
   studentId: string, 
   major: string, 
-  batch: string
+  batch: string,
+  studentIdPhoto?: string
 ): Promise<void> => {
   // First check if the student ID already exists in the profiles table
   const { data: existingProfile, error: checkError } = await supabase
@@ -47,6 +49,8 @@ export const registerUser = async (
         student_id: studentId,
         major,
         batch,
+        student_id_photo: studentIdPhoto,
+        approval_status: 'pending'
       }
     }
   });
@@ -70,11 +74,28 @@ export const loginUser = async (email: string, password: string): Promise<void> 
     if (error) {
       throw error;
     }
+    
+    // Check approval status
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('approval_status')
+      .eq('email', email)
+      .single();
+    
+    if (profileError) {
+      throw new Error('Error verifying account status');
+    }
+    
+    if (profileData && profileData.approval_status !== 'approved') {
+      // Log them out if not approved
+      await supabase.auth.signOut();
+      throw new Error('Your account is pending approval. Please check back later.');
+    }
   } else {
     // If it's a student ID, we need to find the corresponding email first
     const { data, error } = await supabase
       .from('profiles')
-      .select('email')
+      .select('email, approval_status')
       .eq('student_id', email)
       .single();
     
@@ -84,6 +105,11 @@ export const loginUser = async (email: string, password: string): Promise<void> 
     
     if (!data || !data.email) {
       throw new Error('No email associated with this Student ID');
+    }
+    
+    // Check approval status
+    if (data.approval_status !== 'approved') {
+      throw new Error('Your account is pending approval. Please check back later.');
     }
     
     // Now login with the found email and provided password

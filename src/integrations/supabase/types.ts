@@ -9,6 +9,21 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admins: {
+        Row: {
+          admin_id: string
+          id: string
+        }
+        Insert: {
+          admin_id: string
+          id: string
+        }
+        Update: {
+          admin_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           id: string
@@ -749,6 +764,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approval_status: string
           availability: string | null
           batch: string
           bio: string | null
@@ -762,8 +778,10 @@ export type Database = {
           online: boolean | null
           profile_pic: string | null
           student_id: string
+          student_id_photo: string | null
         }
         Insert: {
+          approval_status?: string
           availability?: string | null
           batch: string
           bio?: string | null
@@ -777,8 +795,10 @@ export type Database = {
           online?: boolean | null
           profile_pic?: string | null
           student_id: string
+          student_id_photo?: string | null
         }
         Update: {
+          approval_status?: string
           availability?: string | null
           batch?: string
           bio?: string | null
@@ -792,6 +812,7 @@ export type Database = {
           online?: boolean | null
           profile_pic?: string | null
           student_id?: string
+          student_id_photo?: string | null
         }
         Relationships: []
       }
@@ -1070,6 +1091,10 @@ export type Database = {
           user_id: string
         }
         Returns: number
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       is_club_manager: {
         Args: {

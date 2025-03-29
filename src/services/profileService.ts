@@ -29,6 +29,8 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
         availability: data.availability || "",
         profilePic: data.profile_pic,
         coverPic: data.cover_pic,
+        student_id_photo: data.student_id_photo,
+        approval_status: data.approval_status || 'pending',
         // Keep original DB fields for compatibility
         profile_pic: data.profile_pic,
         cover_pic: data.cover_pic
@@ -86,6 +88,8 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
         availability: data.availability || "",
         profilePic: data.profile_pic,
         coverPic: data.cover_pic,
+        student_id_photo: data.student_id_photo,
+        approval_status: data.approval_status || 'pending',
         profile_pic: data.profile_pic,
         cover_pic: data.cover_pic
       };

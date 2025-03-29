@@ -16,6 +16,8 @@ export type UserProfile = {
   coverPic: string | null;
   profile_pic?: string | null; // For compatibility with DB
   cover_pic?: string | null; // For compatibility with DB
+  student_id_photo?: string | null;
+  approval_status: string;
 };
 
 export type AuthContextType = {
@@ -23,7 +25,8 @@ export type AuthContextType = {
   profile: UserProfile | null;
   loading: boolean;
   isAuthenticated: boolean;
-  register: (email: string, password: string, name: string, studentId: string, major: string, batch: string) => Promise<void>;
+  isAdmin: boolean;
+  register: (email: string, password: string, name: string, studentId: string, major: string, batch: string, studentIdPhoto?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;

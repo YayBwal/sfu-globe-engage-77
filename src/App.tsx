@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -25,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { setupStorageBuckets } from '@/utils/storageSetup';
 import { usePresence } from '@/hooks/usePresence';
 import { ChatBubble } from '@/components/ai-chat/ChatBubble';
+import AdminReview from '@/pages/AdminReview';
 
 // Presence wrapper component to use the hook with the router
 const PresenceWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -89,6 +89,7 @@ function App() {
                     <Route path="/marketplace" element={<Marketplace />} />
                     <Route path="/newsfeed" element={<Newsfeed />} />
                     <Route path="/friends" element={<Friends />} />
+                    <Route path="/admin/review" element={<AdminReview />} />
                     
                     {/* Gaming Hub Routes */}
                     <Route path="/gaming" element={<GamingHub />} />
