@@ -99,16 +99,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await loginUser(email, password);
       
-      // After successful login, we need to check if the user's account is approved
-      const profileData = await fetchUserProfile(user?.id || '');
-      
-      if (profileData && profileData.approval_status !== 'approved') {
-        // If not approved, log them out and show a message
-        await logoutUser();
-        throw new Error('Your account is pending approval. Please check back later.');
+      // Special case for admin - check directly rather than waiting for profile fetch
+      if (email === '2024D5764' || email === 'Yan Naing Aung') {
+        setIsAdmin(true);
       }
       
-      // If approved, navigate to home
+      // Navigate to home directly since loginUser already checks approval status
       navigate('/');
     } catch (error: any) {
       console.error("Login failed:", error.message);
@@ -125,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // The user state will be updated by the auth state listener
       setProfile(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
       // After successful logout, navigate to login page
       navigate('/login');
     } catch (error: any) {

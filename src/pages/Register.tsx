@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -109,12 +108,6 @@ const Register = () => {
         .upload(`student-id-photos/${fileName}`, file, {
           cacheControl: '3600',
           upsert: false,
-          onUploadProgress: (progress) => {
-            if (progress.total) {
-              const percent = (progress.loaded / progress.total) * 100;
-              setUploadProgress(Math.round(percent));
-            }
-          },
         });
         
       if (error) throw error;
@@ -361,9 +354,9 @@ const Register = () => {
                             variant="outline"
                             className="mt-2"
                             onClick={() => {
-                              const fileInput = document.querySelector('input[type="file"]');
+                              const fileInput = document.querySelector('input[type="file"]') as HTMLElement;
                               if (fileInput) {
-                                fileInput.click();
+                                (fileInput as HTMLInputElement).click();
                               }
                             }}
                             disabled={isUploading}
