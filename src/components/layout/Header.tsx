@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad, Award, Puzzle, BarChart } from 'lucide-react';
+import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad, Award, Puzzle, BarChart, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -71,6 +70,10 @@ const Header: React.FC = () => {
 
   const handleEditProfile = () => {
     navigate('/profile');
+    setIsMenuOpen(false);
+  };
+  
+  const handleBackButton = () => {
     setIsMenuOpen(false);
   };
 
@@ -198,6 +201,15 @@ const Header: React.FC = () => {
           }}
         >
           <div className="p-4 pt-20">
+            {/* Back button at the top */}
+            <button 
+              onClick={handleBackButton}
+              className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all"
+              aria-label="Back"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            
             <nav className="flex flex-col space-y-6 items-center">
               {navItems.map(item => (
                 <Link
