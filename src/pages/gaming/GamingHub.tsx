@@ -4,13 +4,42 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Gamepad, Award, Puzzle, BarChart, Trophy } from 'lucide-react';
+import { Gamepad, Award, Puzzle, BarChart, Trophy, Brain, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const GamingHub = () => {
   const { isAuthenticated, user } = useAuth();
+  const isMobile = useIsMobile();
+
+  // Sample game data
+  const featuredGames = [
+    {
+      id: 'memory',
+      title: 'Memory Match',
+      description: 'Test your memory by matching pairs of cards',
+      icon: <Brain className="h-5 w-5" />,
+      difficulty: 'Easy',
+      path: '/gaming/games',
+    },
+    {
+      id: 'reflex',
+      title: 'Reflex Challenge',
+      description: 'Test your reaction time with this fast-paced game',
+      icon: <Zap className="h-5 w-5" />,
+      difficulty: 'Medium',
+      path: '/gaming/games',
+    }
+  ];
+
+  // Sample leaderboard data
+  const topPlayers = [
+    { rank: 1, name: "Sophia Chen", points: 1250 },
+    { rank: 2, name: "David Kim", points: 1198 },
+    { rank: 3, name: "Emily Wong", points: 1145 }
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -114,6 +143,73 @@ const GamingHub = () => {
                 <Button asChild className="w-full">
                   <Link to="/gaming/leaderboard">View Rankings</Link>
                 </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          {/* Featured games section */}
+          <motion.div variants={itemVariants} className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Gamepad className="h-6 w-6 text-sfu-red" />
+              Featured Games
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {featuredGames.map((game) => (
+                <Card key={game.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-sfu-red/10 rounded-full p-3">
+                        {game.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold">{game.title}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{game.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {game.difficulty}
+                          </span>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to={game.path}>Play</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </motion.div>
+          
+          {/* Top players section */}
+          <motion.div variants={itemVariants} className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Trophy className="h-6 w-6 text-amber-600" />
+              Top Players
+            </h2>
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {topPlayers.map((player) => (
+                    <div key={player.rank} className="flex items-center p-4">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white mr-4 ${
+                        player.rank === 1 ? 'bg-yellow-500' : 
+                        player.rank === 2 ? 'bg-gray-400' : 
+                        'bg-amber-700'
+                      }`}>
+                        {player.rank}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">{player.name}</div>
+                      </div>
+                      <div className="font-bold">{player.points.toLocaleString()} pts</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 bg-gray-50 text-center">
+                  <Button variant="outline" asChild>
+                    <Link to="/gaming/leaderboard">View Full Leaderboard</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
