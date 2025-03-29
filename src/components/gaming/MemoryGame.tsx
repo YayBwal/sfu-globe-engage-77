@@ -2,9 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shuffle, Brain, Trophy } from 'lucide-react';
+import { Shuffle, Brain, Trophy, Home, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 type CardType = {
   id: number;
@@ -15,6 +18,8 @@ type CardType = {
 
 const MemoryGame = () => {
   const { toast } = useToast();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [cards, setCards] = useState<CardType[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [matchedPairs, setMatchedPairs] = useState<number>(0);
@@ -43,6 +48,55 @@ const MemoryGame = () => {
     setGameStarted(true);
     setGameCompleted(false);
     setScore(0);
+  };
+
+  const saveGameScore = async (finalScore: number) => {
+    if (!user) return;
+    
+    try {
+      // Save game result to the database
+      await supabase
+        .from('game_results')
+        .insert({
+          user_id: user.id,
+          game_type: 'memory',
+          score: finalScore,
+          metadata: { moves, pairs: emojis.length }
+        });
+      
+      // Also update the leaderboard points for game category
+      const { data: existingPoints } = await supabase
+        .from('leaderboard_points')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('category', 'game')
+        .single();
+      
+      if (existingPoints) {
+        // Update existing entry
+        await supabase
+          .from('leaderboard_points')
+          .update({
+            points: existingPoints.points + Math.floor(finalScore/10),
+            weekly_change: existingPoints.weekly_change + Math.floor(finalScore/10),
+            updated_at: new Date()
+          })
+          .eq('id', existingPoints.id);
+      } else if (profile) {
+        // Create new entry
+        await supabase
+          .from('leaderboard_points')
+          .insert({
+            user_id: user.id,
+            username: profile.name,
+            category: 'game',
+            points: Math.floor(finalScore/10),
+            weekly_change: Math.floor(finalScore/10)
+          });
+      }
+    } catch (error) {
+      console.error('Error saving game score:', error);
+    }
   };
 
   const handleCardClick = (id: number) => {
@@ -94,6 +148,10 @@ const MemoryGame = () => {
             // Final score calculation
             const finalScore = score + matchPoints + (emojis.length * 50);
             setScore(finalScore);
+            
+            // Save score to database
+            saveGameScore(finalScore);
+            
             toast({
               title: "Game Completed!",
               description: `Final Score: ${finalScore} points`,
@@ -121,6 +179,30 @@ const MemoryGame = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto p-4">
+      <div className="flex items-center gap-2 mb-6">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate('/gaming/games')}
+          className="flex items-center gap-1"
+        >
+          <ArrowLeft size={16} />
+          Back to Games
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="flex items-center gap-1"
+        >
+          <Link to="/gaming">
+            <Home size={16} />
+            Gaming Hub
+          </Link>
+        </Button>
+      </div>
+    
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
           <Brain className="h-6 w-6 text-blue-600" />
@@ -152,7 +234,12 @@ const MemoryGame = () => {
             <h3 className="text-xl font-bold mb-2">Congratulations!</h3>
             <p className="mb-4">You completed the game in {moves} moves</p>
             <p className="text-2xl font-bold text-amber-600 mb-4">Final Score: {score}</p>
-            <Button onClick={initializeGame}>Play Again</Button>
+            <div className="flex justify-center gap-3">
+              <Button onClick={initializeGame}>Play Again</Button>
+              <Button variant="outline" asChild>
+                <Link to="/gaming/leaderboard">View Leaderboard</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -160,9 +247,7 @@ const MemoryGame = () => {
           {cards.map((card) => (
             <motion.div
               key={card.id}
-              className={`aspect-square rounded-xl cursor-pointer ${
-                card.isFlipped || card.isMatched ? 'bg-white' : 'bg-blue-600'
-              } shadow-md flex items-center justify-center text-3xl`}
+              className={`aspect-square rounded-xl cursor-pointer shadow-md flex items-center justify-center text-3xl`}
               onClick={() => handleCardClick(card.id)}
               initial={{ rotateY: 0 }}
               animate={{ 

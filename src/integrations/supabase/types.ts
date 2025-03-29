@@ -456,6 +456,39 @@ export type Database = {
         }
         Relationships: []
       }
+      leaderboard_points: {
+        Row: {
+          category: string
+          id: string
+          level: string
+          points: number
+          updated_at: string
+          user_id: string | null
+          username: string
+          weekly_change: number
+        }
+        Insert: {
+          category: string
+          id?: string
+          level?: string
+          points?: number
+          updated_at?: string
+          user_id?: string | null
+          username: string
+          weekly_change?: number
+        }
+        Update: {
+          category?: string
+          id?: string
+          level?: string
+          points?: number
+          updated_at?: string
+          user_id?: string | null
+          username?: string
+          weekly_change?: number
+        }
+        Relationships: []
+      }
       marketplace_items: {
         Row: {
           category: string
@@ -997,9 +1030,29 @@ export type Database = {
         }
         Returns: string
       }
+      get_leaderboard_by_category: {
+        Args: {
+          p_category?: string
+        }
+        Returns: {
+          rank: number
+          user_id: string
+          username: string
+          points: number
+          weekly_change: number
+          level: string
+        }[]
+      }
       get_user_combined_score: {
         Args: {
           user_id: string
+        }
+        Returns: number
+      }
+      get_user_points_by_category: {
+        Args: {
+          p_user_id: string
+          p_category: string
         }
         Returns: number
       }
