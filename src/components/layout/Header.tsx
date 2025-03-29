@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -23,6 +24,19 @@ const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, logout } = useAuth();
+  const isMobile = useIsMobile();
+
+  // Add class to body when menu is open to prevent scrolling
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -165,125 +179,136 @@ const Header: React.FC = () => {
         <button 
           className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
         >
           {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
-      {/* Mobile menu - Fixed the background to be solid white with no transparency */}
-      <div className={cn(
-        "fixed inset-0 z-40 bg-white p-4 pt-20 transform transition-transform duration-300 ease-in-out md:hidden",
-        isMenuOpen ? "translate-x-0" : "translate-x-full"
-      )}>
-        <nav className="flex flex-col space-y-6 items-center">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "text-lg font-medium transition-all duration-200",
-                isActive(item.path) ? "text-sfu-red" : "text-sfu-black hover:text-sfu-red"
-              )}
-            >
-              {item.name}
-            </Link>
-          ))}
+      {/* Mobile menu with completely solid background */}
+      {isMobile && (
+        <div 
+          className={cn(
+            "fixed inset-0 z-40 bg-white transition-transform duration-300 ease-in-out md:hidden overflow-y-auto",
+            isMenuOpen ? "translate-x-0" : "translate-x-full"
+          )}
+          style={{ 
+            backgroundColor: "white", 
+            boxShadow: isMenuOpen ? "0 0 15px rgba(0,0,0,0.1)" : "none"
+          }}
+        >
+          <div className="p-4 pt-20">
+            <nav className="flex flex-col space-y-6 items-center">
+              {navItems.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "text-lg font-medium transition-all duration-200",
+                    isActive(item.path) ? "text-sfu-red" : "text-sfu-black hover:text-sfu-red"
+                  )}
+                >
+                  {item.name}
+                </Link>
+              ))}
 
-          {/* Gaming Hub Links for Mobile */}
-          <div className="w-full border-t border-gray-100 pt-4">
-            <div className="text-lg font-medium text-sfu-black mb-2 flex items-center">
-              <Gamepad className="mr-2 h-5 w-5 text-purple-600" />
-              Gaming Hub
-            </div>
-            <div className="flex flex-col space-y-3 pl-7">
-              <Link
-                to="/gaming/quiz"
-                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-              >
-                <Award className="mr-2 h-4 w-4 text-indigo-500" />
-                Quizzes
-              </Link>
-              <Link
-                to="/gaming/games"
-                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-              >
-                <Puzzle className="mr-2 h-4 w-4 text-green-500" />
-                Mini Games
-              </Link>
-              <Link
-                to="/gaming/leaderboard"
-                className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-              >
-                <BarChart className="mr-2 h-4 w-4 text-amber-500" />
-                Leaderboard
-              </Link>
-            </div>
+              {/* Gaming Hub Links for Mobile */}
+              <div className="w-full border-t border-gray-100 pt-4">
+                <div className="text-lg font-medium text-sfu-black mb-2 flex items-center">
+                  <Gamepad className="mr-2 h-5 w-5 text-purple-600" />
+                  Gaming Hub
+                </div>
+                <div className="flex flex-col space-y-3 pl-7">
+                  <Link
+                    to="/gaming/quiz"
+                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+                  >
+                    <Award className="mr-2 h-4 w-4 text-indigo-500" />
+                    Quizzes
+                  </Link>
+                  <Link
+                    to="/gaming/games"
+                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+                  >
+                    <Puzzle className="mr-2 h-4 w-4 text-green-500" />
+                    Mini Games
+                  </Link>
+                  <Link
+                    to="/gaming/leaderboard"
+                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
+                  >
+                    <BarChart className="mr-2 h-4 w-4 text-amber-500" />
+                    Leaderboard
+                  </Link>
+                </div>
+              </div>
+              
+              {!isAuthenticated && (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+              
+              <div className="pt-6 border-t border-gray-100 w-full flex justify-center space-x-4">
+                <Link 
+                  to="/marketplace" 
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
+                >
+                  <ShoppingBag size={20} />
+                </Link>
+                <Link 
+                  to="/newsfeed" 
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
+                >
+                  <Radio size={20} />
+                </Link>
+                <Link 
+                  to="/friends" 
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
+                >
+                  <Users size={20} />
+                </Link>
+                <Link 
+                  to="/attendance" 
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
+                >
+                  <CalendarCheck size={20} />
+                </Link>
+                {isAuthenticated && <NotificationDropdown />}
+              </div>
+              
+              {isAuthenticated && (
+                <div className="w-full">
+                  <button 
+                    onClick={handleEditProfile}
+                    className="w-full text-left px-4 py-2 rounded-lg my-2 hover:bg-gray-100 transition-colors flex items-center"
+                  >
+                    <User size={18} className="mr-2" />
+                    Edit Profile
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </nav>
           </div>
-          
-          {!isAuthenticated && (
-            <>
-              <Link
-                to="/login"
-                className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-              >
-                Register
-              </Link>
-            </>
-          )}
-          
-          <div className="pt-6 border-t border-gray-100 w-full flex justify-center space-x-4">
-            <Link 
-              to="/marketplace" 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <ShoppingBag size={20} />
-            </Link>
-            <Link 
-              to="/newsfeed" 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <Radio size={20} />
-            </Link>
-            <Link 
-              to="/friends" 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <Users size={20} />
-            </Link>
-            <Link 
-              to="/attendance" 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-            >
-              <CalendarCheck size={20} />
-            </Link>
-            {isAuthenticated && <NotificationDropdown />}
-          </div>
-          
-          {isAuthenticated && (
-            <div className="w-full">
-              <button 
-                onClick={handleEditProfile}
-                className="w-full text-left px-4 py-2 rounded-lg my-2 hover:bg-gray-100 transition-colors flex items-center"
-              >
-                <User size={18} className="mr-2" />
-                Edit Profile
-              </button>
-              <button 
-                onClick={handleLogout}
-                className="w-full text-left px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          )}
-        </nav>
-      </div>
+        </div>
+      )}
     </header>
   );
 };
