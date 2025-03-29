@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Link } from 'react-router-dom';
 
 // Sample leaderboard data
 const leaderboardData = [
@@ -211,7 +212,7 @@ const Leaderboard = () => {
                   <Button>View Your Ranking</Button>
                 ) : (
                   <Button asChild>
-                    <a href="/login">Sign in to View</a>
+                    <Link to="/login">Sign in to View</Link>
                   </Button>
                 )}
               </div>

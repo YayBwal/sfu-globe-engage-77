@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -92,7 +93,9 @@ function App() {
                     {/* Gaming Hub Routes */}
                     <Route path="/gaming" element={<GamingHub />} />
                     <Route path="/gaming/quiz" element={<QuizHub />} />
+                    <Route path="/gaming/quiz/:id" element={<QuizHub />} />
                     <Route path="/gaming/games" element={<GamesHub />} />
+                    <Route path="/gaming/games/:id" element={<GamesHub />} />
                     <Route path="/gaming/leaderboard" element={<Leaderboard />} />
                     
                     <Route path="/not-found" element={<NotFound />} />
