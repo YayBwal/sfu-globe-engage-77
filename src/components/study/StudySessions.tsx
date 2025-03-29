@@ -1,328 +1,305 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad, Award, Puzzle, BarChart, ArrowLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+import React, { useState } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar, MapPin, Eye, EyeOff, Users, ExternalLink } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { StudySession } from '@/pages/Study';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
-import GamingNavigation from '@/components/gaming/GamingNavigation';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { toast } from "@/hooks/use-toast";
-import { useIsMobile } from '@/hooks/use-mobile';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import MessagingPanel from './MessagingPanel';
 
-const Header: React.FC = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, profile, isAuthenticated, logout } = useAuth();
-  const isMobile = useIsMobile();
+interface StudySessionsProps {
+  upcomingSessions: StudySession[];
+  refetchSessions: () => Promise<void>;
+}
 
-  // Add class to body when menu is open to prevent scrolling
-  useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isMenuOpen]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location]);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
+const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetchSessions }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
+  const [isJoining, setIsJoining] = useState<boolean>(false);
+  const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
+  
+  // Function to handle joining a session
+  const handleJoinSession = async (session: StudySession) => {
+    if (!user) {
       toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
+        title: "Authentication required",
+        description: "Please sign in to join study sessions",
+        variant: "destructive"
       });
-    } catch (error) {
-      console.error("Logout failed:", error);
-      toast({
-        title: "Logout failed",
-        description: "There was an error logging you out",
-        variant: "destructive",
-      });
+      return;
     }
-  };
-
-  const handleEditProfile = () => {
-    navigate('/profile');
-    setIsMenuOpen(false);
+    
+    // If session requires password
+    if (session.password) {
+      setSelectedSession(session);
+      setIsPasswordModalOpen(true);
+      return;
+    }
+    
+    await joinSession(session);
   };
   
-  const handleBackButton = () => {
-    setIsMenuOpen(false);
+  // Submit password and join session
+  const handlePasswordSubmit = async () => {
+    if (!selectedSession) return;
+    
+    if (passwordInput !== selectedSession.password) {
+      toast({
+        title: "Incorrect password",
+        description: "The password you entered is incorrect",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    await joinSession(selectedSession);
+    setIsPasswordModalOpen(false);
+    setPasswordInput('');
   };
-
-  const navItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Study', path: '/study' },
-    { name: 'Clubs', path: '/clubs' },
-    { name: 'Attendance', path: '/attendance' },
-    { name: 'Marketplace', path: '/marketplace' },
-    { name: 'Newsfeed', path: '/newsfeed' },
-    { name: 'Friends', path: '/friends' },
-  ];
-
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
+  
+  // Actual join session logic
+  const joinSession = async (session: StudySession) => {
+    try {
+      setIsJoining(true);
+      
+      // Check if user is already a participant
+      const { data: existingParticipant, error: checkError } = await supabase
+        .from('session_participants')
+        .select('*')
+        .eq('session_id', session.id)
+        .eq('user_id', user?.id)
+        .single();
+        
+      if (existingParticipant) {
+        // User already joined - open messaging
+        setSelectedSession(session);
+        setIsMessagingOpen(true);
+        return;
+      }
+      
+      // Add user as participant
+      const { error: joinError } = await supabase
+        .from('session_participants')
+        .insert({
+          session_id: session.id,
+          user_id: user?.id,
+          joined_at: new Date().toISOString()
+        });
+        
+      if (joinError) throw joinError;
+      
+      // Update UI
+      await refetchSessions();
+      
+      toast({
+        title: "Success!",
+        description: "You've joined the study session"
+      });
+      
+      // Open messaging panel
+      setSelectedSession(session);
+      setIsMessagingOpen(true);
+      
+    } catch (error) {
+      console.error("Error joining session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to join the study session",
+        variant: "destructive"
+      });
+    } finally {
+      setIsJoining(false);
+    }
   };
-
+  
+  // Generate a shareable link
+  const getShareableLink = (session: StudySession) => {
+    if (!session.access_code) return '';
+    
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/study?session=${session.id}&code=${session.access_code}`;
+  };
+  
+  // Close the messaging panel
+  const handleCloseMessaging = () => {
+    setIsMessagingOpen(false);
+    setSelectedSession(null);
+  };
+  
   return (
-    <header 
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out px-4 md:px-8",
-        isScrolled 
-          ? "bg-white/80 backdrop-blur-md border-b border-gray-200/50 py-3" 
-          : "bg-transparent py-6"
-      )}
-    >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <Link 
-          to="/" 
-          className="flex items-center space-x-2"
-        >
-          <div className="h-10 w-10">
-            <img src="/lovable-uploads/6b2792e9-40c8-412d-8f43-0d697f2e4cfc.png" alt="S1st Globe Logo" className="h-full w-full object-contain" />
-          </div>
-          <span className={cn(
-            "font-display font-semibold text-xl transition-all duration-300",
-            isScrolled ? "text-sfu-black" : "text-sfu-black"
-          )}>
-            S1st Globe
-          </span>
-        </Link>
-
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center space-x-6">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "text-sm font-medium transition-all duration-200 hover:text-sfu-red relative",
-                isScrolled ? "text-sfu-black" : "text-sfu-black",
-                isActive(item.path) ? "text-sfu-red" : "",
-                "after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-sfu-red after:left-0 after:-bottom-1 after:transition-all after:duration-300 hover:after:w-full",
-                isActive(item.path) ? "after:w-full" : ""
-              )}
-            >
-              {item.name}
-            </Link>
-          ))}
-          
-          {/* Gaming Hub Navigation */}
-          <GamingNavigation />
-        </nav>
-
-        {/* User Actions */}
-        <div className="hidden md:flex items-center space-x-4">
-          {isAuthenticated && <NotificationDropdown />}
-          
-          {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="outline-none focus:outline-none">
-                  <Avatar className="h-9 w-9 border-2 border-white hover:border-sfu-red transition-colors cursor-pointer">
-                    <AvatarImage src={profile?.profilePic} alt={profile?.name} />
-                    <AvatarFallback className="bg-sfu-red text-white">
-                      {profile?.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleEditProfile} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Edit Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Link 
-              to="/login" 
-              className="px-4 py-2 rounded-lg bg-sfu-red text-white text-sm font-medium hover:bg-sfu-red/90 transition-colors"
-            >
-              Sign In
-            </Link>
-          )}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-        >
-          {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
-
-      {/* Mobile menu with completely solid background */}
-      {isMobile && (
-        <div 
-          className={cn(
-            "fixed inset-0 z-40 bg-white transition-transform duration-300 ease-in-out md:hidden overflow-y-auto",
-            isMenuOpen ? "translate-x-0" : "translate-x-full"
-          )}
-          style={{ 
-            backgroundColor: "white", 
-            boxShadow: isMenuOpen ? "0 0 15px rgba(0,0,0,0.1)" : "none"
-          }}
-        >
-          <div className="p-4 pt-20">
-            {/* Back button at the top */}
-            <button 
-              onClick={handleBackButton}
-              className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center rounded-lg bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all"
-              aria-label="Back"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            
-            <nav className="flex flex-col space-y-6 items-center">
-              {navItems.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "text-lg font-medium transition-all duration-200",
-                    isActive(item.path) ? "text-sfu-red" : "text-sfu-black hover:text-sfu-red"
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Study Sessions</h2>
+      
+      {upcomingSessions.length === 0 ? (
+        <Card className="bg-white/50 backdrop-blur-sm shadow-md">
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-500">No upcoming study sessions available.</p>
+            <p className="text-sm text-gray-400 mt-1">Create one to get started!</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {upcomingSessions.map((session) => (
+            <Card key={session.id} className="bg-white/50 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-5 border-b border-gray-100">
+                  <div className="flex justify-between">
+                    <h3 className="text-xl font-semibold text-gray-800">{session.subject}</h3>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      session.type === 'online' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {session.type === 'online' ? 'Online' : 'In Person'}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                      <span>{
+                        session.date 
+                          ? format(parseISO(session.date), 'EEEE, MMMM d, yyyy • h:mm a') 
+                          : 'Date not specified'
+                      }</span>
+                    </div>
+                    
+                    <div className="flex items-center text-gray-600">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                      <span>{session.location || 'Location not specified'}</span>
+                    </div>
+                    
+                    <div className="flex items-center text-gray-600">
+                      <Users className="h-4 w-4 mr-2 text-gray-400" />
+                      <span>{session.participants || 0} participants</span>
+                    </div>
+                  </div>
+                  
+                  {session.description && (
+                    <div className="mt-3 text-gray-600 text-sm">
+                      <p>{session.description}</p>
+                    </div>
                   )}
-                >
-                  {item.name}
-                </Link>
-              ))}
-
-              {/* Gaming Hub Links for Mobile */}
-              <div className="w-full border-t border-gray-100 pt-4">
-                <div className="text-lg font-medium text-sfu-black mb-2 flex items-center">
-                  <Gamepad className="mr-2 h-5 w-5 text-purple-600" />
-                  Gaming Hub
                 </div>
-                <div className="flex flex-col space-y-3 pl-7">
-                  <Link
-                    to="/gaming/quiz"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <Award className="mr-2 h-4 w-4 text-indigo-500" />
-                    Quizzes
-                  </Link>
-                  <Link
-                    to="/gaming/games"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <Puzzle className="mr-2 h-4 w-4 text-green-500" />
-                    Mini Games
-                  </Link>
-                  <Link
-                    to="/gaming/leaderboard"
-                    className="text-base font-medium text-gray-600 hover:text-sfu-red transition-all duration-200 flex items-center"
-                  >
-                    <BarChart className="mr-2 h-4 w-4 text-amber-500" />
-                    Leaderboard
-                  </Link>
+                
+                <div className="p-4 bg-gray-50 flex justify-between items-center">
+                  <div className="flex items-center">
+                    {session.password && (
+                      <div className="text-xs text-amber-600 flex items-center mr-3">
+                        <EyeOff className="h-3 w-3 mr-1" />
+                        <span>Password protected</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {session.type === 'online' && session.meeting_link && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-600"
+                        onClick={() => window.open(session.meeting_link, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Join Meeting
+                      </Button>
+                    )}
+                    
+                    <Button
+                      onClick={() => handleJoinSession(session)}
+                      size="sm"
+                      variant="default"
+                      className="bg-sfu-red hover:bg-sfu-red/90 text-white"
+                      disabled={isJoining}
+                    >
+                      {selectedSession?.id === session.id && isJoining ? 'Joining...' : 'Join Session'}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              
-              {!isAuthenticated && (
-                <>
-                  <Link
-                    to="/login"
-                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="text-lg font-medium text-sfu-black hover:text-sfu-red transition-all duration-200"
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
-              
-              <div className="pt-6 border-t border-gray-100 w-full flex justify-center space-x-4">
-                <Link 
-                  to="/marketplace" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <ShoppingBag size={20} />
-                </Link>
-                <Link 
-                  to="/newsfeed" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <Radio size={20} />
-                </Link>
-                <Link 
-                  to="/friends" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <Users size={20} />
-                </Link>
-                <Link 
-                  to="/attendance" 
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-sfu-lightgray text-sfu-black hover:bg-sfu-lightgray/80 transition-all duration-200"
-                >
-                  <CalendarCheck size={20} />
-                </Link>
-                {isAuthenticated && <NotificationDropdown />}
-              </div>
-              
-              {isAuthenticated && (
-                <div className="w-full">
-                  <button 
-                    onClick={handleEditProfile}
-                    className="w-full text-left px-4 py-2 rounded-lg my-2 hover:bg-gray-100 transition-colors flex items-center"
-                  >
-                    <User size={18} className="mr-2" />
-                    Edit Profile
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </nav>
-          </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
-    </header>
+      
+      {/* Password Modal */}
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Session Password</DialogTitle>
+            <DialogDescription>
+              This study session is password protected. Please enter the password to join.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex items-center space-x-2 mt-4">
+            <div className="grid flex-1 gap-2">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+          
+          <DialogFooter className="mt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setIsPasswordModalOpen(false);
+                setPasswordInput('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              onClick={handlePasswordSubmit}
+              disabled={!passwordInput}
+            >
+              Join Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Messaging Panel */}
+      {selectedSession && (
+        <MessagingPanel
+          isOpen={isMessagingOpen}
+          onClose={handleCloseMessaging}
+          sessionId={selectedSession.id}
+          sessionSubject={selectedSession.subject}
+        />
+      )}
+    </div>
   );
 };
 
-export default Header;
+export default StudySessions;

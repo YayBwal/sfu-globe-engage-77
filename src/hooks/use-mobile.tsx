@@ -7,22 +7,30 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean>(false)
 
   React.useEffect(() => {
+    // Check if window is available (for SSR compatibility)
+    if (typeof window === 'undefined') return;
+    
+    // Function to determine if viewport is mobile size
+    const checkIsMobile = () => {
+      return window.innerWidth < MOBILE_BREAKPOINT;
+    };
+    
     // Initialize with the current window width
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    setIsMobile(checkIsMobile());
     
     // Create handler for window resize
     const handleResize = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
+      setIsMobile(checkIsMobile());
+    };
     
     // Add event listener
-    window.addEventListener('resize', handleResize)
+    window.addEventListener('resize', handleResize);
     
     // Clean up
     return () => {
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [])
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
-  return isMobile
+  return isMobile;
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, CalendarCheck, ShoppingBag, Radio, Users, Gamepad, Award, Puzzle, BarChart, ArrowLeft } from 'lucide-react';
@@ -192,15 +193,16 @@ const Header: React.FC = () => {
       {isMobile && (
         <div 
           className={cn(
-            "fixed inset-0 z-40 bg-white transition-transform duration-300 ease-in-out md:hidden overflow-y-auto",
+            "fixed inset-0 z-40 bg-white transition-transform duration-300 ease-in-out md:hidden overflow-hidden",
             isMenuOpen ? "translate-x-0" : "translate-x-full"
           )}
           style={{ 
             backgroundColor: "white", 
-            boxShadow: isMenuOpen ? "0 0 15px rgba(0,0,0,0.1)" : "none"
+            boxShadow: isMenuOpen ? "0 0 15px rgba(0,0,0,0.1)" : "none",
+            top: 0
           }}
         >
-          <div className="p-4 pt-20">
+          <div className="p-4 pt-20 h-full overflow-y-auto">
             {/* Back button at the top */}
             <button 
               onClick={handleBackButton}
