@@ -29,6 +29,20 @@ export const setupStorageBuckets = async () => {
         fileSizeLimit: 1024 * 1024 * 50, // 50MB limit
       });
     }
+    
+    // Create additional policy for profile-images bucket to fix upload permission error
+    try {
+      const policyName = "Public access to profile-images";
+      await supabase.rpc('create_storage_policy', {
+        bucket_name: 'profile-images',
+        policy_name: policyName,
+        definition: `bucket_id = 'profile-images'`, 
+        operation: 'ALL',
+        role_name: 'anon'
+      });
+    } catch (policyError) {
+      console.log('Policy might already exist or could not be created:', policyError);
+    }
   } catch (error) {
     console.error('Error setting up storage buckets:', error);
   }
@@ -60,6 +74,20 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
       if (createError) {
         console.error(`Error creating bucket ${bucketName}:`, createError);
         return false;
+      }
+      
+      // After creating the bucket, add public policies
+      try {
+        const policyName = `Public access to ${bucketName}`;
+        await supabase.rpc('create_storage_policy', {
+          bucket_name: bucketName,
+          policy_name: policyName,
+          definition: `bucket_id = '${bucketName}'`, 
+          operation: 'ALL',
+          role_name: 'anon'
+        });
+      } catch (policyError) {
+        console.log(`Policy for ${bucketName} might already exist:`, policyError);
       }
     } else if (error) {
       console.error(`Error checking bucket ${bucketName}:`, error);

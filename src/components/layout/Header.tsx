@@ -23,6 +23,8 @@ const Header = () => {
   const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const [activeTab, setActiveTab] = useState<string>(location.pathname);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -34,6 +36,7 @@ const Header = () => {
 
   useEffect(() => {
     closeMenu();
+    setActiveTab(location.pathname);
   }, [location]);
 
   return (
@@ -133,113 +136,166 @@ const Header = () => {
             <span className="font-bold text-xl text-red-600">S1st</span>
             <span className="ml-1 text-gray-800 font-semibold">Globe</span>
           </Link>
-          
-          {isAuthenticated && !isMobile && (
-            <nav className="ml-8">
-              <ul className="flex space-x-6">
-                <li>
-                  <Link
-                    to="/"
-                    className={`${
-                      location.pathname === '/'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/study"
-                    className={`${
-                      location.pathname === '/study'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Study
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/clubs"
-                    className={`${
-                      location.pathname.startsWith('/clubs')
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Clubs
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/attendance"
-                    className={`${
-                      location.pathname === '/attendance'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Attendance
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/marketplace"
-                    className={`${
-                      location.pathname === '/marketplace'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Marketplace
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/newsfeed"
-                    className={`${
-                      location.pathname === '/newsfeed'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Newsfeed
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/friends"
-                    className={`${
-                      location.pathname === '/friends'
-                        ? 'text-red-600 font-semibold border-red-600'
-                        : 'text-gray-600 hover:text-red-600 border-transparent'
-                    } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                  >
-                    Friends
-                  </Link>
-                </li>
-                
-                {isAdmin && (
-                  <li>
-                    <Link
-                      to="/admin/review"
-                      className={`${
-                        location.pathname === '/admin/review'
-                          ? 'text-red-600 font-semibold border-red-600'
-                          : 'text-gray-600 hover:text-red-600 border-transparent'
-                      } border-b-2 pb-1 transition-colors transition-transform duration-200 hover:scale-105`}
-                    >
-                      Review
-                    </Link>
-                  </li>
-                )}
-              </ul>
-            </nav>
-          )}
         </div>
+          
+        {isAuthenticated && (
+          <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
+            <ul className="flex space-x-6 relative">
+              <div 
+                className="absolute bottom-0 h-0.5 bg-red-600 transition-all duration-300 ease-in-out"
+                style={{
+                  left: (() => {
+                    const navItems = [
+                      { path: '/', width: 50 },
+                      { path: '/study', width: 56 },
+                      { path: '/clubs', width: 56 },
+                      { path: '/attendance', width: 90 },
+                      { path: '/marketplace', width: 96 },
+                      { path: '/newsfeed', width: 76 },
+                      { path: '/friends', width: 64 },
+                      { path: '/admin/review', width: 65 },
+                    ];
+                    
+                    let leftPosition = 0;
+                    let width = 0;
+                    
+                    for (let i = 0; i < navItems.length; i++) {
+                      const item = navItems[i];
+                      if (activeTab === item.path || 
+                         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
+                        width = item.width;
+                        break;
+                      }
+                      leftPosition += item.width + 24; // 24px for space-x-6
+                    }
+                    
+                    return `${leftPosition}px`;
+                  })(),
+                  width: (() => {
+                    const navItems = [
+                      { path: '/', width: 50 },
+                      { path: '/study', width: 56 },
+                      { path: '/clubs', width: 56 },
+                      { path: '/attendance', width: 90 },
+                      { path: '/marketplace', width: 96 },
+                      { path: '/newsfeed', width: 76 },
+                      { path: '/friends', width: 64 },
+                      { path: '/admin/review', width: 65 },
+                    ];
+                    
+                    for (const item of navItems) {
+                      if (activeTab === item.path || 
+                         (item.path === '/clubs' && activeTab.startsWith('/clubs'))) {
+                        return `${item.width}px`;
+                      }
+                    }
+                    
+                    return '0px';
+                  })(),
+                }}
+              />
+              <li>
+                <Link
+                  to="/"
+                  className={`${
+                    activeTab === '/'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/study"
+                  className={`${
+                    activeTab === '/study'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Study
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/clubs"
+                  className={`${
+                    activeTab.startsWith('/clubs')
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Clubs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/attendance"
+                  className={`${
+                    activeTab === '/attendance'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Attendance
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/marketplace"
+                  className={`${
+                    activeTab === '/marketplace'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Marketplace
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/newsfeed"
+                  className={`${
+                    activeTab === '/newsfeed'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Newsfeed
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/friends"
+                  className={`${
+                    activeTab === '/friends'
+                      ? 'text-red-600 font-semibold'
+                      : 'text-gray-600 hover:text-red-600'
+                  } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                >
+                  Friends
+                </Link>
+              </li>
+              
+              {isAdmin && (
+                <li>
+                  <Link
+                    to="/admin/review"
+                    className={`${
+                      activeTab === '/admin/review'
+                        ? 'text-red-600 font-semibold'
+                        : 'text-gray-600 hover:text-red-600'
+                    } pb-1 transition-colors transition-transform duration-200 hover:scale-105 block`}
+                  >
+                    Review
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </nav>
+        )}
         
         <div className="flex items-center space-x-4">
           {isAuthenticated ? (
