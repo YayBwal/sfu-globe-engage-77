@@ -12,9 +12,14 @@ import { useSessionJoin } from '@/hooks/useSessionJoin';
 interface StudySessionsProps {
   upcomingSessions: StudySession[];
   refetchSessions: () => Promise<void>;
+  onDeleteSession?: (session: StudySession) => Promise<void>;
 }
 
-const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetchSessions }) => {
+const StudySessions: React.FC<StudySessionsProps> = ({ 
+  upcomingSessions, 
+  refetchSessions,
+  onDeleteSession
+}) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
@@ -78,6 +83,13 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
     setIsMessagingOpen(false);
     setSelectedSession(null);
   };
+
+  // Handle session deletion (only for hosts)
+  const handleDeleteSession = async (session: StudySession) => {
+    if (onDeleteSession) {
+      await onDeleteSession(session);
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -103,6 +115,7 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
                 isJoining={isJoining}
                 onJoin={handleJoinSession}
                 onOpenChat={handleOpenChat}
+                onDelete={onDeleteSession ? handleDeleteSession : undefined}
               />
             );
           })}

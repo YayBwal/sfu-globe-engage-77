@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Sparkles, BookOpen, GraduationCap, Users } from 'lucide-react';
 import CreateSessionDialog from '@/components/study/CreateSessionDialog';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface StudySession {
   id: string;
   subject: string;
   date: string;
+  end_date?: string;
   location: string;
   type: "online" | "offline";
   password?: string | null;
@@ -31,6 +33,7 @@ export interface StudySession {
 
 const Study = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [upcomingSessions, setUpcomingSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +127,7 @@ const Study = () => {
         id: session.id,
         subject: session.subject,
         date: session.date,
+        end_date: session.end_date,
         location: session.location || 'Online',
         type: session.type as "online" | "offline",
         password: session.password,
@@ -161,6 +165,44 @@ const Study = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle session deletion (only for hosts)
+  const handleDeleteSession = async (session: StudySession) => {
+    if (!user || user.id !== session.host_id) {
+      toast({
+        title: "Permission denied",
+        description: "Only the host can delete their sessions",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('study_sessions')
+        .update({ status: 'cancelled' })
+        .eq('id', session.id)
+        .eq('host_id', user.id);
+
+      if (error) throw error;
+
+      // Update the local state by filtering out the deleted session
+      setUpcomingSessions(prev => prev.filter(s => s.id !== session.id));
+
+      toast({
+        title: "Session deleted",
+        description: "Your study session has been successfully deleted",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error deleting study session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the study session",
+        variant: "destructive"
+      });
     }
   };
 
@@ -236,6 +278,7 @@ const Study = () => {
                     <StudySessions 
                       upcomingSessions={upcomingSessions} 
                       refetchSessions={fetchUpcomingSessions}
+                      onDeleteSession={handleDeleteSession}
                     />
                   </div>
                   

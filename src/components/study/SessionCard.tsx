@@ -3,8 +3,9 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Eye, EyeOff, Users, ExternalLink, MessageSquare, Check } from 'lucide-react';
+import { Calendar, MapPin, Eye, EyeOff, Users, ExternalLink, MessageSquare, Check, Trash2 } from 'lucide-react';
 import { StudySession } from '@/pages/Study';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SessionCardProps {
   session: StudySession;
@@ -12,6 +13,7 @@ interface SessionCardProps {
   isJoining: boolean;
   onJoin: (session: StudySession) => void;
   onOpenChat: (session: StudySession) => void;
+  onDelete?: (session: StudySession) => void;
 }
 
 const SessionCard: React.FC<SessionCardProps> = ({ 
@@ -19,8 +21,20 @@ const SessionCard: React.FC<SessionCardProps> = ({
   joined, 
   isJoining, 
   onJoin, 
-  onOpenChat 
+  onOpenChat,
+  onDelete
 }) => {
+  const { user } = useAuth();
+  const isHost = user && session.host_id === user.id;
+  
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'EEEE, MMMM d, yyyy • h:mm a');
+    } catch (error) {
+      return 'Date not specified';
+    }
+  };
+
   return (
     <Card key={session.id} className="bg-white/50 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
       <CardContent className="p-0">
@@ -39,12 +53,15 @@ const SessionCard: React.FC<SessionCardProps> = ({
           <div className="mt-3 space-y-2">
             <div className="flex items-center text-gray-600">
               <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-              <span>{
-                session.date 
-                  ? format(parseISO(session.date), 'EEEE, MMMM d, yyyy • h:mm a') 
-                  : 'Date not specified'
-              }</span>
+              <span>{formatDate(session.date)}</span>
             </div>
+            
+            {session.end_date && (
+              <div className="flex items-center text-gray-600">
+                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                <span>Ends: {formatDate(session.end_date)}</span>
+              </div>
+            )}
             
             <div className="flex items-center text-gray-600">
               <MapPin className="h-4 w-4 mr-2 text-gray-400" />
@@ -110,15 +127,28 @@ const SessionCard: React.FC<SessionCardProps> = ({
                 </Button>
               </>
             ) : (
-              <Button
-                onClick={() => onJoin(session)}
-                size="sm"
-                variant="default"
-                className="bg-sfu-red hover:bg-sfu-red/90 text-white"
-                disabled={isJoining}
-              >
-                {isJoining && session.id === session.id ? 'Joining...' : 'Join Session'}
-              </Button>
+              <>
+                {isHost && onDelete && (
+                  <Button
+                    onClick={() => onDelete(session)}
+                    size="sm"
+                    variant="destructive"
+                    className="text-white"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                )}
+                <Button
+                  onClick={() => onJoin(session)}
+                  size="sm"
+                  variant="default"
+                  className="bg-sfu-red hover:bg-sfu-red/90 text-white"
+                  disabled={isJoining}
+                >
+                  {isJoining && session.id === session.id ? 'Joining...' : 'Join Session'}
+                </Button>
+              </>
             )}
           </div>
         </div>

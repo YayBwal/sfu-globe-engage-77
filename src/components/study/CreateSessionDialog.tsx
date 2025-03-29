@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, addDays } from 'date-fns';
+import { format, addDays, addHours } from 'date-fns';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,7 +41,9 @@ interface CreateSessionDialogProps {
 type SessionFormValues = {
   subject: string;
   date: Date;
+  endDate: Date;
   time: string;
+  endTime: string;
   location: string;
   type: "online" | "offline";
   description: string;
@@ -72,6 +74,8 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
       location: '',
       time: '12:00',
       date: addDays(new Date(), 1),
+      endTime: '13:00',
+      endDate: addDays(new Date(), 1),
       password: '',
       meeting_link: '',
       isSecure: false,
@@ -81,6 +85,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
   
   const sessionType = form.watch('type');
   const isSecure = form.watch('isSecure');
+  const startDate = form.watch('date');
   
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -126,15 +131,21 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
     try {
       setIsSubmitting(true);
       
-      // Combine date and time
+      // Combine date and time for start date
       const dateTime = new Date(values.date);
       const [hours, minutes] = values.time.split(':').map(Number);
       dateTime.setHours(hours, minutes);
+      
+      // Combine date and time for end date
+      const endDateTime = new Date(values.endDate);
+      const [endHours, endMinutes] = values.endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes);
       
       // Prepare data based on session type
       const sessionData = {
         subject: values.subject,
         date: dateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
         description: values.description,
         host_id: user.id,
         type: values.type,
@@ -185,12 +196,16 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
   };
 
   const handleNext = () => {
-    form.trigger(['subject', 'date', 'time']);
+    form.trigger(['subject', 'date', 'time', 'endDate', 'endTime']);
     const subjectState = form.getFieldState('subject');
     const dateState = form.getFieldState('date');
     const timeState = form.getFieldState('time');
+    const endDateState = form.getFieldState('endDate');
+    const endTimeState = form.getFieldState('endTime');
     
-    if (!subjectState.invalid && !dateState.invalid && !timeState.invalid && form.getValues('subject') && form.getValues('date')) {
+    if (!subjectState.invalid && !dateState.invalid && !timeState.invalid && 
+        !endDateState.invalid && !endTimeState.invalid && 
+        form.getValues('subject') && form.getValues('date') && form.getValues('endDate')) {
       setFormStep(2);
     }
   };
@@ -282,10 +297,10 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
                         <FormField
                           control={form.control}
                           name="date"
-                          rules={{ required: "Date is required" }}
+                          rules={{ required: "Start date is required" }}
                           render={({ field }) => (
                             <FormItem className="flex flex-col">
-                              <FormLabel className="text-sm font-medium">Date</FormLabel>
+                              <FormLabel className="text-sm font-medium">Start Date</FormLabel>
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <FormControl>
@@ -324,10 +339,100 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
                         <FormField
                           control={form.control}
                           name="time"
-                          rules={{ required: "Time is required" }}
+                          rules={{ required: "Start time is required" }}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-sm font-medium">Time</FormLabel>
+                              <FormLabel className="text-sm font-medium">Start Time</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="time" 
+                                    className="pl-10 bg-gray-50 border-gray-200"
+                                    {...field} 
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="endDate"
+                          rules={{ 
+                            required: "End date is required",
+                            validate: (value) => {
+                              const startDate = form.getValues('date');
+                              const endDate = value;
+                              
+                              // If end date is before start date, return error
+                              if (startDate && endDate && 
+                                  endDate.getFullYear() < startDate.getFullYear() || 
+                                  (endDate.getFullYear() === startDate.getFullYear() && 
+                                   endDate.getMonth() < startDate.getMonth()) ||
+                                  (endDate.getFullYear() === startDate.getFullYear() && 
+                                   endDate.getMonth() === startDate.getMonth() &&
+                                   endDate.getDate() < startDate.getDate())) {
+                                return "End date cannot be before start date";
+                              }
+                              return true;
+                            }
+                          }}
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel className="text-sm font-medium">End Date</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                                  <CalendarComponent
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={(date) => {
+                                      field.onChange(date);
+                                      // If end date is before start date, update it
+                                      if (startDate && date && date < startDate) {
+                                        form.setValue('endDate', startDate);
+                                      }
+                                    }}
+                                    disabled={(date) => date < new Date()}
+                                    initialFocus
+                                    className="p-3 pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="endTime"
+                          rules={{ required: "End time is required" }}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-medium">End Time</FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
