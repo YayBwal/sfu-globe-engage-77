@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Eye, EyeOff, Users, ExternalLink } from 'lucide-react';
@@ -33,6 +33,7 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
+  const [messages, setMessages] = useState<{ text: string; sender: string; timestamp: Date }[]>([]);
   
   // Function to handle joining a session
   const handleJoinSession = async (session: StudySession) => {
@@ -290,12 +291,12 @@ const StudySessions: React.FC<StudySessionsProps> = ({ upcomingSessions, refetch
       </Dialog>
       
       {/* Messaging Panel */}
-      {selectedSession && (
+      {selectedSession && isMessagingOpen && (
         <MessagingPanel
-          isOpen={isMessagingOpen}
-          onClose={handleCloseMessaging}
           sessionId={selectedSession.id}
           sessionSubject={selectedSession.subject}
+          onClose={handleCloseMessaging}
+          isOpen={isMessagingOpen}
         />
       )}
     </div>
