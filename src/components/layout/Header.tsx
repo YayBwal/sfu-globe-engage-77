@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,7 +68,7 @@ const Header = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
               <img 
-                src="/lovable-uploads/408379a6-aa7b-4337-bca8-d96cfa744243.png" 
+                src="/lovable-uploads/f492ef21-ec71-457f-90a9-ae27362a3bc3.png" 
                 alt="S1st Globe Logo" 
                 className="h-8 w-auto mr-2" 
               />
@@ -122,10 +121,11 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/408379a6-aa7b-4337-bca8-d96cfa744243.png" 
+              src="/lovable-uploads/f492ef21-ec71-457f-90a9-ae27362a3bc3.png" 
               alt="S1st Globe Logo" 
               className="h-12 w-auto mr-2" 
             />
+            <span className="text-lg font-semibold text-gray-800">S1st Globe</span>
           </Link>
         </div>
           
