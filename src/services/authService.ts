@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -48,7 +47,18 @@ export const registerUser = async (
     
     console.log("Checks passed, proceeding with registration");
     
-    // Now proceed with registration since both checks passed
+    // Additional check directly against auth.users table (if accessible)
+    try {
+      const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email);
+      if (authUser) {
+        throw new Error('This email is already registered. Please use a different email or try logging in.');
+      }
+    } catch (e) {
+      // If we can't access this API (which is likely), just continue
+      console.log("Admin user check skipped, continuing with registration");
+    }
+    
+    // Now proceed with registration since all checks passed
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -66,10 +76,20 @@ export const registerUser = async (
 
     if (error) {
       console.error("Auth signup error:", error);
+      
+      // Handle specific auth errors
+      if (error.message.includes('User already registered')) {
+        throw new Error('This email is already registered. Please use a different email or try logging in.');
+      }
+      
       throw error;
     }
     
-    console.log("Registration successful");
+    if (!data.user) {
+      throw new Error('Registration failed. Please try again later.');
+    }
+    
+    console.log("Registration successful, user created with ID:", data.user.id);
   } catch (error: any) {
     console.error("Registration error:", error);
     
@@ -83,6 +103,12 @@ export const registerUser = async (
         throw new Error('A user with this Student ID or email already exists. Please try a different one or contact support.');
       }
     }
+    
+    // Handle other specific error cases
+    if (error.message && error.message.includes('User already registered')) {
+      throw new Error('This email address is already registered. Please use a different email or try logging in.');
+    }
+    
     throw error;
   }
 };

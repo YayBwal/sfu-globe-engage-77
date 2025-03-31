@@ -150,6 +150,9 @@ const Register = () => {
     
     setIsSubmitting(true);
     try {
+      // Add a slight delay to ensure previous transactions are completed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await register(
         values.email, 
         values.password, 
@@ -168,9 +171,11 @@ const Register = () => {
       navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
+      
+      // Display a user-friendly error message
       toast({
         title: 'Registration failed',
-        description: error.message || 'Something went wrong',
+        description: error.message || 'Something went wrong with registration. Please try again with different information.',
         variant: 'destructive',
       });
     } finally {
