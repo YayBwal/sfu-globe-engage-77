@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,7 @@ const Header = () => {
   const location = useLocation();
   
   const [activeTab, setActiveTab] = useState<string>(location.pathname);
+  const [isChangingTab, setIsChangingTab] = useState<boolean>(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -35,7 +37,15 @@ const Header = () => {
 
   useEffect(() => {
     closeMenu();
-    setActiveTab(location.pathname);
+    
+    // Add a tab transition effect
+    setIsChangingTab(true);
+    const timer = setTimeout(() => {
+      setActiveTab(location.pathname);
+      setIsChangingTab(false);
+    }, 150); // Brief delay for the transition effect
+    
+    return () => clearTimeout(timer);
   }, [location]);
 
   // Define nav items for consistent rendering and positioning
@@ -120,21 +130,23 @@ const Header = () => {
       
       <div className="container mx-auto flex items-center justify-between p-4">
         <div className="flex items-center">
-          <Link to="/" className="flex items-center group transition-transform duration-200 hover:scale-105">
+          <Link to="/" className="flex items-center group transition-transform duration-200 hover:scale-105 nav-static" aria-label="Home">
             <img 
               src="/lovable-uploads/f492ef21-ec71-457f-90a9-ae27362a3bc3.png" 
               alt="S1st Globe Logo" 
-              className="h-12 w-auto mr-2 transition-all duration-300" 
+              className="h-12 w-auto mr-2 transition-all duration-300 pointer-events-none" 
+              loading="eager"
+              fetchpriority="high"
             />
             <span className="text-lg font-semibold text-gray-800 transition-colors duration-300 group-hover:text-red-600">S1st Globe</span>
           </Link>
         </div>
           
         {isAuthenticated && (
-          <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto`}>
+          <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto nav-static`}>
             <ul className="flex space-x-6 relative">
               {navItems.map((item) => (
-                <li key={item.path} className="relative group">
+                <li key={item.path} className="relative group nav-static">
                   <Link
                     to={item.path}
                     className={`${
@@ -143,13 +155,24 @@ const Header = () => {
                         : 'text-gray-600 hover:text-red-600'
                     } py-2 block transition-colors duration-300 ease-in-out nav-static`}
                     style={{ transform: 'translateZ(0)' }}
+                    onClick={(e) => {
+                      if (item.path === location.pathname) {
+                        e.preventDefault(); // Prevent navigation if already on the page
+                      }
+                    }}
                   >
                     {item.label}
                     <span 
                       className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
                         transition-all duration-300 ease-in-out 
-                        ${isActive(item.path) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
-                      style={{ transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', transformOrigin: 'center' }}
+                        ${isActive(item.path) 
+                          ? 'opacity-100 scale-x-100 nav-indicator-active' 
+                          : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                      style={{ 
+                        transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', 
+                        transformOrigin: 'center',
+                        transition: 'transform 0.3s ease, opacity 0.3s ease'
+                      }}
                     />
                   </Link>
                 </li>
