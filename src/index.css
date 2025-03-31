@@ -90,6 +90,17 @@
   .nav-link.active::after {
     @apply scale-x-100;
   }
+  
+  /* Static navigation elements */
+  .nav-static {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    -webkit-font-smoothing: subpixel-antialiased;
+    transform: translateZ(0);
+    will-change: transform;
+    perspective: 1000;
+    transition: color 0.3s ease;
+  }
 }
 
 @layer utilities {

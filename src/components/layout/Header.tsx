@@ -62,9 +62,10 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200">
+    <header className="fixed top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200 will-change-transform">
       {isMobile && (
         <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+          
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" className="flex items-center">
               <img 
@@ -140,13 +141,15 @@ const Header = () => {
                       isActive(item.path)
                         ? 'text-red-600 font-semibold'
                         : 'text-gray-600 hover:text-red-600'
-                    } py-2 block transition-all duration-300 ease-in-out hover:scale-105`}
+                    } py-2 block transition-colors duration-300 ease-in-out nav-static`}
+                    style={{ transform: 'translateZ(0)' }}
                   >
                     {item.label}
                     <span 
                       className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
-                        transition-all duration-300 ease-in-out transform 
+                        transition-all duration-300 ease-in-out 
                         ${isActive(item.path) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                      style={{ transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', transformOrigin: 'center' }}
                     />
                   </Link>
                 </li>
@@ -156,6 +159,7 @@ const Header = () => {
         )}
         
         <div className="flex items-center space-x-4">
+          
           {isAuthenticated ? (
             <>
               {!isMobile && (
