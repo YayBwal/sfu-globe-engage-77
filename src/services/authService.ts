@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -10,6 +11,8 @@ export const registerUser = async (
   studentIdPhoto?: string
 ): Promise<void> => {
   try {
+    console.log("Starting registration process for:", email, studentId);
+    
     // First check if the student ID already exists in the profiles table
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
@@ -23,6 +26,7 @@ export const registerUser = async (
     }
     
     if (existingProfile) {
+      console.log("Student ID already exists:", studentId);
       throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
     }
 
@@ -38,8 +42,11 @@ export const registerUser = async (
     }
     
     if (existingUsers) {
+      console.log("Email already exists:", email);
       throw new Error('A user with this email already exists. Please use a different email or try logging in.');
     }
+    
+    console.log("Checks passed, proceeding with registration");
     
     // Now proceed with registration since both checks passed
     const { data, error } = await supabase.auth.signUp({
@@ -58,10 +65,14 @@ export const registerUser = async (
     });
 
     if (error) {
-      // This will catch specific auth errors like invalid email format
+      console.error("Auth signup error:", error);
       throw error;
     }
+    
+    console.log("Registration successful");
   } catch (error: any) {
+    console.error("Registration error:", error);
+    
     // Convert database constraint errors to user-friendly messages
     if (error.message && error.message.includes('duplicate key')) {
       if (error.message.includes('profiles_student_id_key')) {
