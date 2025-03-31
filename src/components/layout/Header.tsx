@@ -14,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const Header = () => {
   const { isAuthenticated, profile, logout, isAdmin } = useAuth();
@@ -71,13 +76,82 @@ const Header = () => {
     return activeTab === path || (path !== '/' && activeTab.startsWith(path));
   };
 
+  // Navigation menu for mobile and desktop
+  const NavItems = () => (
+    <ul className={`${isMobile ? 'space-y-4' : 'flex space-x-6 relative'}`}>
+      {navItems.map((item) => (
+        <li 
+          key={item.path} 
+          className={`${isMobile ? 'transform transition-all duration-200 hover:translate-x-2' : 'relative group nav-static'}`}
+        >
+          <Link
+            to={item.path}
+            className={`
+              ${isActive(item.path)
+                ? 'text-red-600 font-semibold'
+                : 'text-gray-600 hover:text-red-600'
+              } 
+              ${isMobile ? 'block' : 'py-2 block transition-colors duration-300 ease-in-out nav-static'}
+            `}
+            style={!isMobile ? { transform: 'translateZ(0)' } : undefined}
+            onClick={(e) => {
+              if (item.path === location.pathname) {
+                e.preventDefault(); // Prevent navigation if already on the page
+              }
+              if (isMobile) {
+                closeMenu();
+              }
+            }}
+          >
+            {item.label}
+            {!isMobile && (
+              <span 
+                className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
+                  transition-all duration-300 ease-in-out 
+                  ${isActive(item.path) 
+                    ? 'opacity-100 scale-x-100 nav-indicator-active' 
+                    : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                style={{ 
+                  transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', 
+                  transformOrigin: 'center',
+                  transition: 'transform 0.3s ease, opacity 0.3s ease'
+                }}
+              />
+            )}
+          </Link>
+        </li>
+      ))}
+      {isMobile && isAuthenticated && (
+        <li className="transform transition-all duration-200 hover:translate-x-2 border-t border-gray-100 pt-4 mt-4">
+          <button onClick={logout} className="block w-full text-left text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
+            Logout
+          </button>
+        </li>
+      )}
+      {isMobile && !isAuthenticated && (
+        <>
+          <li className="transform transition-all duration-200 hover:translate-x-2 border-t border-gray-100 pt-4 mt-4">
+            <Link to="/login" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
+              Login
+            </Link>
+          </li>
+          <li className="transform transition-all duration-200 hover:translate-x-2">
+            <Link to="/register" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
+              Register
+            </Link>
+          </li>
+        </>
+      )}
+    </ul>
+  );
+
   return (
     <header className="fixed top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200 will-change-transform">
       {/* Mobile Menu Overlay */}
       {isMobile && (
         <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
           
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
             <Link to="/" className="flex items-center">
               <img 
                 src="/lovable-uploads/f492ef21-ec71-457f-90a9-ae27362a3bc3.png" 
@@ -90,41 +164,8 @@ const Header = () => {
               <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="p-4">
-            <ul className="space-y-4">
-              {navItems.map((item) => (
-                <li key={item.path} className="transform transition-all duration-200 hover:translate-x-2">
-                  <Link 
-                    to={item.path} 
-                    className={`block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300 ${
-                      isActive(item.path) ? 'text-red-600 font-semibold' : ''
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-              {isAuthenticated ? (
-                <li className="transform transition-all duration-200 hover:translate-x-2">
-                  <button onClick={logout} className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
-                    Logout
-                  </button>
-                </li>
-              ) : (
-                <>
-                  <li className="transform transition-all duration-200 hover:translate-x-2">
-                    <Link to="/login" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
-                      Login
-                    </Link>
-                  </li>
-                  <li className="transform transition-all duration-200 hover:translate-x-2">
-                    <Link to="/register" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
-                      Register
-                    </Link>
-                  </li>
-                </>
-              )}
-            </ul>
+          <nav className="p-4 bg-white">
+            <NavItems />
           </nav>
         </div>
       )}
@@ -145,40 +186,7 @@ const Header = () => {
           
         {isAuthenticated && (
           <nav className={`${isMobile ? 'hidden' : 'block'} mx-auto nav-static`}>
-            <ul className="flex space-x-6 relative">
-              {navItems.map((item) => (
-                <li key={item.path} className="relative group nav-static">
-                  <Link
-                    to={item.path}
-                    className={`${
-                      isActive(item.path)
-                        ? 'text-red-600 font-semibold'
-                        : 'text-gray-600 hover:text-red-600'
-                    } py-2 block transition-colors duration-300 ease-in-out nav-static`}
-                    style={{ transform: 'translateZ(0)' }}
-                    onClick={(e) => {
-                      if (item.path === location.pathname) {
-                        e.preventDefault(); // Prevent navigation if already on the page
-                      }
-                    }}
-                  >
-                    {item.label}
-                    <span 
-                      className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
-                        transition-all duration-300 ease-in-out 
-                        ${isActive(item.path) 
-                          ? 'opacity-100 scale-x-100 nav-indicator-active' 
-                          : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
-                      style={{ 
-                        transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', 
-                        transformOrigin: 'center',
-                        transition: 'transform 0.3s ease, opacity 0.3s ease'
-                      }}
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <NavItems />
           </nav>
         )}
         
@@ -198,7 +206,7 @@ const Header = () => {
                       )}
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-80 md:w-96 animate-in fade-in-80 slide-in-from-top-5">
+                  <DropdownMenuContent className="w-80 md:w-96 animate-in fade-in-80 slide-in-from-top-5 bg-white">
                     <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {notifications && notifications.length > 0 ? (
@@ -231,7 +239,7 @@ const Header = () => {
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48 animate-in fade-in-80 slide-in-from-top-5">
+                <DropdownMenuContent className="w-48 animate-in fade-in-80 slide-in-from-top-5 bg-white">
                   <DropdownMenuLabel>{profile?.name}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
@@ -248,6 +256,12 @@ const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {/* Mobile hamburger menu for authenticated users */}
+              {isMobile && (
+                <button onClick={toggleMenu} className="p-2 transition-transform duration-200 hover:scale-110">
+                  <Menu className="h-6 w-6" />
+                </button>
+              )}
             </>
           ) : (
             !isMobile ? (
