@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const registerUser = async (
@@ -59,11 +58,19 @@ export const registerUser = async (
     });
 
     if (error) {
+      // This will catch specific auth errors like invalid email format
       throw error;
     }
   } catch (error: any) {
-    if (error.message.includes('duplicate key')) {
-      throw new Error('A user with this Student ID or email already exists. Please try a different one or contact support.');
+    // Convert database constraint errors to user-friendly messages
+    if (error.message && error.message.includes('duplicate key')) {
+      if (error.message.includes('profiles_student_id_key')) {
+        throw new Error('This Student ID is already registered. Please use a different Student ID or contact support.');
+      } else if (error.message.includes('profiles_email_key')) {
+        throw new Error('This email address is already registered. Please use a different email or try logging in.');
+      } else {
+        throw new Error('A user with this Student ID or email already exists. Please try a different one or contact support.');
+      }
     }
     throw error;
   }
