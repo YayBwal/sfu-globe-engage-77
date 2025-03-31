@@ -73,6 +73,7 @@ const Header = () => {
 
   return (
     <header className="fixed top-0 z-50 w-full backdrop-blur-sm bg-white/80 border-b border-gray-200 will-change-transform">
+      {/* Mobile Menu Overlay */}
       {isMobile && (
         <div className={`fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
           
@@ -136,7 +137,7 @@ const Header = () => {
               alt="S1st Globe Logo" 
               className="h-12 w-auto mr-2 transition-all duration-300 pointer-events-none" 
               loading="eager"
-              fetchpriority="high"
+              fetchPriority="high"
             />
             <span className="text-lg font-semibold text-gray-800 transition-colors duration-300 group-hover:text-red-600">S1st Globe</span>
           </Link>
