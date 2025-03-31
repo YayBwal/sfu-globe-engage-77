@@ -74,17 +74,17 @@ const Header = () => {
               />
               <span className="ml-1 text-gray-800 font-semibold">S1st Globe</span>
             </Link>
-            <button onClick={toggleMenu} className="p-2">
+            <button onClick={toggleMenu} className="p-2 transition-transform duration-200 hover:scale-110">
               <X className="h-6 w-6" />
             </button>
           </div>
           <nav className="p-4">
             <ul className="space-y-4">
               {navItems.map((item) => (
-                <li key={item.path}>
+                <li key={item.path} className="transform transition-all duration-200 hover:translate-x-2">
                   <Link 
                     to={item.path} 
-                    className={`block text-gray-700 hover:text-red-600 font-medium ${
+                    className={`block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300 ${
                       isActive(item.path) ? 'text-red-600 font-semibold' : ''
                     }`}
                   >
@@ -93,20 +93,20 @@ const Header = () => {
                 </li>
               ))}
               {isAuthenticated ? (
-                <li>
-                  <button onClick={logout} className="block text-gray-700 hover:text-red-600 font-medium">
+                <li className="transform transition-all duration-200 hover:translate-x-2">
+                  <button onClick={logout} className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
                     Logout
                   </button>
                 </li>
               ) : (
                 <>
-                  <li>
-                    <Link to="/login" className="block text-gray-700 hover:text-red-600 font-medium">
+                  <li className="transform transition-all duration-200 hover:translate-x-2">
+                    <Link to="/login" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
                       Login
                     </Link>
                   </li>
-                  <li>
-                    <Link to="/register" className="block text-gray-700 hover:text-red-600 font-medium">
+                  <li className="transform transition-all duration-200 hover:translate-x-2">
+                    <Link to="/register" className="block text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
                       Register
                     </Link>
                   </li>
@@ -119,13 +119,13 @@ const Header = () => {
       
       <div className="container mx-auto flex items-center justify-between p-4">
         <div className="flex items-center">
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-center group transition-transform duration-200 hover:scale-105">
             <img 
               src="/lovable-uploads/f492ef21-ec71-457f-90a9-ae27362a3bc3.png" 
               alt="S1st Globe Logo" 
-              className="h-12 w-auto mr-2" 
+              className="h-12 w-auto mr-2 transition-all duration-300" 
             />
-            <span className="text-lg font-semibold text-gray-800">S1st Globe</span>
+            <span className="text-lg font-semibold text-gray-800 transition-colors duration-300 group-hover:text-red-600">S1st Globe</span>
           </Link>
         </div>
           
@@ -140,15 +140,15 @@ const Header = () => {
                       isActive(item.path)
                         ? 'text-red-600 font-semibold'
                         : 'text-gray-600 hover:text-red-600'
-                    } py-2 block transition-colors duration-200 hover:scale-105`}
+                    } py-2 block transition-all duration-300 ease-in-out hover:scale-105`}
                   >
                     {item.label}
+                    <span 
+                      className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
+                        transition-all duration-300 ease-in-out transform 
+                        ${isActive(item.path) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                    />
                   </Link>
-                  <span 
-                    className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
-                      transition-all duration-300 ease-in-out transform 
-                      ${isActive(item.path) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'}`} 
-                  />
                 </li>
               ))}
             </ul>
@@ -161,19 +161,21 @@ const Header = () => {
               {!isMobile && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="relative">
-                      <Bell className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                    <button className="relative transition-transform duration-200 hover:scale-110">
+                      <Bell className="h-5 w-5 text-gray-500 hover:text-gray-700 transition-colors duration-300" />
                       {unreadCount > 0 && (
-                        <span className="absolute top-[-3px] right-[-3px] bg-red-600 text-white rounded-full text-xs px-1">{unreadCount}</span>
+                        <span className="absolute top-[-3px] right-[-3px] bg-red-600 text-white rounded-full text-xs px-1 animate-pulse">
+                          {unreadCount}
+                        </span>
                       )}
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-80 md:w-96">
+                  <DropdownMenuContent className="w-80 md:w-96 animate-in fade-in-80 slide-in-from-top-5">
                     <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {notifications && notifications.length > 0 ? (
                       notifications.map((notification) => (
-                        <DropdownMenuItem key={notification.id} className="break-words">
+                        <DropdownMenuItem key={notification.id} className="break-words transition-colors duration-200 hover:bg-gray-100">
                           <div className="font-semibold">{notification.title}</div>
                           <div className="text-sm text-gray-500">{notification.message}</div>
                         </DropdownMenuItem>
@@ -184,7 +186,9 @@ const Header = () => {
                     {notifications && notifications.length > 0 && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={markAllAsRead} className="justify-center">Mark all as read</DropdownMenuItem>
+                        <DropdownMenuItem onClick={markAllAsRead} className="justify-center transition-colors duration-200 hover:bg-gray-100">
+                          Mark all as read
+                        </DropdownMenuItem>
                       </>
                     )}
                   </DropdownMenuContent>
@@ -192,33 +196,43 @@ const Header = () => {
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="outline-none">
-                    <Avatar className="h-8 w-8">
+                  <button className="outline-none transition-transform duration-200 hover:scale-110">
+                    <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-red-400 transition-all duration-300">
                       <AvatarImage src={profile?.profilePic || "https://github.com/shadcn.png"} alt={profile?.name || "Avatar"} />
                       <AvatarFallback>{profile?.name?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48">
+                <DropdownMenuContent className="w-48 animate-in fade-in-80 slide-in-from-top-5">
                   <DropdownMenuLabel>{profile?.name}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>Profile</DropdownMenuItem>
-                  <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => navigate('/profile')} 
+                    className="transition-colors duration-200 hover:bg-gray-100 cursor-pointer"
+                  >
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={logout} 
+                    className="transition-colors duration-200 hover:bg-gray-100 cursor-pointer"
+                  >
+                    Log out
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           ) : (
             !isMobile ? (
               <div>
-                <Link to="/login" className="text-gray-600 hover:text-red-600 mr-4">
+                <Link to="/login" className="text-gray-600 hover:text-red-600 mr-4 transition-colors duration-300 hover:underline">
                   Login
                 </Link>
-                <Link to="/register" className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors">
+                <Link to="/register" className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-all duration-300 hover:shadow-md transform hover:scale-105">
                   Register
                 </Link>
               </div>
             ) : (
-              <button onClick={toggleMenu} className="p-2">
+              <button onClick={toggleMenu} className="p-2 transition-transform duration-200 hover:scale-110">
                 <Menu className="h-6 w-6" />
               </button>
             )

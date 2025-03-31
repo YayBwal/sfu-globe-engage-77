@@ -71,6 +71,25 @@
   .pill {
     @apply px-3 py-1 rounded-full text-xs font-medium;
   }
+  
+  /* Navigation link animations */
+  .nav-link {
+    @apply relative transition-all duration-300 ease-in-out;
+  }
+  
+  .nav-link::after {
+    @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-red-600 scale-x-0 transition-transform duration-300;
+    transform-origin: bottom right;
+  }
+  
+  .nav-link:hover::after {
+    @apply scale-x-100;
+    transform-origin: bottom left;
+  }
+  
+  .nav-link.active::after {
+    @apply scale-x-100;
+  }
 }
 
 @layer utilities {
@@ -86,5 +105,29 @@
     0% { transform: translateY(0px); }
     50% { transform: translateY(-20px); }
     100% { transform: translateY(0px); }
+  }
+  
+  @keyframes navSlideIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  .nav-slide-in {
+    animation: navSlideIn 0.3s ease-out forwards;
+  }
+  
+  /* Scale effect on hover */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+  
+  /* Glow effect for active nav items */
+  .nav-glow {
+    @apply transition-all duration-300;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+  }
+  
+  .nav-glow:hover {
+    text-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
   }
 }
