@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMobile } from '@/hooks/useMobile';
@@ -29,6 +30,7 @@ const Header = () => {
   const location = useLocation();
   
   const [activeTab, setActiveTab] = useState<string>(location.pathname);
+  const prevTabRef = useRef<string>(location.pathname);
   const isInitialMount = useRef(true);
 
   const toggleMenu = () => {
@@ -45,31 +47,30 @@ const Header = () => {
     // Only run the animation after initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      setActiveTab(location.pathname);
+    } else {
+      // Store the previous tab before updating
+      prevTabRef.current = activeTab;
+      // Update immediately to avoid flicker
+      setActiveTab(location.pathname);
     }
-    
-    // Update immediately without flickering
-    setActiveTab(location.pathname);
   }, [location]);
 
   // Define nav items for consistent rendering and positioning
-  const navItems = useMemo(() => {
-    const items = [
-      { path: '/', label: 'Home' },
-      { path: '/study', label: 'Study' },
-      { path: '/clubs', label: 'Clubs' },
-      { path: '/attendance', label: 'Attendance' },
-      { path: '/marketplace', label: 'Marketplace' },
-      { path: '/newsfeed', label: 'Newsfeed' },
-      { path: '/friends', label: 'Friends' },
-    ];
-    
-    if (isAdmin) {
-      items.push({ path: '/admin/review', label: 'Review' });
-    }
-    
-    return items;
-  }, [isAdmin]);
+  const navItems = [
+    { path: '/', label: 'Home' },
+    { path: '/study', label: 'Study' },
+    { path: '/clubs', label: 'Clubs' },
+    { path: '/attendance', label: 'Attendance' },
+    { path: '/marketplace', label: 'Marketplace' },
+    { path: '/newsfeed', label: 'Newsfeed' },
+    { path: '/friends', label: 'Friends' },
+  ];
   
+  if (isAdmin) {
+    navItems.push({ path: '/admin/review', label: 'Review' });
+  }
+
   // Helper function to determine if a nav item is active
   const isActive = (path: string) => {
     if (path === '/') {
@@ -108,14 +109,18 @@ const Header = () => {
             {item.label}
             {!isMobile && (
               <span 
-                className={`tab-indicator ${isActive(item.path) ? 'tab-indicator-active' : 'tab-indicator-inactive'}`}
-                aria-hidden="true"
+                className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
+                  tab-indicator transition-transform duration-300 ease-in-out
+                  ${isActive(item.path) ? 'opacity-100' : 'opacity-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                style={{ 
+                  transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', 
+                  transformOrigin: 'center',
+                }}
               />
             )}
           </Link>
         </li>
       ))}
-      
       {isMobile && isAuthenticated && (
         <li className="transform transition-all duration-200 hover:translate-x-2 border-t border-gray-100 pt-4 mt-4">
           <button onClick={logout} className="block w-full text-left text-gray-700 hover:text-red-600 font-medium transition-colors duration-300">
