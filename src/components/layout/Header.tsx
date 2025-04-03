@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMobile } from '@/hooks/useMobile';
@@ -30,7 +30,8 @@ const Header = () => {
   const location = useLocation();
   
   const [activeTab, setActiveTab] = useState<string>(location.pathname);
-  const [isChangingTab, setIsChangingTab] = useState<boolean>(false);
+  const prevTabRef = useRef<string>(location.pathname);
+  const isInitialMount = useRef(true);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -43,14 +44,16 @@ const Header = () => {
   useEffect(() => {
     closeMenu();
     
-    // Add a tab transition effect
-    setIsChangingTab(true);
-    const timer = setTimeout(() => {
+    // Only run the animation after initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
       setActiveTab(location.pathname);
-      setIsChangingTab(false);
-    }, 150); // Brief delay for the transition effect
-    
-    return () => clearTimeout(timer);
+    } else {
+      // Store the previous tab before updating
+      prevTabRef.current = activeTab;
+      // Update immediately to avoid flicker
+      setActiveTab(location.pathname);
+    }
   }, [location]);
 
   // Define nav items for consistent rendering and positioning
@@ -107,14 +110,11 @@ const Header = () => {
             {!isMobile && (
               <span 
                 className={`absolute -bottom-3 left-0 w-full h-1 bg-red-600 rounded-full 
-                  transition-all duration-300 ease-in-out 
-                  ${isActive(item.path) 
-                    ? 'opacity-100 scale-x-100 nav-indicator-active' 
-                    : 'opacity-0 scale-x-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
+                  tab-indicator transition-transform duration-300 ease-in-out
+                  ${isActive(item.path) ? 'opacity-100' : 'opacity-0 group-hover:opacity-50 group-hover:scale-x-75'}`} 
                 style={{ 
                   transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)', 
                   transformOrigin: 'center',
-                  transition: 'transform 0.3s ease, opacity 0.3s ease'
                 }}
               />
             )}

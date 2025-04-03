@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -71,13 +72,13 @@
     @apply px-3 py-1 rounded-full text-xs font-medium;
   }
   
-  /* Navigation link animations */
+  /* Navigation link animations - IMPROVED */
   .nav-link {
     @apply relative transition-all duration-300 ease-in-out;
   }
   
   .nav-link::after {
-    @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-red-600 scale-x-0 transition-transform duration-300;
+    @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-red-600 transform transition-transform duration-300 ease-in-out;
     transform-origin: bottom right;
   }
   
@@ -101,9 +102,11 @@
     transition: color 0.3s ease;
   }
   
-  /* Tab indicator fade transition */
+  /* Tab indicator fade transition - IMPROVED */
   .nav-indicator-active {
-    animation: fadeIn 0.3s ease-in-out;
+    animation: none !important; /* Removed the fade animation causing flickering */
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out !important;
+    will-change: transform, opacity;
   }
   
   @keyframes fadeIn {
@@ -172,5 +175,11 @@
   
   .nav-glow:hover {
     text-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  }
+  
+  /* Smooth tab transitions */
+  .tab-indicator {
+    @apply transition-all duration-300 ease-in-out transform;
+    will-change: transform, opacity;
   }
 }
