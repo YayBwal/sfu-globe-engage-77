@@ -958,3 +958,4 @@ const ClubDetail = () => {
               <Input 
                 id="coordinatorPassword" 
                 type="password"
+                value={
