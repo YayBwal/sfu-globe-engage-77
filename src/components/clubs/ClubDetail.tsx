@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +17,7 @@ import {
   Check,
   X,
   MessageSquare,
-  Send,
-  Trash2,
-  Image
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Club, ClubActivity, ClubMember, ClubNotification, ClubMessage } from "@/types/clubs";
@@ -40,16 +39,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,16 +85,16 @@ const ClubDetail = () => {
   const [activityContent, setActivityContent] = useState("");
   const [activityDate, setActivityDate] = useState("");
   const [activityImage, setActivityImage] = useState<File | null>(null);
-  const [activityImagePreview, setActivityImagePreview] = useState<string | null>(null);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   
-  // Activity deletion state
-  const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  
+  // Notification form states
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+
+  // Message form state
   const [messageText, setMessageText] = useState("");
+
+  // Password dialog states
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [coordinatorPassword, setCoordinatorPassword] = useState("");
   const [isCoordinatorMode, setIsCoordinatorMode] = useState(false);
@@ -245,27 +234,6 @@ const ClubDetail = () => {
     fetchAndSetMembers();
   };
 
-  // Handle image file selection with preview
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setActivityImage(file);
-      
-      // Create image preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setActivityImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle removing the selected image
-  const handleRemoveImage = () => {
-    setActivityImage(null);
-    setActivityImagePreview(null);
-  };
-
   const handleSubmitActivity = async () => {
     if (!id || !user) return;
     
@@ -303,44 +271,10 @@ const ClubDetail = () => {
     setActivityContent("");
     setActivityDate("");
     setActivityImage(null);
-    setActivityImagePreview(null);
     setActivityDialogOpen(false);
     
     // Reload activities
     fetchAndSetActivities();
-  };
-
-  // Delete activity function
-  const handleDeleteActivity = async () => {
-    if (!activityToDelete) return;
-    
-    try {
-      const { error } = await supabase
-        .from('club_activities')
-        .delete()
-        .eq('id', activityToDelete)
-        .eq('club_id', id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Activity Deleted",
-        description: "The activity has been deleted successfully",
-      });
-      
-      // Close the dialog and refresh activities
-      setDeleteDialogOpen(false);
-      setActivityToDelete(null);
-      fetchAndSetActivities();
-      
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete activity",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleSubmitNotification = async () => {
@@ -511,7 +445,7 @@ const ClubDetail = () => {
                       Create New Activity
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-xl">
+                  <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Create New Activity</DialogTitle>
                       <DialogDescription>
@@ -552,61 +486,22 @@ const ClubDetail = () => {
                       </div>
                       
                       <div className="grid gap-2">
-                        <Label htmlFor="activityImage" className="flex items-center gap-2">
-                          <Image size={16} />
-                          Image (Optional)
-                        </Label>
-                        {activityImagePreview ? (
-                          <div className="relative">
-                            <img 
-                              src={activityImagePreview} 
-                              alt="Activity preview" 
-                              className="w-full max-h-60 object-cover rounded-md"
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                              onClick={handleRemoveImage}
-                            >
-                              <X size={16} className="mr-2" />
-                              Remove
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="border-2 border-dashed rounded-md p-6 text-center">
-                            <ImagePlus className="mx-auto mb-4 text-gray-400" size={40} />
-                            <Input 
-                              id="activityImage" 
-                              type="file" 
-                              accept="image/*"
-                              onChange={handleImageChange}
-                              className="hidden"
-                            />
-                            <Label htmlFor="activityImage" className="cursor-pointer inline-block">
-                              <Button variant="outline" type="button" className="w-full">
-                                Upload Image
-                              </Button>
-                            </Label>
-                            <p className="text-xs text-gray-500 mt-2">
-                              Upload an image to showcase your activity (max 5MB)
-                            </p>
-                          </div>
-                        )}
+                        <Label htmlFor="activityImage">Image (Optional)</Label>
+                        <Input 
+                          id="activityImage" 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setActivityImage(e.target.files[0]);
+                            }
+                          }} 
+                        />
                       </div>
                     </div>
                     
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => {
-                        setActivityDialogOpen(false);
-                        setActivityTitle("");
-                        setActivityContent("");
-                        setActivityDate("");
-                        setActivityImage(null);
-                        setActivityImagePreview(null);
-                      }}>
-                        Cancel
-                      </Button>
+                      <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>Cancel</Button>
                       <Button 
                         onClick={handleSubmitActivity} 
                         disabled={!activityTitle || !activityContent}
@@ -673,30 +568,12 @@ const ClubDetail = () => {
                       <p className="whitespace-pre-line">{activity.content}</p>
                     </CardContent>
                     
-                    <CardFooter className="flex justify-between text-sm text-gray-500 border-t p-4">
-                      <div>
-                        Posted by {activity.poster_name || "Club Coordinator"} 
-                        {activity.created_at && (
-                          <span className="ml-2">
-                            • {new Date(activity.created_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Delete button for coordinators */}
-                      {((isCoordinator || isCoordinatorMode) && user && (activity.posted_by === user.id || isCoordinator)) && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            setActivityToDelete(activity.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 size={16} className="mr-1" />
-                          Delete
-                        </Button>
+                    <CardFooter className="text-sm text-gray-500 border-t p-4">
+                      Posted by {activity.poster_name || "Club Coordinator"} 
+                      {activity.created_at && (
+                        <span className="ml-2">
+                          • {new Date(activity.created_at).toLocaleDateString()}
+                        </span>
                       )}
                     </CardFooter>
                   </Card>
@@ -705,6 +582,7 @@ const ClubDetail = () => {
             )}
           </TabsContent>
 
+          {/* Members Tab */}
           <TabsContent value="members" className="mt-6">
             {memberLoading ? (
               <div className="space-y-6">
@@ -768,6 +646,7 @@ const ClubDetail = () => {
             )}
           </TabsContent>
 
+          {/* Messages Tab - Only visible to club coordinators */}
           {(isCoordinator || isCoordinatorMode) && (
             <TabsContent value="messages" className="mt-6">
               <div className="border rounded-lg overflow-hidden">
@@ -821,6 +700,7 @@ const ClubDetail = () => {
             </TabsContent>
           )}
 
+          {/* Notifications Tab - Only visible to managers or in coordinator mode */}
           {(isManager || isCoordinatorMode) && (
             <TabsContent value="notifications" className="mt-6">
               <div className="mb-6">
@@ -922,32 +802,6 @@ const ClubDetail = () => {
         )}
       </div>
       
-      {/* Confirm Delete Activity Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Activity</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this activity? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setDeleteDialogOpen(false);
-              setActivityToDelete(null);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteActivity}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
       {/* Coordinator Password Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
@@ -960,4 +814,25 @@ const ClubDetail = () => {
           
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor
+              <Label htmlFor="coordinatorPassword">Coordinator Password</Label>
+              <Input 
+                id="coordinatorPassword" 
+                type="password" 
+                value={coordinatorPassword} 
+                onChange={(e) => setCoordinatorPassword(e.target.value)} 
+                placeholder="Enter password"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCoordinatorLogin}>Login</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default ClubDetail;

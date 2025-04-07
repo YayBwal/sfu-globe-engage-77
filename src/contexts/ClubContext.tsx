@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +22,6 @@ type ClubContextType = {
   createClub: (club: Omit<Club, "id" | "created_at" | "created_by">) => Promise<Club | null>;
   createClubActivity: (activity: Omit<ClubActivity, "id" | "created_at" | "posted_by" | "poster_name">) => Promise<void>;
   createClubNotification: (notification: Omit<ClubNotification, "id" | "created_at">) => Promise<void>;
-  deleteClubActivity: (activityId: string) => Promise<void>;
   userCanCreateClub: boolean;
 };
 
@@ -35,6 +35,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
+  // Fetch all clubs on load
   useEffect(() => {
     fetchClubs();
 
@@ -73,6 +74,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [userClubs]);
 
+  // Fetch all clubs
   const fetchClubs = async () => {
     try {
       setLoading(true);
@@ -134,6 +136,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Fetch members of a specific club
   const fetchClubMembers = async (clubId: string): Promise<ClubMember[]> => {
     try {
       // First, get club members
@@ -214,6 +217,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Fetch notifications of a specific club
   const fetchClubNotifications = async (clubId: string): Promise<ClubNotification[]> => {
     if (!user) return [];
     
@@ -237,6 +241,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Fetch messages of a specific club
   const fetchClubMessages = async (clubId: string): Promise<ClubMessage[]> => {
     if (!user) return [];
     
@@ -527,58 +532,6 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Delete a club activity
-  const deleteClubActivity = async (activityId: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to delete activities",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Get the activity to check ownership
-      const { data: activity, error: fetchError } = await supabase
-        .from('club_activities')
-        .select('*')
-        .eq('id', activityId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Check if user is allowed to delete (either coordinator or the person who posted it)
-      if (!isClubCoordinator(activity.club_id) && activity.posted_by !== user.id) {
-        toast({
-          title: "Permission Denied",
-          description: "You don't have permission to delete this activity",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('club_activities')
-        .delete()
-        .eq('id', activityId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Activity Deleted",
-        description: "The activity has been deleted successfully",
-      });
-    } catch (error) {
-      console.error('Error deleting club activity:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete activity",
-        variant: "destructive",
-      });
-    }
-  };
-
   // Create a club notification
   const createClubNotification = async (notificationData: Omit<ClubNotification, "id" | "created_at">) => {
     if (!user || !isClubManager(notificationData.club_id)) {
@@ -629,7 +582,6 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createClub,
       createClubActivity,
       createClubNotification,
-      deleteClubActivity,
       userCanCreateClub
     }}>
       {children}
