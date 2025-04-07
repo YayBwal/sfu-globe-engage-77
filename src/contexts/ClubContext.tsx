@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +21,7 @@ type ClubContextType = {
   createClub: (club: Omit<Club, "id" | "created_at" | "created_by">) => Promise<Club | null>;
   createClubActivity: (activity: Omit<ClubActivity, "id" | "created_at" | "posted_by" | "poster_name">) => Promise<void>;
   createClubNotification: (notification: Omit<ClubNotification, "id" | "created_at">) => Promise<void>;
+  deleteClubActivity: (activityId: string, clubId: string) => Promise<void>;
   userCanCreateClub: boolean;
 };
 
@@ -564,6 +564,61 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Delete a club activity
+  const deleteClubActivity = async (activityId: string, clubId: string) => {
+    if (!user || !isClubManager(clubId)) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete activities",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // First check if the activity exists and belongs to the club
+      const { data: activityData, error: fetchError } = await supabase
+        .from('club_activities')
+        .select('image_url')
+        .eq('id', activityId)
+        .eq('club_id', clubId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Delete the activity from the database
+      const { error } = await supabase
+        .from('club_activities')
+        .delete()
+        .eq('id', activityId)
+        .eq('club_id', clubId);
+
+      if (error) throw error;
+
+      // If there was an image, delete it from storage
+      if (activityData?.image_url) {
+        const imagePath = activityData.image_url.split('/').pop();
+        if (imagePath) {
+          await supabase.storage
+            .from('club-images')
+            .remove([imagePath]);
+        }
+      }
+
+      toast({
+        title: "Activity Deleted",
+        description: "The activity has been deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting club activity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete activity",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <ClubContext.Provider value={{
       clubs,
@@ -582,6 +637,7 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createClub,
       createClubActivity,
       createClubNotification,
+      deleteClubActivity,
       userCanCreateClub
     }}>
       {children}
