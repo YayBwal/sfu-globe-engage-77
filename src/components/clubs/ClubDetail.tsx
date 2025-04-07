@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +18,8 @@ import {
   MessageSquare,
   Send,
   Trash2,
-  Image
+  Image,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Club, ClubActivity, ClubMember, ClubNotification, ClubMessage } from "@/types/clubs";
@@ -87,11 +87,20 @@ const ClubDetail = () => {
   const [activities, setActivities] = useState<ClubActivity[]>([]);
   const [notifications, setNotifications] = useState<ClubNotification[]>([]);
   const [messages, setMessages] = useState<ClubMessage[]>([]);
+  const [groupChatMessages, setGroupChatMessages] = useState<{
+    id: string;
+    user_id: string;
+    user_name: string;
+    content: string;
+    created_at: string;
+    user_role?: string;
+  }[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberLoading, setMemberLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
   const [notificationLoading, setNotificationLoading] = useState(true);
   const [messageLoading, setMessageLoading] = useState(true);
+  const [groupChatLoading, setGroupChatLoading] = useState(true);
   
   // Activity form states
   const [activityTitle, setActivityTitle] = useState("");
@@ -109,8 +118,9 @@ const ClubDetail = () => {
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
 
-  // Message form state
+  // Message form states
   const [messageText, setMessageText] = useState("");
+  const [groupChatText, setGroupChatText] = useState("");
 
   // Password dialog states
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -165,11 +175,23 @@ const ClubDetail = () => {
         )
         .subscribe();
 
+      // Add group chat channel subscription
+      const groupChatChannel = supabase
+        .channel('club-group-chat-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'club_group_chat', filter: `club_id=eq.${id}` },
+          () => fetchAndSetGroupChat()
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(activitiesChannel);
         supabase.removeChannel(membersChannel);
         supabase.removeChannel(notificationsChannel);
         supabase.removeChannel(messagesChannel);
+        supabase.removeChannel(messagesChannel);
+        supabase.removeChannel(groupChatChannel);
       };
     }
   }, [id]);
@@ -206,6 +228,7 @@ const ClubDetail = () => {
     fetchAndSetActivities();
     fetchAndSetNotifications();
     fetchAndSetMessages();
+    fetchAndSetGroupChat();
   };
 
   const fetchAndSetMembers = async () => {
@@ -238,6 +261,48 @@ const ClubDetail = () => {
     const data = await fetchClubMessages(id);
     setMessages(data);
     setMessageLoading(false);
+  };
+
+  const fetchAndSetGroupChat = async () => {
+    if (!id) return;
+    setGroupChatLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('club_group_chat')
+        .select('*')
+        .eq('club_id', id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Fetch user names for each message
+      const messagesWithUserInfo = await Promise.all((data || []).map(async (message) => {
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', message.user_id)
+          .single();
+          
+        const { data: memberData } = await supabase
+          .from('club_members')
+          .select('role')
+          .eq('user_id', message.user_id)
+          .eq('club_id', id)
+          .single();
+
+        return {
+          ...message,
+          user_name: userData?.name || 'Unknown User',
+          user_role: memberData?.role
+        };
+      }));
+
+      setGroupChatMessages(messagesWithUserInfo);
+    } catch (error) {
+      console.error('Error fetching group chat:', error);
+    } finally {
+      setGroupChatLoading(false);
+    }
   };
 
   const handleJoinRequest = () => {
@@ -391,6 +456,28 @@ const ClubDetail = () => {
     }
   };
 
+  const handleSendGroupChatMessage = async () => {
+    if (!id || !user || !groupChatText.trim()) return;
+    
+    try {
+      await supabase.from('club_group_chat').insert({
+        club_id: id,
+        user_id: user.id,
+        content: groupChatText
+      });
+      
+      setGroupChatText("");
+      fetchAndSetGroupChat();
+    } catch (error) {
+      console.error('Error sending group chat message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
+  };
+
   const userMembership = members.find(member => user && member.user_id === user.id);
   const isMember = !!userMembership?.approved;
   const hasPendingRequest = !!userMembership && !userMembership.approved;
@@ -467,9 +554,13 @@ const ClubDetail = () => {
         </div>
 
         <Tabs defaultValue="activities" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="activities">Activities</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="groupchat" className="relative">
+              <MessageCircle size={16} className="mr-2" />
+              Group Chat
+            </TabsTrigger>
             {(isCoordinator || isCoordinatorMode) && (
               <TabsTrigger value="messages" className="relative">
                 Messages
@@ -761,223 +852,102 @@ const ClubDetail = () => {
             )}
           </TabsContent>
 
-          {/* Messages Tab - Only visible to club coordinators */}
-          {(isCoordinator || isCoordinatorMode) && (
-            <TabsContent value="messages" className="mt-6">
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 p-3 border-b">
-                  <h3 className="font-semibold">Club Messages</h3>
-                  <p className="text-xs text-gray-500">Messages from members to the club coordinator</p>
-                </div>
-                
-                <ScrollArea className="h-[400px] p-4">
-                  {messageLoading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3">
-                          <Skeleton className="h-10 w-10 rounded-full" />
-                          <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-1/3" />
-                            <Skeleton className="h-16 w-full" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="text-center py-10">
-                      <MessageSquare size={40} className="mx-auto text-gray-400 mb-4" />
-                      <p className="text-gray-500">No messages yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div 
-                          key={message.id} 
-                          className={`p-3 rounded-lg ${!message.read ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'}`}
-                          onClick={() => !message.read && handleMarkMessageAsRead(message.id)}
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="font-medium">{message.sender_name || 'Unknown member'}</div>
-                            <div className="text-xs text-gray-500">
-                              {message.created_at && new Date(message.created_at).toLocaleString()}
-                              {!message.read && (
-                                <Badge variant="secondary" className="ml-2">New</Badge>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-gray-700">{message.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-            </TabsContent>
-          )}
-
-          {/* Notifications Tab - Only visible to managers or in coordinator mode */}
-          {(isManager || isCoordinatorMode) && (
-            <TabsContent value="notifications" className="mt-6">
-              <div className="mb-6">
-                <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full md:w-auto">
-                      <Plus size={16} className="mr-2" />
-                      Send New Notification
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Send Notification</DialogTitle>
-                      <DialogDescription>
-                        Send an important notification to club coordinators and assistants.
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="notificationMessage">Message</Label>
-                        <Textarea 
-                          id="notificationMessage" 
-                          value={notificationMessage} 
-                          onChange={(e) => setNotificationMessage(e.target.value)} 
-                          placeholder="Type your notification message" 
-                          rows={4}
-                        />
-                      </div>
-                    </div>
-                    
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setNotificationDialogOpen(false)}>Cancel</Button>
-                      <Button 
-                        onClick={handleSubmitNotification} 
-                        disabled={!notificationMessage}
-                      >
-                        Send Notification
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+          {/* Group Chat Tab */}
+          <TabsContent value="groupchat" className="mt-6">
+            <div className="border rounded-lg overflow-hidden h-[600px] flex flex-col">
+              <div className="bg-gray-50 p-3 border-b">
+                <h3 className="font-semibold">Club Group Chat</h3>
+                <p className="text-xs text-gray-500">Chat with all members and coordinators</p>
               </div>
               
-              {notificationLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-20 w-full" />
-                  ))}
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="text-center py-10 bg-sfu-lightgray rounded-xl">
-                  <Bell size={40} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-500">No notifications yet</p>
-                </div>
+              <ScrollArea className="flex-1 p-4">
+                {groupChatLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-16 w-full" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : groupChatMessages.length === 0 ? (
+                  <div className="text-center py-10">
+                    <MessageCircle size={40} className="mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {groupChatMessages.map((message) => {
+                      const isCurrentUser = user && message.user_id === user.id;
+                      const roleColor = message.user_role === 'coordinator' 
+                        ? 'text-red-600' 
+                        : message.user_role === 'assistant' 
+                          ? 'text-blue-600' 
+                          : 'text-gray-700';
+                      
+                      return (
+                        <div 
+                          key={message.id} 
+                          className={`p-3 rounded-lg ${
+                            isCurrentUser 
+                              ? 'ml-auto max-w-[80%] bg-blue-100' 
+                              : 'mr-auto max-w-[80%] bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-1">
+                            <div className={`font-medium ${roleColor}`}>
+                              {message.user_name}
+                              {message.user_role && message.user_role !== 'member' && (
+                                <span className="text-xs ml-2 bg-gray-200 px-1.5 py-0.5 rounded">
+                                  {message.user_role.charAt(0).toUpperCase() + message.user_role.slice(1)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {message.created_at && new Date(message.created_at).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </div>
+                          </div>
+                          <p className="text-gray-700 break-words">{message.content}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+              
+              {isAuthenticated ? (
+                isMember || isManager ? (
+                  <div className="p-3 border-t bg-white">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Type your message..."
+                        value={groupChatText}
+                        onChange={(e) => setGroupChatText(e.target.value)}
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendGroupChatMessage();
+                          }
+                        }}
+                      />
+                      <Button onClick={handleSendGroupChatMessage} disabled={!groupChatText.trim()}>
+                        <Send size={16} className="mr-2" />
+                        Send
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center border-t">
+                    <p className="text-sm text-gray-500">Join the club to participate in group chat</p>
+                  </div>
+                )
               ) : (
-                <div className="space-y-4">
-                  {notifications.map((notification) => (
-                    <Alert key={notification.id}>
-                      <Bell className="h-4 w-4" />
-                      <AlertTitle>
-                        {notification.created_at && (
-                          <span className="text-xs text-gray-500">
-                            {new Date(notification.created_at).toLocaleString()}
-                          </span>
-                        )}
-                      </AlertTitle>
-                      <AlertDescription>
-                        {notification.message}
-                      </AlertDescription>
-                    </Alert>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          )}
-        </Tabs>
-
-        {/* Message Input - Visible to all members */}
-        {isMember && !isManager && (
-          <div className="mt-8">
-            <Separator className="my-4" />
-            <div className="flex flex-col gap-2">
-              <h3 className="font-medium">Send Message to Club Coordinator</h3>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Type your message to the club coordinator..."
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  className="flex-1"
-                />
-                <Button onClick={handleSubmitMessage} disabled={!messageText.trim()}>
-                  <Send size={16} className="mr-2" />
-                  Send
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Confirm Delete Activity Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Activity</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this activity? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setDeleteDialogOpen(false);
-              setActivityToDelete(null);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteActivity}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      {/* Coordinator Password Dialog */}
-      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Coordinator Access</DialogTitle>
-            <DialogDescription>
-              Enter the coordinator password to access additional features and notifications.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="coordinatorPassword">Coordinator Password</Label>
-              <Input 
-                id="coordinatorPassword" 
-                type="password"
-                value={coordinatorPassword}
-                onChange={(e) => setCoordinatorPassword(e.target.value)}
-                placeholder="Enter coordinator password"
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCoordinatorLogin}>
-              Login
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default ClubDetail;
+                <div className="p-4 text-center border-t">
+                  <p className="text-sm text-gray-500

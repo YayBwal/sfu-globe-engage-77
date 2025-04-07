@@ -51,3 +51,14 @@ export type ClubMessage = {
   // User details from joins
   sender_name?: string;
 };
+
+export type ClubGroupChatMessage = {
+  id: string;
+  club_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  // User details from joins
+  user_name?: string;
+  user_role?: string;
+};
