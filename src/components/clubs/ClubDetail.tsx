@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -958,4 +959,25 @@ const ClubDetail = () => {
               <Input 
                 id="coordinatorPassword" 
                 type="password"
-                value={
+                value={coordinatorPassword}
+                onChange={(e) => setCoordinatorPassword(e.target.value)}
+                placeholder="Enter coordinator password"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCoordinatorLogin}>
+              Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default ClubDetail;
