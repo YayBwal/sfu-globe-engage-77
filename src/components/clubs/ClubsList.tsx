@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Search, Plus, Users, ChevronRight, Calendar, Book, Laptop, Music, Feather } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,7 @@ interface ClubFormData {
 const ClubsList = () => {
   
   const { clubs, userClubs, loading, createClub, isClubManager, requestToJoinClub } = useClub();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -179,7 +180,7 @@ const ClubsList = () => {
           />
         </div>
         
-        {isAuthenticated && (
+        {isAuthenticated && isAdmin && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="w-full md:w-auto">
