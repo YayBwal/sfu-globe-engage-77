@@ -156,11 +156,12 @@ const AdminReview = () => {
         if (messageError) throw messageError;
       }
 
-      // Send notification to the seller
+      // Send notification to the seller with the reason
       await notifyMarketplaceActivity(
         [item.seller_id],
         item.title,
-        'declined'
+        'declined',
+        declineMessage.trim()
       );
 
       setItems(items.map(item => 

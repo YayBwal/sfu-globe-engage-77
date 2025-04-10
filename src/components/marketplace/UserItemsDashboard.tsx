@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Bell } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 interface UserItemsDashboardProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface UserItemsDashboardProps {
 
 const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { notifications } = useNotifications();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
@@ -91,6 +93,21 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
     }
   };
 
+  // Get the notifications related to this item
+  const getItemNotifications = (itemId: string) => {
+    if (!user || !notifications) return [];
+    
+    // Filter notifications that are about marketplace items and match this item's title
+    const itemToFind = items.find(item => item.id === itemId);
+    if (!itemToFind) return [];
+
+    return notifications.filter(notification => 
+      notification.source === 'marketplace' && 
+      notification.message.includes(itemToFind.title) &&
+      notification.type === 'error'
+    );
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-amber-100 text-amber-800';
@@ -156,29 +173,52 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
                   {filteredItems.length === 0 ? (
                     <p className="text-center py-6 text-gray-500">No {activeFilter} items found.</p>
                   ) : (
-                    filteredItems.map((item) => (
-                      <Card key={item.id} className="overflow-hidden">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <CardTitle className="text-base truncate">{item.title}</CardTitle>
-                            <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pb-2">
-                          <div className="grid grid-cols-2 gap-x-4 text-sm">
-                            <p><span className="font-medium">Price:</span> {item.price} {item.currency}</p>
-                            <p><span className="font-medium">Category:</span> {item.category}</p>
-                            <p><span className="font-medium">Posted:</span> {formatDate(item.posted_date)}</p>
-                            <p><span className="font-medium">Condition:</span> {item.condition || 'Not specified'}</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-end pt-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}>
-                            View Details
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))
+                    filteredItems.map((item) => {
+                      const itemNotifications = getItemNotifications(item.id);
+                      const hasNotification = itemNotifications.length > 0;
+                      
+                      return (
+                        <Card key={item.id} className="overflow-hidden">
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-2">
+                                <CardTitle className="text-base truncate">{item.title}</CardTitle>
+                                {hasNotification && (
+                                  <div className="relative">
+                                    <Bell className="h-4 w-4 text-red-500" />
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[10px]">
+                                      {itemNotifications.length}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pb-2">
+                            <div className="grid grid-cols-2 gap-x-4 text-sm">
+                              <p><span className="font-medium">Price:</span> {item.price} {item.currency}</p>
+                              <p><span className="font-medium">Category:</span> {item.category}</p>
+                              <p><span className="font-medium">Posted:</span> {formatDate(item.posted_date)}</p>
+                              <p><span className="font-medium">Condition:</span> {item.condition || 'Not specified'}</p>
+                              
+                              {item.status === 'declined' && hasNotification && (
+                                <div className="col-span-2 mt-2">
+                                  <p className="text-red-600 text-sm bg-red-50 p-2 rounded border-l-2 border-red-500">
+                                    <span className="font-semibold">Reason for decline:</span> {itemNotifications[0].message.split('was declined:')[1]?.trim() || 'No specific reason provided'}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                          <CardFooter className="flex justify-end pt-2">
+                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}>
+                              View Details
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
               </TabsContent>
@@ -243,7 +283,8 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
                         </div>
                       ) : (
                         <p className="text-sm text-gray-700 mt-1">
-                          No specific reason was provided for declining this item.
+                          {getItemNotifications(selectedItem.id)[0]?.message.split('was declined:')[1]?.trim() || 
+                            "No specific reason was provided for declining this item."}
                         </p>
                       )}
                     </div>

@@ -207,7 +207,7 @@ export const notifyPostReaction = async (userId: string, reactorName: string, po
 };
 
 // Marketplace notification
-export const notifyMarketplaceActivity = async (userIds: string[], itemTitle: string, action: string) => {
+export const notifyMarketplaceActivity = async (userIds: string[], itemTitle: string, action: string, reason?: string) => {
   const titles: { [key: string]: string } = {
     'approved': 'Item Approved',
     'declined': 'Item Declined',
@@ -215,11 +215,13 @@ export const notifyMarketplaceActivity = async (userIds: string[], itemTitle: st
     'sold': 'Item Sold'
   };
 
-  const messages: { [key: string]: string } = {
-    'approved': `Your item "${itemTitle}" has been approved and is now visible in the marketplace.`,
-    'declined': `Your item "${itemTitle}" was declined by an administrator.`,
-    'purchased': `You have successfully purchased "${itemTitle}".`,
-    'sold': `Your item "${itemTitle}" has been sold.`
+  const messages: { [key: string]: (reason?: string) => string } = {
+    'approved': () => `Your item "${itemTitle}" has been approved and is now visible in the marketplace.`,
+    'declined': (reason) => reason && reason.trim() 
+      ? `Your item "${itemTitle}" was declined: ${reason.trim()}`
+      : `Your item "${itemTitle}" was declined by an administrator.`,
+    'purchased': () => `You have successfully purchased "${itemTitle}".`,
+    'sold': () => `Your item "${itemTitle}" has been sold.`
   };
   
   const types: { [key: string]: 'info' | 'success' | 'warning' | 'error' } = {
@@ -233,7 +235,7 @@ export const notifyMarketplaceActivity = async (userIds: string[], itemTitle: st
     createNotification(
       userId,
       titles[action] || 'Marketplace Update',
-      messages[action] || `The item "${itemTitle}" has been ${action}.`,
+      messages[action] ? messages[action](reason) : `The item "${itemTitle}" has been ${action}.`,
       'marketplace',
       types[action] || 'info'
     )
