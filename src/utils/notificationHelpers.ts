@@ -208,13 +208,34 @@ export const notifyPostReaction = async (userId: string, reactorName: string, po
 
 // Marketplace notification
 export const notifyMarketplaceActivity = async (userIds: string[], itemTitle: string, action: string) => {
+  const titles: { [key: string]: string } = {
+    'approved': 'Item Approved',
+    'declined': 'Item Declined',
+    'purchased': 'Item Purchased',
+    'sold': 'Item Sold'
+  };
+
+  const messages: { [key: string]: string } = {
+    'approved': `Your item "${itemTitle}" has been approved and is now visible in the marketplace.`,
+    'declined': `Your item "${itemTitle}" was declined by an administrator.`,
+    'purchased': `You have successfully purchased "${itemTitle}".`,
+    'sold': `Your item "${itemTitle}" has been sold.`
+  };
+  
+  const types: { [key: string]: 'info' | 'success' | 'warning' | 'error' } = {
+    'approved': 'success',
+    'declined': 'error',
+    'purchased': 'success',
+    'sold': 'success'
+  };
+
   const promises = userIds.map(userId => 
     createNotification(
       userId,
-      'Marketplace Update',
-      `The item "${itemTitle}" has been ${action}.`,
+      titles[action] || 'Marketplace Update',
+      messages[action] || `The item "${itemTitle}" has been ${action}.`,
       'marketplace',
-      'info'
+      types[action] || 'info'
     )
   );
   
@@ -298,4 +319,3 @@ export const notifyDeadlineReminder = async (userId: string, title: string, dead
     'warning'
   );
 };
-

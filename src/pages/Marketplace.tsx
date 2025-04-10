@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Filter, Search, ShoppingBag, Tag, ArrowUpDown, Grid, List, Loader2 } from "lucide-react";
+import { Filter, Search, ShoppingBag, Tag, ArrowUpDown, Grid, List, Loader2, Package2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import PostItemForm from "@/components/marketplace/PostItemForm";
 import ItemDetailView from "@/components/marketplace/ItemDetailView";
+import UserItemsDashboard from "@/components/marketplace/UserItemsDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ const Marketplace = () => {
   const [sortBy, setSortBy] = useState("newest");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isPostItemOpen, setIsPostItemOpen] = useState(false);
+  const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +86,11 @@ const Marketplace = () => {
   
   // Filter items
   const filteredItems = marketplaceItems.filter(item => {
+    // Only show approved items in the main marketplace (unless it's your own item)
+    if (!isAdmin && item.status !== 'approved' && item.seller_id !== user?.id) {
+      return false;
+    }
+    
     // Filter by search term
     if (searchTerm && !item.title.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
@@ -159,13 +166,25 @@ const Marketplace = () => {
                 <p className="text-gray-500">Buy and sell items with fellow students</p>
               </div>
               
-              <Button 
-                className="bg-sfu-red hover:bg-sfu-red/90"
-                onClick={() => setIsPostItemOpen(true)}
-              >
-                <ShoppingBag className="mr-2 h-4 w-4" />
-                Post an Item
-              </Button>
+              <div className="flex space-x-2 w-full md:w-auto">
+                <Button 
+                  className="bg-sfu-red hover:bg-sfu-red/90 flex-1 md:flex-auto"
+                  onClick={() => setIsPostItemOpen(true)}
+                >
+                  <ShoppingBag className="mr-2 h-4 w-4" />
+                  Post an Item
+                </Button>
+                
+                {user && (
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 flex-1 md:flex-auto"
+                    onClick={() => setIsUserDashboardOpen(true)}
+                  >
+                    <Package2 className="mr-2 h-4 w-4" />
+                    My Items
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Pending items notice */}
@@ -181,6 +200,14 @@ const Marketplace = () => {
                     <p className="text-sm text-amber-700">
                       {pendingItemNotice}
                     </p>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-amber-700 p-0 h-auto"
+                      onClick={() => setIsUserDashboardOpen(true)}
+                    >
+                      View your items
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -359,6 +386,12 @@ const Marketplace = () => {
           onItemDeleted={handleDeleteItem}
         />
       )}
+
+      {/* User Items Dashboard */}
+      <UserItemsDashboard
+        isOpen={isUserDashboardOpen}
+        onClose={() => setIsUserDashboardOpen(false)}
+      />
     </div>
   );
 };
