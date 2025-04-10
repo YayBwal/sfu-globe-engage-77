@@ -12,9 +12,11 @@ import PostItemForm from "@/components/marketplace/PostItemForm";
 import ItemDetailView from "@/components/marketplace/ItemDetailView";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import { MarketplaceItem } from "@/types/clubs";
 
 const Marketplace = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -23,6 +25,7 @@ const Marketplace = () => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [marketplaceItems, setMarketplaceItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingItemNotice, setPendingItemNotice] = useState("");
   
   // Fetch marketplace items
   useEffect(() => {
@@ -31,26 +34,53 @@ const Marketplace = () => {
       try {
         let query = supabase
           .from('marketplace_items')
-          .select('*')
-          .eq('is_available', true);
+          .select('*');
           
+        // Only admins can see all items including pending and declined ones
+        if (!isAdmin) {
+          query = query.or(`status.eq.approved,seller_id.eq.${user?.id}`);
+        }
+        
         const { data, error } = await query;
         
         if (error) {
           console.error("Error fetching marketplace items:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load marketplace items.",
+            variant: "destructive",
+          });
           return;
         }
         
         setMarketplaceItems(data || []);
+
+        // Check if the user has any pending items
+        if (user) {
+          const pendingItemsCount = data?.filter(item => 
+            item.seller_id === user.id && item.status === 'pending'
+          ).length || 0;
+          
+          if (pendingItemsCount > 0) {
+            setPendingItemNotice(`You have ${pendingItemsCount} item${pendingItemsCount > 1 ? 's' : ''} pending admin approval.`);
+          } else {
+            setPendingItemNotice("");
+          }
+        }
       } catch (error) {
         console.error("Error:", error);
+        toast({
+          title: "Error",
+          description: "Something went wrong while loading the marketplace.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchMarketplaceItems();
-  }, []);
+  }, [user, isAdmin]);
   
   // Filter items
   const filteredItems = marketplaceItems.filter(item => {
@@ -79,6 +109,15 @@ const Marketplace = () => {
   
   const handlePostItem = (newItem: any) => {
     setMarketplaceItems(prev => [newItem, ...prev]);
+    
+    // Show notification about pending approval
+    toast({
+      title: "Item Posted Successfully",
+      description: "Your item is pending admin approval and will be visible once approved.",
+      duration: 5000,
+    });
+
+    setPendingItemNotice("You have items pending admin approval.");
   };
   
   const handleDeleteItem = () => {
@@ -128,6 +167,45 @@ const Marketplace = () => {
                 Post an Item
               </Button>
             </div>
+
+            {/* Pending items notice */}
+            {pendingItemNotice && (
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-amber-700">
+                      {pendingItemNotice}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {isAdmin && (
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                <div className="flex items-center">
+                  <div className="ml-3">
+                    <p className="text-sm text-blue-700">
+                      As an admin, you can review pending marketplace items in the admin panel.
+                    </p>
+                    <p className="mt-2">
+                      <Button
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.location.href = '/admin/review'}
+                      >
+                        Go to Admin Review
+                      </Button>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="relative flex-1">
@@ -209,7 +287,7 @@ const Marketplace = () => {
                 {filteredItems.map((item) => (
                   <Card 
                     key={item.id} 
-                    className={`overflow-hidden transition-all hover:shadow-md ${viewMode === "list" ? "flex flex-col md:flex-row" : ""} cursor-pointer`}
+                    className={`overflow-hidden transition-all hover:shadow-md ${viewMode === "list" ? "flex flex-col md:flex-row" : ""} cursor-pointer ${item.status === 'pending' ? 'border-amber-300' : ''}`}
                     onClick={() => setSelectedItem(item)}
                   >
                     <div 
@@ -224,6 +302,11 @@ const Marketplace = () => {
                       {!item.image_url && (
                         <div className="w-full h-full flex items-center justify-center">
                           <p className="text-gray-400">No image</p>
+                        </div>
+                      )}
+                      {item.status === 'pending' && (
+                        <div className="absolute top-2 right-2 bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">
+                          Pending
                         </div>
                       )}
                     </div>

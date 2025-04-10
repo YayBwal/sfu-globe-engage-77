@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserProfile } from '@/types/auth';
+import { MarketplaceItem } from '@/types/clubs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,15 +17,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 const AdminReview = () => {
   const { isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
+  const [pendingItems, setPendingItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewPhoto, setViewPhoto] = useState<string | null>(null);
+  const [viewImage, setViewImage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [declineMessage, setDeclineMessage] = useState('');
+  const [declineProcessing, setDeclineProcessing] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -36,46 +42,25 @@ const AdminReview = () => {
         variant: 'destructive',
       });
     } else if (!authLoading) {
-      fetchPendingUsers();
+      fetchPendingItems();
     }
   }, [authLoading, isAdmin, navigate]);
 
-  const fetchPendingUsers = async () => {
+  const fetchPendingItems = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('profiles')
+        .from('marketplace_items')
         .select('*')
-        .eq('approval_status', 'pending');
+        .eq('status', 'pending');
 
       if (error) throw error;
-
-      // Map the data to match the UserProfile type
-      const mappedData = data.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        student_id: user.student_id,
-        major: user.major,
-        batch: user.batch,
-        bio: user.bio || '',
-        interests: user.interests || [],
-        availability: user.availability || '',
-        online: user.online || false,
-        profilePic: user.profile_pic,
-        coverPic: user.cover_pic,
-        student_id_photo: user.student_id_photo,
-        approval_status: user.approval_status,
-        profile_pic: user.profile_pic,
-        cover_pic: user.cover_pic
-      })) as UserProfile[];
-
-      setPendingUsers(mappedData);
+      setPendingItems(data as MarketplaceItem[]);
     } catch (error) {
-      console.error('Error fetching pending users:', error);
+      console.error('Error fetching pending items:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load pending registrations.',
+        description: 'Failed to load pending marketplace items.',
         variant: 'destructive',
       });
     } finally {
@@ -83,26 +68,26 @@ const AdminReview = () => {
     }
   };
 
-  const handleApproveUser = async (userId: string) => {
+  const handleApproveItem = async (itemId: string) => {
     try {
-      setProcessingId(userId);
+      setProcessingId(itemId);
       const { error } = await supabase
-        .from('profiles')
-        .update({ approval_status: 'approved' })
-        .eq('id', userId);
+        .from('marketplace_items')
+        .update({ status: 'approved' })
+        .eq('id', itemId);
 
       if (error) throw error;
 
-      setPendingUsers(pendingUsers.filter(user => user.id !== userId));
+      setPendingItems(pendingItems.filter(item => item.id !== itemId));
       toast({
-        title: 'User Approved',
-        description: 'The user registration has been approved.',
+        title: 'Item Approved',
+        description: 'The item is now visible in the marketplace.',
       });
     } catch (error) {
-      console.error('Error approving user:', error);
+      console.error('Error approving item:', error);
       toast({
         title: 'Error',
-        description: 'Failed to approve user.',
+        description: 'Failed to approve item.',
         variant: 'destructive',
       });
     } finally {
@@ -110,31 +95,60 @@ const AdminReview = () => {
     }
   };
 
-  const handleRejectUser = async (userId: string) => {
+  const openDeclineDialog = (itemId: string) => {
+    setSelectedItemId(itemId);
+    setDeclineDialogOpen(true);
+    setDeclineMessage('');
+  };
+
+  const handleDeclineItem = async () => {
+    if (!selectedItemId) return;
+    
     try {
-      setProcessingId(userId);
-      const { error } = await supabase
-        .from('profiles')
-        .update({ approval_status: 'rejected' })
-        .eq('id', userId);
+      setDeclineProcessing(true);
+      
+      // First update the item status to declined
+      const { error: updateError } = await supabase
+        .from('marketplace_items')
+        .update({ status: 'declined' })
+        .eq('id', selectedItemId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      setPendingUsers(pendingUsers.filter(user => user.id !== userId));
+      // Then save the decline message if provided
+      if (declineMessage.trim()) {
+        const { error: messageError } = await supabase
+          .from('admin_messages')
+          .insert({
+            marketplace_item_id: selectedItemId,
+            message: declineMessage.trim()
+          });
+
+        if (messageError) throw messageError;
+      }
+
+      setPendingItems(pendingItems.filter(item => item.id !== selectedItemId));
+      setDeclineDialogOpen(false);
+      setSelectedItemId(null);
+      
       toast({
-        title: 'User Rejected',
-        description: 'The user registration has been rejected.',
+        title: 'Item Declined',
+        description: 'The item has been rejected and will not be listed in the marketplace.',
       });
     } catch (error) {
-      console.error('Error rejecting user:', error);
+      console.error('Error declining item:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reject user.',
+        description: 'Failed to decline item.',
         variant: 'destructive',
       });
     } finally {
-      setProcessingId(null);
+      setDeclineProcessing(false);
     }
+  };
+
+  const formatCurrency = (price: number, currency: string) => {
+    return `${price} ${currency}`;
   };
 
   if (authLoading) {
@@ -149,54 +163,74 @@ const AdminReview = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Pending Registrations</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Admin Review: Marketplace Items</h1>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/marketplace')}
+          >
+            Back to Marketplace
+          </Button>
+        </div>
         
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
           </div>
-        ) : pendingUsers.length === 0 ? (
+        ) : pendingItems.length === 0 ? (
           <div className="text-center py-10 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No pending registrations to review.</p>
+            <p className="text-gray-500">No pending items to review.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pendingUsers.map((user) => (
-              <Card key={user.id} className="overflow-hidden">
+            {pendingItems.map((item) => (
+              <Card key={item.id} className="overflow-hidden">
                 <CardHeader className="bg-gray-50">
                   <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">{user.name}</CardTitle>
-                    <Badge variant="outline">{user.approval_status}</Badge>
+                    <CardTitle className="text-lg truncate">{item.title}</CardTitle>
+                    <Badge variant="outline">{formatCurrency(item.price, item.currency)}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Email:</span> {user.email}</p>
-                    <p><span className="font-medium">Student ID:</span> {user.student_id}</p>
-                    <p><span className="font-medium">Major:</span> {user.major}</p>
-                    <p><span className="font-medium">Batch:</span> {user.batch}</p>
+                    <p><span className="font-medium">Seller:</span> {item.seller_name}</p>
+                    <p><span className="font-medium">Category:</span> {item.category}</p>
+                    {item.condition && (
+                      <p><span className="font-medium">Condition:</span> {item.condition}</p>
+                    )}
                     
-                    {user.student_id_photo && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-2 w-full"
-                        onClick={() => setViewPhoto(user.student_id_photo)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View ID Photo
-                      </Button>
+                    {item.description && (
+                      <div>
+                        <p className="font-medium">Description:</p>
+                        <p className="text-gray-600 line-clamp-3">{item.description}</p>
+                      </div>
+                    )}
+                    
+                    {item.image_url && (
+                      <div className="mt-2">
+                        <div 
+                          className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
+                          style={{ backgroundImage: `url(${item.image_url})` }}
+                          onClick={() => setViewImage(item.image_url || null)}
+                        />
+                      </div>
+                    )}
+                    
+                    {!item.image_url && (
+                      <div className="bg-gray-100 h-20 flex items-center justify-center rounded mt-2">
+                        <p className="text-gray-400 text-sm">No image provided</p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
-                <CardFooter className="flex gap-2 bg-gray-50">
+                <CardFooter className="flex gap-2 bg-gray-50 pt-4">
                   <Button 
                     variant="default" 
                     className="w-1/2 bg-green-600 hover:bg-green-700"
-                    onClick={() => handleApproveUser(user.id)}
-                    disabled={processingId === user.id}
+                    onClick={() => handleApproveItem(item.id)}
+                    disabled={processingId === item.id}
                   >
-                    {processingId === user.id ? (
+                    {processingId === item.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
@@ -208,15 +242,15 @@ const AdminReview = () => {
                   <Button 
                     variant="destructive" 
                     className="w-1/2"
-                    onClick={() => handleRejectUser(user.id)}
-                    disabled={processingId === user.id}
+                    onClick={() => openDeclineDialog(item.id)}
+                    disabled={processingId === item.id}
                   >
-                    {processingId === user.id ? (
+                    {processingId === item.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
                         <X className="h-4 w-4 mr-2" />
-                        Reject
+                        Decline
                       </>
                     )}
                   </Button>
@@ -228,23 +262,61 @@ const AdminReview = () => {
       </main>
       <Footer />
 
-      <Dialog open={!!viewPhoto} onOpenChange={() => setViewPhoto(null)}>
+      {/* Image Preview Dialog */}
+      <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Student ID Photo</DialogTitle>
+            <DialogTitle>Item Image</DialogTitle>
             <DialogDescription>
-              Verify that the photo matches the provided information.
+              Preview of the uploaded item image.
             </DialogDescription>
           </DialogHeader>
-          {viewPhoto && (
+          {viewImage && (
             <div className="flex justify-center py-4">
               <img
-                src={viewPhoto}
-                alt="Student ID"
+                src={viewImage}
+                alt="Item"
                 className="max-h-[60vh] rounded-md object-contain"
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Decline Item</DialogTitle>
+            <DialogDescription>
+              Provide a reason why this item is being declined. This message will be visible to the seller.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            className="min-h-[100px]"
+            placeholder="Enter reason for declining the item (optional)"
+            value={declineMessage}
+            onChange={(e) => setDeclineMessage(e.target.value)}
+          />
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeclineDialogOpen(false)}
+              disabled={declineProcessing}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeclineItem}
+              disabled={declineProcessing}
+            >
+              {declineProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Decline Item
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

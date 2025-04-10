@@ -62,3 +62,26 @@ export type ClubGroupChatMessage = {
   user_name?: string;
   user_role?: string;
 };
+
+export type MarketplaceItem = {
+  id: string;
+  title: string;
+  description?: string;
+  price: number;
+  currency: string;
+  category: string;
+  condition?: string;
+  image_url?: string;
+  seller_id: string;
+  seller_name: string;
+  posted_date: string;
+  is_available: boolean;
+  status: 'pending' | 'approved' | 'declined';
+};
+
+export type AdminMessage = {
+  id: string;
+  marketplace_item_id: string;
+  message: string;
+  created_at: string;
+};
