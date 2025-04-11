@@ -22,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { notifyMarketplaceActivity } from '@/utils/notificationHelpers';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminReview = () => {
   const { isAdmin, loading: authLoading } = useAuth();
@@ -35,6 +36,9 @@ const AdminReview = () => {
   const [declineMessage, setDeclineMessage] = useState('');
   const [declineProcessing, setDeclineProcessing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'declined' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState('marketplace');
+  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(true);
   
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -45,9 +49,13 @@ const AdminReview = () => {
         variant: 'destructive',
       });
     } else if (!authLoading) {
-      fetchItems();
+      if (activeTab === 'marketplace') {
+        fetchItems();
+      } else {
+        fetchPendingRegistrations();
+      }
     }
-  }, [authLoading, isAdmin, navigate, statusFilter]);
+  }, [authLoading, isAdmin, navigate, statusFilter, activeTab]);
 
   const fetchItems = async () => {
     try {
@@ -73,6 +81,78 @@ const AdminReview = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingRegistrations = async () => {
+    try {
+      setLoadingRegistrations(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('approval_status', 'pending');
+      
+      if (error) throw error;
+      setPendingRegistrations(data || []);
+    } catch (error) {
+      console.error('Error fetching pending registrations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load pending registrations.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingRegistrations(false);
+    }
+  };
+
+  const handleApproveRegistration = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ approval_status: 'approved' })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
+      
+      toast({
+        title: 'Registration Approved',
+        description: 'User registration has been approved.',
+      });
+    } catch (error) {
+      console.error('Error approving registration:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to approve registration.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeclineRegistration = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ approval_status: 'declined' })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
+      
+      toast({
+        title: 'Registration Declined',
+        description: 'User registration has been declined.',
+      });
+    } catch (error) {
+      console.error('Error declining registration:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to decline registration.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -214,7 +294,7 @@ const AdminReview = () => {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Admin Review: Marketplace Items</h1>
+          <h1 className="text-2xl font-bold">Admin Review Area</h1>
           <Button 
             variant="outline" 
             onClick={() => navigate('/marketplace')}
@@ -222,131 +302,207 @@ const AdminReview = () => {
             Back to Marketplace
           </Button>
         </div>
-        
-        <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-          <div className="flex items-center gap-3">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="font-medium">Filter by status:</span>
-            <Select value={statusFilter} onValueChange={(value: 'pending' | 'approved' | 'declined' | 'all') => setStatusFilter(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Items</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="declined">Declined</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-10 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No {statusFilter !== 'all' ? statusFilter : ''} items to review.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item) => (
-              <Card key={item.id} className="overflow-hidden">
-                <CardHeader className="bg-gray-50">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg truncate">{item.title}</CardTitle>
-                    <Badge variant="outline">{formatCurrency(item.price, item.currency)}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <p><span className="font-medium">Seller:</span> {item.seller_name}</p>
-                      <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
-                    </div>
-                    
-                    <p><span className="font-medium">Category:</span> {item.category}</p>
-                    {item.condition && (
-                      <p><span className="font-medium">Condition:</span> {item.condition}</p>
-                    )}
-                    
-                    {item.description && (
-                      <div>
-                        <p className="font-medium">Description:</p>
-                        <p className="text-gray-600 line-clamp-3">{item.description}</p>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="marketplace" className="w-1/2">Marketplace Items</TabsTrigger>
+            <TabsTrigger value="registrations" className="w-1/2">User Registrations</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="marketplace" className="mt-6">
+            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
+              <div className="flex items-center gap-3">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="font-medium">Filter by status:</span>
+                <Select value={statusFilter} onValueChange={(value: 'pending' | 'approved' | 'declined' | 'all') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Items</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="declined">Declined</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {loading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-center py-10 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No {statusFilter !== 'all' ? statusFilter : ''} items to review.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {items.map((item) => (
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardHeader className="bg-gray-50">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg truncate">{item.title}</CardTitle>
+                        <Badge variant="outline">{formatCurrency(item.price, item.currency)}</Badge>
                       </div>
-                    )}
-                    
-                    {item.image_url && (
-                      <div className="mt-2">
-                        <div 
-                          className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
-                          style={{ backgroundImage: `url(${item.image_url})` }}
-                          onClick={() => setViewImage(item.image_url || null)}
-                        />
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <p><span className="font-medium">Seller:</span> {item.seller_name}</p>
+                          <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
+                        </div>
+                        
+                        <p><span className="font-medium">Category:</span> {item.category}</p>
+                        {item.condition && (
+                          <p><span className="font-medium">Condition:</span> {item.condition}</p>
+                        )}
+                        
+                        {item.description && (
+                          <div>
+                            <p className="font-medium">Description:</p>
+                            <p className="text-gray-600 line-clamp-3">{item.description}</p>
+                          </div>
+                        )}
+                        
+                        {item.image_url && (
+                          <div className="mt-2">
+                            <div 
+                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
+                              style={{ backgroundImage: `url(${item.image_url})` }}
+                              onClick={() => setViewImage(item.image_url || null)}
+                            />
+                          </div>
+                        )}
+                        
+                        {!item.image_url && (
+                          <div className="bg-gray-100 h-20 flex items-center justify-center rounded mt-2">
+                            <p className="text-gray-400 text-sm">No image provided</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    
-                    {!item.image_url && (
-                      <div className="bg-gray-100 h-20 flex items-center justify-center rounded mt-2">
-                        <p className="text-gray-400 text-sm">No image provided</p>
+                    </CardContent>
+                    <CardFooter className="flex gap-2 bg-gray-50 pt-4">
+                      {item.status === 'pending' && (
+                        <>
+                          <Button 
+                            variant="default" 
+                            className="w-1/2 bg-green-600 hover:bg-green-700"
+                            onClick={() => handleApproveItem(item.id)}
+                            disabled={processingId === item.id}
+                          >
+                            {processingId === item.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Approve
+                              </>
+                            )}
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            className="w-1/2"
+                            onClick={() => openDeclineDialog(item.id)}
+                            disabled={processingId === item.id}
+                          >
+                            {processingId === item.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <X className="h-4 w-4 mr-2" />
+                                Decline
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      )}
+                      
+                      {item.status !== 'pending' && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => {
+                            setStatusFilter('pending');
+                          }}
+                        >
+                          View Pending Items
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="registrations" className="mt-6">
+            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
+              <h2 className="text-xl font-semibold mb-2">Pending User Registrations</h2>
+              <p className="text-gray-600">Review and approve new user registrations</p>
+            </div>
+            
+            {loadingRegistrations ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              </div>
+            ) : pendingRegistrations.length === 0 ? (
+              <div className="text-center py-10 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No pending registrations to review.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pendingRegistrations.map((profile) => (
+                  <Card key={profile.id}>
+                    <CardHeader>
+                      <CardTitle className="flex justify-between items-center">
+                        <span>{profile.name}</span>
+                        <Badge className="bg-amber-100 text-amber-800">Pending</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p><span className="font-medium">Email:</span> {profile.email}</p>
+                        <p><span className="font-medium">Student ID:</span> {profile.student_id}</p>
+                        <p><span className="font-medium">Major:</span> {profile.major}</p>
+                        <p><span className="font-medium">Batch:</span> {profile.batch}</p>
+                        
+                        {profile.student_id_photo && (
+                          <div className="mt-2">
+                            <p className="font-medium mb-1">Student ID Photo:</p>
+                            <div 
+                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
+                              style={{ backgroundImage: `url(${profile.student_id_photo})` }}
+                              onClick={() => setViewImage(profile.student_id_photo)}
+                            />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex gap-2 bg-gray-50 pt-4">
-                  {item.status === 'pending' && (
-                    <>
+                    </CardContent>
+                    <CardFooter className="flex gap-2 pt-4">
                       <Button 
                         variant="default" 
                         className="w-1/2 bg-green-600 hover:bg-green-700"
-                        onClick={() => handleApproveItem(item.id)}
-                        disabled={processingId === item.id}
+                        onClick={() => handleApproveRegistration(profile.id)}
                       >
-                        {processingId === item.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Check className="h-4 w-4 mr-2" />
-                            Approve
-                          </>
-                        )}
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve
                       </Button>
                       <Button 
                         variant="destructive" 
                         className="w-1/2"
-                        onClick={() => openDeclineDialog(item.id)}
-                        disabled={processingId === item.id}
+                        onClick={() => handleDeclineRegistration(profile.id)}
                       >
-                        {processingId === item.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <X className="h-4 w-4 mr-2" />
-                            Decline
-                          </>
-                        )}
+                        <X className="h-4 w-4 mr-2" />
+                        Decline
                       </Button>
-                    </>
-                  )}
-                  
-                  {item.status !== 'pending' && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => {
-                        setStatusFilter('pending');
-                      }}
-                    >
-                      View Pending Items
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
       <Footer />
 
@@ -356,7 +512,7 @@ const AdminReview = () => {
           <DialogHeader>
             <DialogTitle>Item Image</DialogTitle>
             <DialogDescription>
-              Preview of the uploaded item image.
+              Preview of the uploaded image.
             </DialogDescription>
           </DialogHeader>
           {viewImage && (
