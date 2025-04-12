@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import SecuritySettings from "@/components/settings/SecuritySettings";
@@ -7,6 +7,7 @@ import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
 import ThemeSettings from "@/components/settings/ThemeSettings";
 import AccountDangerZone from "@/components/settings/AccountDangerZone";
+import { cleanupModals, fixSheetOverlays } from "@/utils/eventDebug";
 import { 
   User, 
   ShieldCheck, 
@@ -19,8 +20,21 @@ import {
 const AccountSettings = () => {
   const [activeTab, setActiveTab] = useState("profile");
 
+  // Clean up any modal overlays when this component mounts and unmounts
+  useEffect(() => {
+    // Fix any lingering overlays when component mounts
+    cleanupModals();
+    fixSheetOverlays();
+    
+    // Also clean up when component unmounts
+    return () => {
+      cleanupModals();
+      fixSheetOverlays();
+    };
+  }, []);
+
   const handleTabChange = (value: string) => {
-    // Use setTimeout to avoid any potential event propagation issues
+    // Make sure event is completely handled before changing tab
     setTimeout(() => {
       setActiveTab(value);
     }, 0);

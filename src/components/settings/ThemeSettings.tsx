@@ -42,9 +42,12 @@ const ThemeSettings = () => {
   };
 
   const handleRadioChange = (value: string) => {
-    // Prevent event propagation issues
+    // Use a safer approach for event handling that doesn't get confused by event pooling
+    const newValue = value; // Create a local copy of the value
+    
+    // Use setTimeout to handle the state change outside of the current event flow
     setTimeout(() => {
-      setSelectedTheme(value);
+      setSelectedTheme(newValue);
     }, 0);
   };
 
