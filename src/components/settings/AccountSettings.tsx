@@ -7,77 +7,66 @@ import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
 import ThemeSettings from "@/components/settings/ThemeSettings";
 import AccountDangerZone from "@/components/settings/AccountDangerZone";
+import { 
+  User, 
+  ShieldCheck, 
+  Bell, 
+  Lock, 
+  Paintbrush, 
+  AlertTriangle 
+} from "lucide-react";
 
 const AccountSettings = () => {
   const [activeTab, setActiveTab] = useState("profile");
 
+  const tabs = [
+    { id: "profile", label: "Profile", icon: <User size={18} />, component: <ProfileSettings /> },
+    { id: "security", label: "Security", icon: <ShieldCheck size={18} />, component: <SecuritySettings /> },
+    { id: "notifications", label: "Notifications", icon: <Bell size={18} />, component: <NotificationSettings /> },
+    { id: "privacy", label: "Privacy", icon: <Lock size={18} />, component: <PrivacySettings /> },
+    { id: "appearance", label: "Appearance", icon: <Paintbrush size={18} />, component: <ThemeSettings /> },
+    { id: "danger", label: "Danger Zone", icon: <AlertTriangle size={18} className="text-red-500" />, component: <AccountDangerZone />, danger: true }
+  ];
+
   return (
     <div className="p-4 max-h-[80vh] overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
-      <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4 w-full bg-transparent p-1 rounded-lg">
-          <TabsTrigger 
-            value="profile" 
-            className="text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black rounded-md transition-all duration-300"
-          >
-            Profile
-          </TabsTrigger>
-          <TabsTrigger 
-            value="security" 
-            className="text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black rounded-md transition-all duration-300"
-          >
-            Security
-          </TabsTrigger>
-          <TabsTrigger 
-            value="notifications" 
-            className="text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black rounded-md transition-all duration-300"
-          >
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger 
-            value="privacy" 
-            className="text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black rounded-md transition-all duration-300"
-          >
-            Privacy
-          </TabsTrigger>
-          <TabsTrigger 
-            value="appearance" 
-            className="text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black rounded-md transition-all duration-300"
-          >
-            Appearance
-          </TabsTrigger>
-          <TabsTrigger 
-            value="danger" 
-            className="text-xs md:text-sm text-red-500 data-[state=active]:bg-red-50 data-[state=active]:text-red-600 rounded-md transition-all duration-300"
-          >
-            Danger Zone
-          </TabsTrigger>
-        </TabsList>
+      <h2 className="text-xl font-semibold mb-6">Account Settings</h2>
+      
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Sidebar Navigation */}
+        <div className="w-full md:w-64 flex-shrink-0">
+          <div className="bg-gray-50 rounded-lg p-2">
+            <ul className="space-y-1">
+              {tabs.map((tab) => (
+                <li key={tab.id}>
+                  <button
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-md transition-all duration-200 ${
+                      activeTab === tab.id
+                        ? tab.danger
+                          ? "bg-red-50 text-red-600 font-medium"
+                          : "bg-white shadow-sm text-sfu-red font-medium"
+                        : "hover:bg-white/80"
+                    }`}
+                  >
+                    <span className={activeTab === tab.id && !tab.danger ? "text-sfu-red" : ""}>
+                      {tab.icon}
+                    </span>
+                    <span>{tab.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
         
-        <TabsContent value="profile" className="mt-2">
-          <ProfileSettings />
-        </TabsContent>
-        
-        <TabsContent value="security" className="mt-2">
-          <SecuritySettings />
-        </TabsContent>
-        
-        <TabsContent value="notifications" className="mt-2">
-          <NotificationSettings />
-        </TabsContent>
-        
-        <TabsContent value="privacy" className="mt-2">
-          <PrivacySettings />
-        </TabsContent>
-        
-        <TabsContent value="appearance" className="mt-2">
-          <ThemeSettings />
-        </TabsContent>
-        
-        <TabsContent value="danger" className="mt-2">
-          <AccountDangerZone />
-        </TabsContent>
-      </Tabs>
+        {/* Content Area */}
+        <div className="flex-1">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+            {tabs.find(tab => tab.id === activeTab)?.component}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
