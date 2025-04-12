@@ -17,7 +17,11 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
+
+import AccountSettings from "@/components/settings/AccountSettings";
 
 const Header = () => {
   const { isAuthenticated, profile, logout, isAdmin } = useAuth();
@@ -30,6 +34,7 @@ const Header = () => {
   
   const [activeTab, setActiveTab] = useState<string>(location.pathname);
   const isInitialMount = useRef(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -244,6 +249,12 @@ const Header = () => {
                     Profile
                   </DropdownMenuItem>
                   <DropdownMenuItem 
+                    onClick={() => setIsSettingsOpen(true)} 
+                    className="transition-colors duration-200 hover:bg-gray-100 cursor-pointer"
+                  >
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
                     onClick={logout} 
                     className="transition-colors duration-200 hover:bg-gray-100 cursor-pointer"
                   >
@@ -251,6 +262,17 @@ const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              {/* Account Settings Dialog */}
+              <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <SheetContent side="right" className="sm:max-w-md w-full">
+                  <SheetHeader>
+                    <SheetTitle className="text-left">Account Settings</SheetTitle>
+                  </SheetHeader>
+                  <AccountSettings />
+                </SheetContent>
+              </Sheet>
+
               {/* Mobile hamburger menu for authenticated users */}
               {isMobile && (
                 <button onClick={toggleMenu} className="p-2 transition-transform duration-200 hover:scale-110">
