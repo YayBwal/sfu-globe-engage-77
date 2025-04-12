@@ -99,15 +99,15 @@ const Register = () => {
     try {
       setIsUploading(true);
       
-      // Create a unique filename with improved formatting (avoid special characters)
+      // Create a unique filename
       const timestamp = new Date().getTime();
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const fileName = `${timestamp}_${cleanFileName}`;
+      const filePath = `student_id_${timestamp}`;
       
-      // Upload to Supabase storage - using a simplified structure
+      // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(`student_id_${timestamp}`, file, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
         });
@@ -117,7 +117,7 @@ const Register = () => {
       // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
-        .getPublicUrl(`student_id_${timestamp}`);
+        .getPublicUrl(filePath);
       
       setPhotoUrl(publicUrlData.publicUrl);
       
@@ -150,8 +150,15 @@ const Register = () => {
     
     setIsSubmitting(true);
     try {
-      // Add a slight delay to ensure previous transactions are completed
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("Starting registration with values:", {
+        email: values.email,
+        password: values.password,
+        name: values.name,
+        studentId: values.studentId,
+        major: values.major,
+        batch: values.batch,
+        photo: photoUrl
+      });
       
       await register(
         values.email, 
@@ -175,7 +182,7 @@ const Register = () => {
       // Display a user-friendly error message
       toast({
         title: 'Registration failed',
-        description: error.message || 'Something went wrong with registration. Please try again with different information.',
+        description: error.message || 'Something went wrong with registration. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -319,7 +326,7 @@ const Register = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="DC">DC - Diploma in Computing</SelectItem>
-                          <SelectItem value="DCBM">DCBM - Diploma in Computing & Business Management</SelectItem>
+                          <SelectItem value="DCBM">DCBM - Computing & Business Management</SelectItem>
                           <SelectItem value="BM">BM - Business Management</SelectItem>
                         </SelectContent>
                       </Select>

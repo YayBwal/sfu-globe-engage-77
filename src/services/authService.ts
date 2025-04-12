@@ -33,6 +33,9 @@ export const registerUser = async (
   studentIdPhoto?: string
 ) => {
   try {
+    console.log("Starting Supabase registration with:", { email, name, studentId, major, batch });
+    
+    // First create the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
@@ -48,78 +51,105 @@ export const registerUser = async (
     });
 
     if (error) {
+      console.error("Auth signup error:", error);
       throw error;
     }
+
+    if (!data.user) {
+      throw new Error("Failed to create user account");
+    }
+
+    console.log("Auth signup successful, user ID:", data.user.id);
 
     // Create a user profile in the 'profiles' table
     const { error: profileError } = await supabase
       .from('profiles')
       .insert([
         {
-          id: data.user?.id,
+          id: data.user.id,
           name: name,
           student_id: studentId,
           major: major,
           batch: batch,
           email: email,
+          student_id_photo: studentIdPhoto,
         },
       ]);
 
     if (profileError) {
+      console.error("Profile creation error:", profileError);
       throw profileError;
     }
+
+    console.log("Profile created successfully");
+    return data.user;
+
   } catch (error: any) {
-    console.error("Registration failed:", error.message);
+    console.error("Registration failed:", error);
     throw error;
   }
 };
 
 export const loginUser = async (email: string, password: string) => {
   try {
+    console.log("Attempting login for:", email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
     if (error) {
+      console.error("Login error:", error);
       throw error;
     }
+
+    if (!data.user) {
+      throw new Error("No user returned from login");
+    }
+
+    console.log("Login successful, fetching profile");
 
     // Fetch the user's profile to check approval status
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('approval_status')
-      .eq('id', data.user?.id)
-      .single();
+      .eq('id', data.user.id)
+      .maybeSingle();
 
     if (profileError) {
+      console.error("Profile fetch error:", profileError);
       throw profileError;
     }
 
     if (profileData && profileData.approval_status !== 'approved') {
+      console.log("Account not approved:", profileData.approval_status);
       // Log the user out if their account is not approved
       await supabase.auth.signOut();
       throw new Error('Your account has not been approved yet.');
     }
+
+    return data.user;
   } catch (error: any) {
-    console.error("Login failed:", error.message);
+    console.error("Login process failed:", error);
     throw error;
   }
 };
 
 export const logoutUser = async () => {
   try {
+    console.log("Logging out user");
     const { error } = await supabase.auth.signOut();
     if (error) {
+      console.error("Logout error:", error);
       throw error;
     }
+    return true;
   } catch (error: any) {
     console.error("Logout failed:", error.message);
     throw error;
   }
 };
 
-// Add the missing updatePassword function
 export const updatePassword = async (newPassword: string) => {
   try {
     const { error } = await supabase.auth.updateUser({
@@ -127,6 +157,7 @@ export const updatePassword = async (newPassword: string) => {
     });
 
     if (error) {
+      console.error("Password update error:", error);
       throw error;
     }
 
@@ -137,7 +168,6 @@ export const updatePassword = async (newPassword: string) => {
   }
 };
 
-// Add the missing resetPassword function
 export const resetPassword = async (email: string) => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -145,6 +175,7 @@ export const resetPassword = async (email: string) => {
     });
 
     if (error) {
+      console.error("Password reset request error:", error);
       throw error;
     }
 

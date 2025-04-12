@@ -39,22 +39,29 @@ if (typeof window !== 'undefined') {
 
 // Helper to ensure popovers and modals are properly cleaned up
 export const cleanupModals = () => {
+  console.log('Running modal cleanup');
+  
   // Force remove any lingering modal backdrops or overlays
   const overlays = document.querySelectorAll('[data-state="open"]');
   console.log('Found overlays to clean:', overlays.length);
   
   overlays.forEach(overlay => {
-    // Try to find close buttons and click them
-    const closeButton = overlay.querySelector('[aria-label="Close"]');
-    if (closeButton && closeButton instanceof HTMLElement) {
-      closeButton.click();
-      console.log('Clicked close button on overlay');
-    } else {
-      // Force remove the overlay if no close button found
-      if (overlay.parentNode && overlay instanceof HTMLElement) {
-        overlay.setAttribute('data-state', 'closed');
-        console.log('Forced overlay to closed state');
+    try {
+      // Try to find close buttons and click them
+      const closeButton = overlay.querySelector('[aria-label="Close"]');
+      if (closeButton && closeButton instanceof HTMLElement) {
+        closeButton.click();
+        console.log('Clicked close button on overlay');
+      } else {
+        // Force remove the overlay if no close button found
+        if (overlay.parentNode && overlay instanceof HTMLElement) {
+          overlay.setAttribute('data-state', 'closed');
+          overlay.style.pointerEvents = 'none';
+          console.log('Forced overlay to closed state');
+        }
       }
+    } catch (err) {
+      console.error('Error cleaning up overlay:', err);
     }
   });
   
@@ -64,32 +71,41 @@ export const cleanupModals = () => {
     if (backdrop.parentNode && backdrop instanceof HTMLElement) {
       console.log('Removing potential blocking backdrop');
       backdrop.style.pointerEvents = 'none';
+      backdrop.style.display = 'none';
     }
   });
   
   console.log('Modal cleanup completed');
 };
 
-// New function to fix sheet overlay issues
+// Fix sheet overlay issues
 export const fixSheetOverlays = () => {
   // Sometimes the sheet overlay remains with pointer-events: auto which blocks clicks
-  const sheetOverlays = document.querySelectorAll('[data-radix-sheet-overlay]');
-  console.log('Found sheet overlays to fix:', sheetOverlays.length);
+  const sheetOverlays = document.querySelectorAll('[data-radix-sheet-overlay], [data-radix-dialog-overlay]');
+  console.log('Found sheet/dialog overlays to fix:', sheetOverlays.length);
   
   sheetOverlays.forEach(overlay => {
     if (overlay instanceof HTMLElement) {
       const state = overlay.getAttribute('data-state');
-      console.log('Sheet overlay state:', state);
+      console.log('Overlay state:', state);
       
-      if (state === 'closed') {
-        // Remove the overlay completely if it's closed
+      if (state === 'closed' || !state) {
+        // Remove the overlay completely if it's closed or has no state
         overlay.remove();
-        console.log('Removed closed sheet overlay');
-      } else if (!state || state !== 'open') {
+        console.log('Removed closed/invalid overlay');
+      } else if (state !== 'open') {
         // Fix any overlay without proper state
         overlay.style.pointerEvents = 'none';
-        console.log('Fixed sheet overlay pointer events');
+        console.log('Fixed overlay pointer events');
       }
+    }
+  });
+  
+  // Handle any remaining hidden elements that might block clicks
+  document.querySelectorAll('div[style*="visibility: hidden"]').forEach(el => {
+    if (el instanceof HTMLElement) {
+      el.style.pointerEvents = 'none';
+      console.log('Fixed hidden element pointer events');
     }
   });
   
@@ -103,5 +119,30 @@ if (typeof window !== 'undefined') {
       cleanupModals();
       fixSheetOverlays();
     }, 1000); // Small delay to ensure the DOM is fully loaded
+  });
+  
+  // Also add a mutation observer to detect new modal elements
+  const observer = new MutationObserver((mutations) => {
+    const hasRelevantChanges = mutations.some(mutation => {
+      return Array.from(mutation.addedNodes).some(node => 
+        node instanceof HTMLElement && 
+        (node.hasAttribute('role') || 
+         node.querySelector('[role="dialog"], [data-radix-sheet-overlay]'))
+      );
+    });
+    
+    if (hasRelevantChanges) {
+      console.log('Detected UI changes, running cleanup');
+      setTimeout(() => {
+        cleanupModals();
+        fixSheetOverlays();
+      }, 500);
+    }
+  });
+  
+  // Start observing the document with configured parameters
+  observer.observe(document.body, { 
+    childList: true,
+    subtree: true 
   });
 }
