@@ -90,8 +90,8 @@ const HomeResourcesSection: React.FC = () => {
               key={index}
               className="group block transform transition-all duration-300 hover:-translate-y-1"
             >
-              <Card className={`h-full transition-all duration-300 hover:shadow-md ${resource.bgClass} border-none overflow-hidden`}>
-                <CardContent className="p-6">
+              <Card className={`h-full relative transition-all duration-300 hover:shadow-md ${resource.bgClass} border-none overflow-hidden`}>
+                <CardContent className="p-6 relative z-10">
                   <div className="flex flex-col items-start">
                     <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:bg-sfu-red transition-colors duration-300">
                       <div className="text-sfu-red group-hover:text-white transition-colors duration-300">
@@ -103,7 +103,7 @@ const HomeResourcesSection: React.FC = () => {
                       <p className="text-gray-600">{resource.description}</p>
                     </div>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-sfu-red/5 rounded-full transform scale-0 transition-transform duration-300 group-hover:scale-[6]"></div>
+                  <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-sfu-red/5 rounded-full transform scale-0 transition-transform duration-300 group-hover:scale-[6] pointer-events-none"></div>
                 </CardContent>
               </Card>
             </Link>

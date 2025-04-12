@@ -36,9 +36,9 @@ export const registerUser = async (
     major,
     batch,
     student_id_photo: studentIdPhoto,
-    approved: false, // New users need approval
+    approval_status: 'pending', // New users need approval
     online: false,
-    created_at: new Date(),
+    created_at: new Date().toISOString(), // Convert Date to string
   });
 
   if (profileError) {
@@ -70,7 +70,7 @@ export const loginUser = async (email: string, password: string) => {
   // Check if user is approved
   const { data: profileData, error: profileError } = await supabase
     .from('profiles')
-    .select('approved')
+    .select('approval_status')
     .eq('id', data.user.id)
     .single();
 
@@ -78,7 +78,7 @@ export const loginUser = async (email: string, password: string) => {
     throw new Error(`Error fetching profile: ${profileError.message}`);
   }
 
-  if (!profileData.approved) {
+  if (profileData.approval_status !== 'approved') {
     // Sign out the user if they're not approved
     await supabase.auth.signOut();
     throw new Error('Your account is pending approval by an administrator');
@@ -128,4 +128,3 @@ export const updatePassword = async (newPassword: string) => {
     throw new Error(error.message);
   }
 };
-
