@@ -1,5 +1,6 @@
 
 import { Database as GeneratedDatabase } from '@/integrations/supabase/types';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Define the notification table types that may be missing from the auto-generated types
 export interface NotificationTable {
@@ -43,3 +44,6 @@ export interface Database extends GeneratedDatabase {
     };
   };
 }
+
+// Define a type for our typed Supabase client
+export type TypedSupabaseClient = SupabaseClient<Database>;

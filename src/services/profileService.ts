@@ -1,11 +1,15 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, NotificationPreferences, PrivacySettings } from '@/types/auth';
+import { TypedSupabaseClient } from '@/types/supabaseCustom';
+
+const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
     console.log("Fetching profile for user:", userId);
     
-    const { data, error } = await supabase
+    const { data, error } = await typedSupabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -72,7 +76,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
       delete dbUpdates.coverPic;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await typedSupabase
       .from('profiles')
       .update(dbUpdates)
       .eq('id', userId)
@@ -129,7 +133,7 @@ export const checkUserExists = async (studentId: string, email: string): Promise
     console.log("Checking if user exists with student ID:", studentId, "or email:", email);
     
     // Check if a profile with the same student ID or email already exists
-    const { data, error } = await supabase
+    const { data, error } = await typedSupabase
       .from('profiles')
       .select('id')
       .or(`student_id.eq.${studentId},email.eq.${email}`)

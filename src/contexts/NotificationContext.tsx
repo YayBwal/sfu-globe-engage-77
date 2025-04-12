@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Database, NotificationTable } from '@/types/supabaseCustom';
+import { TypedSupabaseClient } from '@/types/supabaseCustom';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -36,11 +36,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { toast } = useToast();
 
   // Use our custom typed supabase client
-  const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
-    from: <T extends keyof Database['public']['Tables']>(
-      table: T
-    ) => ReturnType<typeof supabase.from> 
-  };
+  const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
   // Load existing notifications
   useEffect(() => {

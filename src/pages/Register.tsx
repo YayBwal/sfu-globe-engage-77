@@ -26,7 +26,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
-import { checkUserExists } from '@/services/profileService';
 import { setupStorage } from '@/utils/storageSetup';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
@@ -49,7 +48,7 @@ const formSchema = z.object({
 });
 
 const Register = () => {
-  const { register } = useAuth();
+  const { register: registerUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -111,10 +110,33 @@ const Register = () => {
       
       console.log("Uploading file:", filePath);
       
+      // Check if the bucket exists first
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      
+      if (bucketError) {
+        console.error("Error listing buckets:", bucketError);
+        throw bucketError;
+      }
+      
+      const profileBucketExists = buckets.some(bucket => bucket.name === 'profile-images');
+      
+      if (!profileBucketExists) {
+        console.error("The 'profile-images' bucket doesn't exist");
+        toast({
+          title: 'Storage error',
+          description: 'Storage is not properly configured. Please contact support.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
         
       if (error) {
         console.error("Upload failed:", error);
@@ -170,7 +192,7 @@ const Register = () => {
         photo: photoUrl
       });
       
-      await register(
+      await registerUser(
         values.email, 
         values.password, 
         values.name, 
@@ -200,6 +222,7 @@ const Register = () => {
     }
   };
 
+  
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-white to-gray-100">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-md">
@@ -217,6 +240,7 @@ const Register = () => {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            
             <FormField
               control={form.control}
               name="name"

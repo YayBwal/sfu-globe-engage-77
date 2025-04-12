@@ -1,5 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { TypedSupabaseClient } from '@/types/supabaseCustom';
+
+const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
 export const deleteAccount = async (userId: string) => {
   try {
@@ -60,10 +63,18 @@ export const registerUser = async (
       throw new Error("A user with this student ID or email already exists");
     }
     
-    // Step 1: Create the user in Supabase Auth
+    // Step 1: Create the user in Supabase Auth with proper email and password
     const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          studentId,
+          major,
+          batch
+        }
+      }
     });
 
     if (error) {
@@ -81,11 +92,11 @@ export const registerUser = async (
     // Step 2: Create a profile in the 'profiles' table
     const profileData = {
       id: data.user.id,
-      name: name,
+      name,
       student_id: studentId,
-      major: major,
-      batch: batch,
-      email: email,
+      major,
+      batch,
+      email,
       student_id_photo: studentIdPhoto,
       approval_status: 'pending',
     };

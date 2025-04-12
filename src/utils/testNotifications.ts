@@ -1,13 +1,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from '@/types/supabaseCustom';
+import { TypedSupabaseClient } from '@/types/supabaseCustom';
 
 // Use our custom typed supabase client
-const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
-  from: <T extends keyof Database['public']['Tables']>(
-    table: T
-  ) => ReturnType<typeof supabase.from> 
-};
+const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
 export const generateTestNotification = async (userId: string) => {
   try {
