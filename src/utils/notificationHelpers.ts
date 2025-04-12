@@ -1,5 +1,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from '@/types/supabaseCustom';
+
+// Use our custom typed supabase client
+const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
+  from: <T extends keyof Database['public']['Tables']>(
+    table: T
+  ) => ReturnType<typeof supabase.from> 
+};
 
 // Generic notification creation function
 export const createNotification = async (
@@ -10,7 +18,7 @@ export const createNotification = async (
   type: 'info' | 'success' | 'warning' | 'error' = 'info'
 ) => {
   try {
-    const { error } = await supabase
+    const { error } = await typedSupabase
       .from('notifications')
       .insert({
         user_id: userId,

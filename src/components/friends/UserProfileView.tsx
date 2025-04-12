@@ -1,131 +1,117 @@
-
 import React, { useState, useEffect } from 'react';
-import { User, UserPlus, UserCheck, UserX, MessageSquare } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Avatar, 
-  AvatarImage, 
-  AvatarFallback 
-} from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { UserPlus, UserCheck, MessageSquare, X, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/types/supabaseCustom';
+
+// Use our custom typed supabase client
+const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
+  from: <T extends keyof Database['public']['Tables']>(
+    table: T
+  ) => ReturnType<typeof supabase.from> 
+};
 
 interface UserProfileViewProps {
   userId: string;
   onClose?: () => void;
 }
 
-export const UserProfileView = ({ userId, onClose }: UserProfileViewProps) => {
+interface UserProfileData {
+  id: string;
+  name: string;
+  student_id: string;
+  major: string;
+  batch: string;
+  bio: string | null;
+  profile_pic: string | null;
+  interests: string[] | null;
+}
+
+export const UserProfileView: React.FC<UserProfileViewProps> = ({ userId, onClose }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'friend'>('none');
-  
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
   useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!userId) return;
-      
+    const fetchUserProfile = async () => {
       try {
-        setIsLoading(true);
+        setLoading(true);
         
-        // Fetch profile data
-        const { data: profile, error: profileError } = await supabase
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, name, student_id, major, batch, bio, profile_pic, interests')
           .eq('id', userId)
           .single();
           
         if (profileError) throw profileError;
         
-        setProfileData(profile);
+        setProfile(profileData);
         
-        // Check connection status if viewing as logged-in user
-        if (user && user.id !== userId) {
-          // Check if we've sent a request
-          const { data: outgoingConn, error: outError } = await supabase
+        // Check connection status if logged in
+        if (user) {
+          const { data: connectionData, error: connectionError } = await supabase
             .from('connections')
             .select('status')
             .eq('user_id', user.id)
             .eq('friend_id', userId)
             .maybeSingle();
             
-          if (outgoingConn) {
-            setConnectionStatus(outgoingConn.status === 'accepted' ? 'friend' : 'pending');
-            return;
-          }
+          if (connectionError) throw connectionError;
           
-          // Check if we've received a request
-          const { data: incomingConn, error: inError } = await supabase
-            .from('connections')
-            .select('status')
-            .eq('user_id', userId)
-            .eq('friend_id', user.id)
-            .maybeSingle();
+          if (connectionData) {
+            setConnectionStatus(connectionData.status);
+          } else {
+            // Check reverse connection (if they sent a request to us)
+            const { data: reverseData, error: reverseError } = await supabase
+              .from('connections')
+              .select('status')
+              .eq('user_id', userId)
+              .eq('friend_id', user.id)
+              .maybeSingle();
+              
+            if (reverseError) throw reverseError;
             
-          if (incomingConn) {
-            setConnectionStatus(incomingConn.status === 'accepted' ? 'friend' : 'pending');
-            return;
+            if (reverseData && reverseData.status === 'pending') {
+              setConnectionStatus('incoming');
+            } else if (reverseData && reverseData.status === 'accepted') {
+              setConnectionStatus('accepted');
+            } else {
+              setConnectionStatus(null);
+            }
           }
-          
-          setConnectionStatus('none');
         }
         
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching user profile:', error);
         toast({
           title: 'Error',
           description: 'Failed to load user profile',
-          variant: 'destructive'
+          variant: 'destructive',
         });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
     
-    fetchProfileData();
-    
-    // Set up real-time subscription for online status changes
-    const onlineStatusChannel = supabase
-      .channel(`profile_online_status_${userId}`)
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
-        (payload) => {
-          if (payload.new.online !== undefined) {
-            setProfileData(current => ({
-              ...current,
-              online: payload.new.online
-            }));
-          }
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(onlineStatusChannel);
-    };
+    fetchUserProfile();
   }, [userId, user, toast]);
 
   const handleSendFriendRequest = async () => {
-    if (!user) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to send friend requests',
-        variant: 'destructive'
-      });
-      return;
-    }
+    if (!user || !profile) return;
     
     try {
-      // Insert connection record
+      setActionLoading(true);
+      
+      // Create connection record
       const { error } = await supabase
         .from('connections')
         .insert({
@@ -136,15 +122,16 @@ export const UserProfileView = ({ userId, onClose }: UserProfileViewProps) => {
         
       if (error) throw error;
       
+      // Update local state
       setConnectionStatus('pending');
       
       toast({
         title: 'Friend Request Sent',
-        description: 'Your friend request has been sent'
+        description: `Friend request sent to ${profile.name}`,
       });
       
       // Send notification to the user
-      await supabase
+      await typedSupabase
         .from('notifications')
         .insert({
           user_id: userId,
@@ -153,212 +140,201 @@ export const UserProfileView = ({ userId, onClose }: UserProfileViewProps) => {
           source: 'friend',
           type: 'info'
         });
-      
+        
     } catch (error) {
       console.error('Error sending friend request:', error);
       toast({
-        title: 'Request Error',
-        description: 'Failed to send friend request. Please try again.',
-        variant: 'destructive'
+        title: 'Request Failed',
+        description: 'Failed to send friend request',
+        variant: 'destructive',
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleCancelRequest = async () => {
-    if (!user) return;
+  const handleAcceptFriendRequest = async () => {
+    if (!user || !profile) return;
     
     try {
-      // Delete the pending connection
-      const { error } = await supabase
-        .from('connections')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('friend_id', userId);
-        
-      if (error) throw error;
+      setActionLoading(true);
       
-      setConnectionStatus('none');
-      
-      toast({
-        title: 'Request Cancelled',
-        description: 'Your friend request has been cancelled'
-      });
-      
-    } catch (error) {
-      console.error('Error cancelling request:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to cancel friend request',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleUnfriend = async () => {
-    if (!user) return;
-    
-    try {
-      // Delete both connections
-      const { error: error1 } = await supabase
+      // Update the incoming connection to accepted
+      const { error: updateError } = await supabase
         .from('connections')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('friend_id', userId);
-        
-      const { error: error2 } = await supabase
-        .from('connections')
-        .delete()
+        .update({ status: 'accepted' })
         .eq('user_id', userId)
         .eq('friend_id', user.id);
         
-      if (error1 || error2) throw error1 || error2;
+      if (updateError) throw updateError;
       
-      setConnectionStatus('none');
+      // Create a reciprocal connection
+      const { error: insertError } = await supabase
+        .from('connections')
+        .insert({
+          user_id: user.id,
+          friend_id: userId,
+          status: 'accepted'
+        });
+        
+      if (insertError) throw insertError;
+      
+      // Update local state
+      setConnectionStatus('accepted');
       
       toast({
-        title: 'Friend Removed',
-        description: 'You are no longer friends with this user'
+        title: 'Friend Request Accepted',
+        description: `You are now friends with ${profile.name}`,
       });
       
+      // Send notification to the user
+      await typedSupabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: 'Friend Request Accepted',
+          message: `Your friend request has been accepted`,
+          source: 'friend',
+          type: 'success'
+        });
+        
     } catch (error) {
-      console.error('Error unfriending:', error);
+      console.error('Error accepting friend request:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to remove friend',
-        variant: 'destructive'
+        title: 'Action Failed',
+        description: 'Failed to accept friend request',
+        variant: 'destructive',
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  if (isLoading) {
+  const handleStartChat = () => {
+    // Implement chat functionality
+    toast({
+      title: 'Chat Feature',
+      description: 'Chat functionality will be implemented soon',
+    });
+  };
+
+  if (loading) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center justify-center min-h-[200px]">
-            <p className="text-muted-foreground">Loading profile...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center p-6 h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <p className="mt-2 text-gray-500">Loading profile...</p>
+      </div>
     );
   }
 
-  if (!profileData) {
+  if (!profile) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center justify-center min-h-[200px]">
-            <p className="text-muted-foreground">User not found</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">User Not Found</h2>
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <p className="text-gray-500">This user profile could not be found.</p>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg">User Profile</CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            <Avatar className="h-20 w-20 mb-4">
-              <AvatarImage src={profileData.profile_pic} />
-              <AvatarFallback className="text-lg">
-                {profileData.name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            {profileData.online && (
-              <span className="absolute right-0 bottom-4 h-4 w-4 rounded-full bg-green-500 border-2 border-white" title="Online"></span>
-            )}
-            {!profileData.online && (
-              <span className="absolute right-0 bottom-4 h-4 w-4 rounded-full bg-gray-400 border-2 border-white" title="Offline"></span>
-            )}
-          </div>
-          
-          <h2 className="text-xl font-semibold mb-1">{profileData.name}</h2>
-          <p className="text-muted-foreground mb-1">Student ID: {profileData.student_id}</p>
-          <p className="text-sm text-gray-500 mb-4">
-            {profileData.online ? 'Online' : 'Offline'}
-          </p>
-          
-          {/* Connection actions - only show if viewing as a different user */}
-          {user && user.id !== userId && (
-            <div className="flex space-x-2 mb-4">
-              {connectionStatus === 'none' && (
-                <Button 
-                  onClick={handleSendFriendRequest}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" /> Add Friend
-                </Button>
-              )}
-              
-              {connectionStatus === 'pending' && (
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancelRequest}
-                >
-                  <UserX className="h-4 w-4 mr-2" /> Cancel Request
-                </Button>
-              )}
-              
-              {connectionStatus === 'friend' && (
-                <>
-                  <Button variant="outline">
-                    <MessageSquare className="h-4 w-4 mr-2" /> Message
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="text-red-500 border-red-200 hover:bg-red-50"
-                    onClick={handleUnfriend}
-                  >
-                    <UserX className="h-4 w-4 mr-2" /> Unfriend
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-          
-          <Separator className="my-4" />
-          
-          {/* Profile details */}
-          <div className="w-full space-y-4">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Major</h3>
-              <p>{profileData.major || 'Not specified'}</p>
-            </div>
-            
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Batch</h3>
-              <p>{profileData.batch || 'Not specified'}</p>
-            </div>
-            
-            {profileData.bio && (
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-1">Bio</h3>
-                <p>{profileData.bio}</p>
-              </div>
-            )}
-            
-            {profileData.interests?.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-1">Interests</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profileData.interests.map((interest: string, index: number) => (
-                    <span 
-                      key={index} 
-                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                    >
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">User Profile</h2>
+        {onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      
+      <div className="flex flex-col items-center mb-6">
+        <Avatar className="h-24 w-24 mb-4">
+          <AvatarImage src={profile.profile_pic || undefined} />
+          <AvatarFallback className="text-2xl">{profile.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <h3 className="text-xl font-bold">{profile.name}</h3>
+        <p className="text-gray-500">Student ID: {profile.student_id}</p>
+        <div className="flex mt-2 space-x-2">
+          <Badge>{profile.major}</Badge>
+          <Badge variant="outline">Batch {profile.batch}</Badge>
+        </div>
+      </div>
+      
+      {profile.bio && (
+        <div className="mb-4">
+          <h4 className="font-medium mb-1">Bio</h4>
+          <p className="text-gray-600">{profile.bio}</p>
+        </div>
+      )}
+      
+      {profile.interests && profile.interests.length > 0 && (
+        <div className="mb-4">
+          <h4 className="font-medium mb-1">Interests</h4>
+          <div className="flex flex-wrap gap-2">
+            {profile.interests.map((interest, index) => (
+              <Badge key={index} variant="secondary">{interest}</Badge>
+            ))}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+      
+      <Separator className="my-4" />
+      
+      {user && user.id !== userId && (
+        <div className="flex justify-center space-x-2">
+          {connectionStatus === null && (
+            <Button 
+              onClick={handleSendFriendRequest} 
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4 mr-2" />
+              )}
+              Add Friend
+            </Button>
+          )}
+          
+          {connectionStatus === 'pending' && (
+            <Button variant="outline" disabled>
+              <UserClock className="h-4 w-4 mr-2" />
+              Request Sent
+            </Button>
+          )}
+          
+          {connectionStatus === 'incoming' && (
+            <Button 
+              onClick={handleAcceptFriendRequest}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4 mr-2" />
+              )}
+              Accept Request
+            </Button>
+          )}
+          
+          {connectionStatus === 'accepted' && (
+            <Button 
+              variant="outline" 
+              onClick={handleStartChat}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Message
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { UserProfileView } from "@/components/friends/UserProfileView";
+import { Database } from '@/types/supabaseCustom';
 
 interface UserResult {
   id: string;
@@ -27,6 +27,13 @@ export const FindFriendSection = () => {
   const [pendingRequests, setPendingRequests] = useState<Record<string, boolean>>({});
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Use our custom typed supabase client
+  const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
+    from: <T extends keyof Database['public']['Tables']>(
+      table: T
+    ) => ReturnType<typeof supabase.from> 
+  };
 
   // Handle search for users
   const handleSearch = async () => {
@@ -117,7 +124,7 @@ export const FindFriendSection = () => {
       });
       
       // Send notification to the user
-      await supabase
+      await typedSupabase
         .from('notifications')
         .insert({
           user_id: friendId,

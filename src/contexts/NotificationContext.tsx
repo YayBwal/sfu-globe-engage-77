@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Database, NotificationTable } from '@/types/supabaseCustom';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -34,6 +35,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Use our custom typed supabase client
+  const typedSupabase = supabase as unknown as ReturnType<typeof supabase> & { 
+    from: <T extends keyof Database['public']['Tables']>(
+      table: T
+    ) => ReturnType<typeof supabase.from> 
+  };
+
   // Load existing notifications
   useEffect(() => {
     if (!user) {
@@ -45,7 +53,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const fetchNotifications = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        const { data, error } = await typedSupabase
           .from('notifications')
           .select('*')
           .eq('user_id', user.id)
@@ -59,7 +67,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           type: item.type as NotificationType
         })) || [];
         
-        setNotifications(typedData);
+        setNotifications(typedData as Notification[]);
       } catch (error) {
         console.error('Error fetching notifications:', error);
       } finally {
@@ -86,7 +94,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         },
         (payload) => {
           // Add the new notification to the state
-          const newNotification = payload.new as Notification;
+          const newNotification = payload.new as unknown as Notification;
           // Ensure type safety
           const typedNotification = {
             ...newNotification,
@@ -113,7 +121,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await typedSupabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId)
@@ -136,7 +144,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await typedSupabase
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
@@ -158,7 +166,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await typedSupabase
         .from('notifications')
         .delete()
         .eq('id', notificationId)
