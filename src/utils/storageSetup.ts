@@ -16,19 +16,9 @@ export const setupStorage = async () => {
     const profileBucketExists = buckets?.some(bucket => bucket.name === 'profile-images');
     
     if (!profileBucketExists) {
-      console.log("Creating profile-images bucket");
-      const { error } = await supabase
-        .storage
-        .createBucket('profile-images', {
-          public: true,
-          fileSizeLimit: 2097152, // 2MB in bytes
-        });
-        
-      if (error) {
-        console.error("Error creating profile-images bucket:", error);
-      } else {
-        console.log("Successfully created profile-images bucket");
-      }
+      console.log("Profile-images bucket doesn't exist. The bucket should be created via SQL migrations.");
+    } else {
+      console.log("Profile-images bucket exists.");
     }
     
   } catch (error) {
@@ -56,27 +46,7 @@ export const ensureBucketExists = async (bucketName: string) => {
       return false;
     }
     
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-    
-    if (!bucketExists) {
-      console.log(`Creating bucket "${bucketName}"`);
-      const { error } = await supabase
-        .storage
-        .createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 2097152, // 2MB in bytes
-        });
-        
-      if (error) {
-        console.error(`Error creating bucket "${bucketName}":`, error);
-        return false;
-      } else {
-        console.log(`Successfully created bucket "${bucketName}"`);
-        return true;
-      }
-    }
-    
-    return true;
+    return buckets?.some(bucket => bucket.name === bucketName) || false;
   } catch (error) {
     console.error(`Error ensuring bucket "${bucketName}" exists:`, error);
     return false;
