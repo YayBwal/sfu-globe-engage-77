@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/home/HeroSection";
-import FeaturesSection from "@/components/home/FeaturesSection";
 import CTASection from "@/components/home/CTASection";
 import HomeResourcesSection from "@/components/home/HomeResourcesSection";
 
@@ -39,7 +38,6 @@ const Index = () => {
       
       <main>
         <HeroSection />
-        <FeaturesSection />
         <HomeResourcesSection />
         <CTASection />
       </main>

@@ -1,251 +1,126 @@
-import { supabase } from '@/integrations/supabase/client';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Book, Users, Calendar, GraduationCap, HelpCircle, CalendarCheck, Trophy, Gamepad, BookOpen, Bookmark } from 'lucide-react';
+import { Card, CardContent } from "@/components/ui/card";
 
-export const registerUser = async (
-  email: string, 
-  password: string, 
-  name: string, 
-  studentId: string, 
-  major: string, 
-  batch: string,
-  studentIdPhoto?: string
-): Promise<void> => {
-  try {
-    console.log("Starting registration process for:", email, studentId);
-    
-    // First check if the student ID already exists in the profiles table
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('profiles')
-      .select('student_id')
-      .eq('student_id', studentId)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.error("Error checking for existing profile:", checkError);
-      throw new Error('Error checking for existing student ID. Please try again.');
+const HomeResourcesSection: React.FC = () => {
+  const resources = [
+    {
+      title: "Study Resources",
+      description: "Access course materials, study guides, and academic resources to enhance your learning experience.",
+      icon: <Book className="h-10 w-10" />,
+      link: "/study",
+      bgClass: "bg-orange-50"
+    },
+    {
+      title: "Campus Clubs",
+      description: "Discover and join various student clubs to pursue your interests and build community connections.",
+      icon: <Users className="h-10 w-10" />,
+      link: "/clubs",
+      bgClass: "bg-blue-50"
+    },
+    {
+      title: "Events Calendar",
+      description: "Stay updated with upcoming campus events, workshops, seminars, and important academic dates.",
+      icon: <Calendar className="h-10 w-10" />,
+      link: "/newsfeed",
+      bgClass: "bg-green-50"
+    },
+    {
+      title: "Study Buddy",
+      description: "Find the perfect study partner to collaborate and excel in your courses together.",
+      icon: <BookOpen className="h-10 w-10" />,
+      link: "/study",
+      bgClass: "bg-yellow-50"
+    },
+    {
+      title: "Interactive Quizzes",
+      description: "Test your knowledge with engaging quizzes designed to reinforce learning.",
+      icon: <HelpCircle className="h-10 w-10" />,
+      link: "/gaming/quiz",
+      bgClass: "bg-pink-50"
+    },
+    {
+      title: "Attendance Tracking",
+      description: "Never miss a class with our sophisticated attendance tracking system.",
+      icon: <CalendarCheck className="h-10 w-10" />,
+      link: "/attendance",
+      bgClass: "bg-purple-50"
+    },
+    {
+      title: "Ranking System",
+      description: "Compete with peers and earn recognition for your academic achievements.",
+      icon: <Trophy className="h-10 w-10" />,
+      link: "/gaming/leaderboard",
+      bgClass: "bg-indigo-50"
+    },
+    {
+      title: "Minor Games",
+      description: "Take a study break with our collection of fun, brain-stimulating mini-games.",
+      icon: <Gamepad className="h-10 w-10" />,
+      link: "/gaming/games",
+      bgClass: "bg-teal-50"
+    },
+    {
+      title: "Marketplace",
+      description: "Buy, sell, or exchange textbooks, study materials, and other student essentials.",
+      icon: <Bookmark className="h-10 w-10" />,
+      link: "/marketplace",
+      bgClass: "bg-rose-50"
     }
-    
-    if (existingProfile) {
-      console.log("Student ID already exists:", studentId);
-      throw new Error('A user with this Student ID already exists. Please use a different Student ID or contact support.');
-    }
+  ];
 
-    // Check if the email already exists by trying to get user data
-    const { data: existingUsers, error: emailCheckError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (emailCheckError) {
-      console.error("Error checking for existing email:", emailCheckError);
-    }
-    
-    if (existingUsers) {
-      console.log("Email already exists:", email);
-      throw new Error('A user with this email already exists. Please use a different email or try logging in.');
-    }
-    
-    console.log("Checks passed, proceeding with registration");
-    
-    // Additional check directly against auth.users table (if accessible)
-    try {
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email);
-      if (authUser) {
-        throw new Error('This email is already registered. Please use a different email or try logging in.');
-      }
-    } catch (e) {
-      // If we can't access this API (which is likely), just continue
-      console.log("Admin user check skipped, continuing with registration");
-    }
-    
-    // Now proceed with registration since all checks passed
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          student_id: studentId,
-          major,
-          batch,
-          student_id_photo: studentIdPhoto,
-          approval_status: 'pending'
-        }
-      }
-    });
+  return (
+    <section id="resources" className="section bg-gradient-to-b from-white to-sfu-lightgray py-20">
+      <div className="container-narrow">
+        <div className="text-center mb-16">
+          <span className="pill bg-sfu-red/10 text-sfu-red mb-4 inline-block">Features & Resources</span>
+          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Everything You Need</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            SFU Globe combines powerful features and resources to enhance your university experience
+            both academically and socially.
+          </p>
+        </div>
 
-    if (error) {
-      console.error("Auth signup error:", error);
-      
-      // Handle specific auth errors
-      if (error.message.includes('User already registered')) {
-        throw new Error('This email is already registered. Please use a different email or try logging in.');
-      }
-      
-      throw error;
-    }
-    
-    if (!data.user) {
-      throw new Error('Registration failed. Please try again later.');
-    }
-    
-    console.log("Registration successful, user created with ID:", data.user.id);
-  } catch (error: any) {
-    console.error("Registration error:", error);
-    
-    // Convert database constraint errors to user-friendly messages
-    if (error.message && error.message.includes('duplicate key')) {
-      if (error.message.includes('profiles_student_id_key')) {
-        throw new Error('This Student ID is already registered. Please use a different Student ID or contact support.');
-      } else if (error.message.includes('profiles_email_key')) {
-        throw new Error('This email address is already registered. Please use a different email or try logging in.');
-      } else {
-        throw new Error('A user with this Student ID or email already exists. Please try a different one or contact support.');
-      }
-    }
-    
-    // Handle other specific error cases
-    if (error.message && error.message.includes('User already registered')) {
-      throw new Error('This email address is already registered. Please use a different email or try logging in.');
-    }
-    
-    throw error;
-  }
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {resources.map((resource, index) => (
+            <Link 
+              to={resource.link} 
+              key={index}
+              className="group block transform transition-all duration-300 hover:-translate-y-1"
+            >
+              <Card className={`h-full transition-all duration-300 hover:shadow-md ${resource.bgClass} border-none overflow-hidden`}>
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-start">
+                    <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:bg-sfu-red transition-colors duration-300">
+                      <div className="text-sfu-red group-hover:text-white transition-colors duration-300">
+                        {resource.icon}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">{resource.title}</h3>
+                      <p className="text-gray-600">{resource.description}</p>
+                    </div>
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-sfu-red/5 rounded-full transform scale-0 transition-transform duration-300 group-hover:scale-[6]"></div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link 
+            to="/study" 
+            className="inline-flex items-center gap-2 px-6 py-3 bg-sfu-red text-white rounded-lg font-medium hover:bg-sfu-red/90 transition-all duration-300 transform hover:scale-105"
+          >
+            <GraduationCap size={20} />
+            Explore All Resources
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
 };
 
-export const loginUser = async (email: string, password: string): Promise<void> => {
-  // Special case for the admin user with ID 2024D5764
-  if (email === '2024D5764' || email === 'Yan Naing Aung') {
-    // Get the actual email for this admin user
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('student_id', '2024D5764')
-      .single();
-    
-    if (!profileError && profileData && profileData.email) {
-      // If found, use the email to login
-      email = profileData.email;
-    }
-    
-    // Also update admin status in the database if needed
-    const { data: adminData } = await supabase
-      .from('admins')
-      .select('id')
-      .eq('admin_id', '2024D5764')
-      .single();
-      
-    if (!adminData) {
-      // Ensure this user is in the admins table
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('student_id', '2024D5764')
-        .single();
-        
-      if (userData) {
-        await supabase
-          .from('admins')
-          .upsert({ id: userData.id, admin_id: '2024D5764' });
-      }
-    }
-  }
-
-  // Check if the input is an email or student ID
-  const isEmail = email.includes('@');
-  
-  if (isEmail) {
-    // Login with email and password directly
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      throw error;
-    }
-    
-    // For admin users, we'll skip the approval check
-    const { data: adminData } = await supabase.rpc('is_admin');
-    if (adminData === true) {
-      return; // Admin users can always log in
-    }
-    
-    // Check approval status for non-admin users
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('approval_status')
-      .eq('email', email)
-      .single();
-    
-    if (profileError) {
-      throw new Error('Error verifying account status');
-    }
-    
-    if (profileData && profileData.approval_status !== 'approved') {
-      // Log them out if not approved
-      await supabase.auth.signOut();
-      throw new Error('Your account is pending approval. Please check back later.');
-    }
-  } else {
-    // If it's a student ID, we need to find the corresponding email first
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('email, approval_status, id')
-      .eq('student_id', email)
-      .single();
-    
-    if (error) {
-      throw new Error('Student ID not found');
-    }
-    
-    if (!data || !data.email) {
-      throw new Error('No email associated with this Student ID');
-    }
-    
-    // Check if user is an admin
-    const isAdmin = await supabase
-      .from('admins')
-      .select('id')
-      .eq('id', data.id)
-      .single();
-      
-    // If user is not an admin, check approval status
-    if (!isAdmin.data && data.approval_status !== 'approved') {
-      throw new Error('Your account is pending approval. Please check back later.');
-    }
-    
-    // Now login with the found email and provided password
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password,
-    });
-
-    if (authError) {
-      throw authError;
-    }
-  }
-};
-
-export const logoutUser = async (): Promise<void> => {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    throw error;
-  }
-};
-
-export const resetPassword = async (email: string): Promise<void> => {
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/update-password',
-    });
-    
-    if (error) {
-      throw error;
-    }
-  } catch (error: any) {
-    console.error("Password reset error:", error);
-    throw error;
-  }
-};
+export default HomeResourcesSection;

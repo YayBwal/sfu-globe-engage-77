@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Book, Users, Calendar, GraduationCap, Bookmark, HelpCircle, Trophy, Gamepad, CalendarCheck } from 'lucide-react';
+import { Book, Users, Calendar, GraduationCap, HelpCircle, CalendarCheck, Trophy, Gamepad, BookOpen } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 
 const HomeResourcesSection: React.FC = () => {
@@ -28,11 +28,11 @@ const HomeResourcesSection: React.FC = () => {
       bgClass: "bg-green-50"
     },
     {
-      title: "Marketplace",
-      description: "Buy, sell, or exchange textbooks, study materials, and other student essentials.",
-      icon: <Bookmark className="h-10 w-10" />,
-      link: "/marketplace",
-      bgClass: "bg-purple-50"
+      title: "Study Buddy",
+      description: "Find the perfect study partner to collaborate and excel in your courses together.",
+      icon: <BookOpen className="h-10 w-10" />,
+      link: "/study",
+      bgClass: "bg-yellow-50"
     },
     {
       title: "Interactive Quizzes",
@@ -46,7 +46,28 @@ const HomeResourcesSection: React.FC = () => {
       description: "Never miss a class with our sophisticated attendance tracking system.",
       icon: <CalendarCheck className="h-10 w-10" />,
       link: "/attendance",
-      bgClass: "bg-yellow-50"
+      bgClass: "bg-purple-50"
+    },
+    {
+      title: "Ranking System",
+      description: "Compete with peers and earn recognition for your academic achievements.",
+      icon: <Trophy className="h-10 w-10" />,
+      link: "/gaming/leaderboard",
+      bgClass: "bg-indigo-50"
+    },
+    {
+      title: "Minor Games",
+      description: "Take a study break with our collection of fun, brain-stimulating mini-games.",
+      icon: <Gamepad className="h-10 w-10" />,
+      link: "/gaming/games",
+      bgClass: "bg-teal-50"
+    },
+    {
+      title: "Marketplace",
+      description: "Buy, sell, or exchange textbooks, study materials, and other student essentials.",
+      icon: <Bookmark className="h-10 w-10" />,
+      link: "/marketplace",
+      bgClass: "bg-rose-50"
     }
   ];
 
@@ -54,11 +75,11 @@ const HomeResourcesSection: React.FC = () => {
     <section id="resources" className="section bg-gradient-to-b from-white to-sfu-lightgray py-20">
       <div className="container-narrow">
         <div className="text-center mb-16">
-          <span className="pill bg-sfu-red/10 text-sfu-red mb-4 inline-block">Resources</span>
-          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Campus Resources</h2>
+          <span className="pill bg-sfu-red/10 text-sfu-red mb-4 inline-block">Features & Resources</span>
+          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Everything You Need</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Everything you need to make your university experience productive and engaging.
-            Explore these resources to enhance your academic journey.
+            SFU Globe combines powerful features and resources to enhance your university experience
+            both academically and socially.
           </p>
         </div>
 
@@ -82,6 +103,7 @@ const HomeResourcesSection: React.FC = () => {
                       <p className="text-gray-600">{resource.description}</p>
                     </div>
                   </div>
+                  <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-sfu-red/5 rounded-full transform scale-0 transition-transform duration-300 group-hover:scale-[6]"></div>
                 </CardContent>
               </Card>
             </Link>
