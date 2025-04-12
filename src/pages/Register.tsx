@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -27,6 +26,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
+import { checkUserExists } from '@/services/profileService';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
 
@@ -101,24 +101,28 @@ const Register = () => {
       
       // Create a unique filename
       const timestamp = new Date().getTime();
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
       const filePath = `student_id_${timestamp}`;
+      
+      console.log("Uploading file:", filePath);
       
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+        .upload(filePath, file);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Upload failed:", error);
+        throw error;
+      }
+      
+      console.log("Upload successful:", data);
       
       // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
         .getPublicUrl(filePath);
       
+      console.log("Public URL:", publicUrlData.publicUrl);
       setPhotoUrl(publicUrlData.publicUrl);
       
       toast({
@@ -148,11 +152,22 @@ const Register = () => {
       return;
     }
     
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
+      
+      // Check if user already exists
+      const userExists = await checkUserExists(values.studentId, values.email);
+      if (userExists) {
+        toast({
+          title: 'Registration failed',
+          description: 'A user with this student ID or email already exists',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       console.log("Starting registration with values:", {
         email: values.email,
-        password: values.password,
         name: values.name,
         studentId: values.studentId,
         major: values.major,

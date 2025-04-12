@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const deleteAccount = async (userId: string) => {
@@ -33,9 +32,9 @@ export const registerUser = async (
   studentIdPhoto?: string
 ) => {
   try {
-    console.log("Starting Supabase registration with:", { email, name, studentId, major, batch });
+    console.log("Starting registration process with:", { email, name, studentId, major, batch });
     
-    // First create the user in Supabase Auth
+    // Step 1: Create the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
@@ -45,7 +44,6 @@ export const registerUser = async (
           student_id: studentId,
           major: major,
           batch: batch,
-          student_id_photo: studentIdPhoto,
         },
       },
     });
@@ -56,28 +54,45 @@ export const registerUser = async (
     }
 
     if (!data.user) {
+      console.error("No user returned from signup");
       throw new Error("Failed to create user account");
     }
 
     console.log("Auth signup successful, user ID:", data.user.id);
 
-    // Create a user profile in the 'profiles' table
+    // Step 2: Create a profile in the 'profiles' table
+    const profileData = {
+      id: data.user.id,
+      name: name,
+      student_id: studentId,
+      major: major,
+      batch: batch,
+      email: email,
+      student_id_photo: studentIdPhoto,
+      approval_status: 'pending',  // Default status
+      online: false,
+      bio: '',
+      interests: [],
+      availability: '',
+    };
+
+    console.log("Creating profile with data:", profileData);
+
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert([
-        {
-          id: data.user.id,
-          name: name,
-          student_id: studentId,
-          major: major,
-          batch: batch,
-          email: email,
-          student_id_photo: studentIdPhoto,
-        },
-      ]);
+      .insert([profileData]);
 
     if (profileError) {
       console.error("Profile creation error:", profileError);
+      
+      // If profile creation fails, attempt to clean up the auth user to prevent orphaned accounts
+      try {
+        await supabase.auth.admin.deleteUser(data.user.id);
+        console.log("Cleaned up auth user due to profile creation failure");
+      } catch (cleanupError) {
+        console.error("Failed to clean up auth user after profile error:", cleanupError);
+      }
+      
       throw profileError;
     }
 
@@ -121,7 +136,12 @@ export const loginUser = async (email: string, password: string) => {
       throw profileError;
     }
 
-    if (profileData && profileData.approval_status !== 'approved') {
+    if (!profileData) {
+      console.error("Profile not found for user:", data.user.id);
+      throw new Error('User profile not found');
+    }
+
+    if (profileData.approval_status !== 'approved') {
       console.log("Account not approved:", profileData.approval_status);
       // Log the user out if their account is not approved
       await supabase.auth.signOut();
