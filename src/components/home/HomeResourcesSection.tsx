@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Book, Users, Calendar, GraduationCap, HelpCircle, CalendarCheck, Trophy, Gamepad, BookOpen } from 'lucide-react';
+import { Book, Users, Calendar, GraduationCap, HelpCircle, CalendarCheck, Trophy, Gamepad, BookOpen, Bookmark } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 
 const HomeResourcesSection: React.FC = () => {
