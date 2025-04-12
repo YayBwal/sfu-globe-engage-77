@@ -1,5 +1,5 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -9,25 +9,26 @@ import { Moon, Sun, Monitor } from "lucide-react";
 
 const ThemeSettings = () => {
   const { toast } = useToast();
-  const [theme, setTheme] = useState("light"); // light, dark, system
+  const { theme, updateTheme } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(theme || "light");
 
-  const handleThemeChange = async (value: string) => {
-    setTheme(value);
-  };
+  useEffect(() => {
+    setSelectedTheme(theme || "light");
+  }, [theme]);
 
-  const handleSaveTheme = async () => {
+  const handleThemeChange = async () => {
     setLoading(true);
     
     try {
-      // Here we would implement actual theme change logic
-      // For now, we'll just mock it with a timeout
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      toast({
-        title: "Theme updated",
-        description: `Theme has been changed to ${theme} mode.`,
-      });
+      if (updateTheme) {
+        await updateTheme(selectedTheme);
+        
+        toast({
+          title: "Theme updated",
+          description: `Theme has been changed to ${selectedTheme} mode.`,
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -45,7 +46,11 @@ const ThemeSettings = () => {
         <CardContent className="pt-6">
           <h3 className="text-lg font-medium mb-4">Appearance Settings</h3>
           
-          <RadioGroup value={theme} onValueChange={handleThemeChange} className="space-y-4">
+          <RadioGroup 
+            value={selectedTheme} 
+            onValueChange={setSelectedTheme} 
+            className="space-y-4"
+          >
             <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors">
               <RadioGroupItem value="light" id="light" />
               <Label htmlFor="light" className="flex items-center cursor-pointer">
@@ -82,8 +87,8 @@ const ThemeSettings = () => {
           
           <Button 
             className="w-full mt-6" 
-            onClick={handleSaveTheme}
-            disabled={loading}
+            onClick={handleThemeChange}
+            disabled={loading || selectedTheme === theme}
           >
             {loading ? "Saving..." : "Apply Theme"}
           </Button>

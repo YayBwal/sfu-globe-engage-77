@@ -1,10 +1,9 @@
-
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContextType, UserProfile } from '@/types/auth';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { fetchUserProfile, updateUserProfile } from '@/services/profileService';
-import { registerUser, loginUser, logoutUser } from '@/services/authService';
+import { registerUser, loginUser, logoutUser, deleteAccount } from '@/services/authService';
 import { supabase } from '@/integrations/supabase/client';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -152,6 +151,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Add theme preference handling
+  const [theme, setTheme] = useState<string>(profile?.theme_preference || 'light');
+
+  useEffect(() => {
+    if (profile?.theme_preference) {
+      setTheme(profile.theme_preference);
+    }
+  }, [profile]);
+
+  const updateTheme = async (newTheme: string) => {
+    try {
+      if (!user) {
+        throw new Error("No user logged in");
+      }
+
+      await updateUserProfile(user.id, { theme_preference: newTheme });
+      setTheme(newTheme);
+    } catch (error) {
+      console.error("Theme update failed:", error);
+      throw error;
+    }
+  };
+
+  const deleteUserAccount = async () => {
+    try {
+      if (!user) {
+        throw new Error("No user logged in");
+      }
+
+      await deleteAccount(user.id);
+      
+      // Log out after account deletion
+      logout();
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     profile,
@@ -162,6 +200,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     updateProfile,
+    theme,
+    updateTheme,
+    deleteUserAccount,
   };
 
   return (

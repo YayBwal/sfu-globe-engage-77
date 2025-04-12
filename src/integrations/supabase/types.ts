@@ -839,10 +839,14 @@ export type Database = {
           interests: string[] | null
           major: string
           name: string
+          notification_preferences: Json | null
           online: boolean | null
+          phone: string | null
+          privacy_settings: Json | null
           profile_pic: string | null
           student_id: string
           student_id_photo: string | null
+          theme_preference: string | null
         }
         Insert: {
           approval_status?: string
@@ -856,10 +860,14 @@ export type Database = {
           interests?: string[] | null
           major: string
           name: string
+          notification_preferences?: Json | null
           online?: boolean | null
+          phone?: string | null
+          privacy_settings?: Json | null
           profile_pic?: string | null
           student_id: string
           student_id_photo?: string | null
+          theme_preference?: string | null
         }
         Update: {
           approval_status?: string
@@ -873,10 +881,14 @@ export type Database = {
           interests?: string[] | null
           major?: string
           name?: string
+          notification_preferences?: Json | null
           online?: boolean | null
+          phone?: string | null
+          privacy_settings?: Json | null
           profile_pic?: string | null
           student_id?: string
           student_id_photo?: string | null
+          theme_preference?: string | null
         }
         Relationships: []
       }

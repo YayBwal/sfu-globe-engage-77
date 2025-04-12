@@ -1,4 +1,3 @@
-
 import { User, Session } from '@supabase/supabase-js';
 
 export type UserProfile = {
@@ -21,6 +20,7 @@ export type UserProfile = {
   phone?: string; // Added phone field
   notificationPreferences?: NotificationPreferences; // Added notification preferences
   privacySettings?: PrivacySettings; // Added privacy settings
+  theme_preference?: string | null; // Add theme preference
 };
 
 export type NotificationPreferences = {
@@ -51,4 +51,7 @@ export type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  theme?: string; // Add theme
+  updateTheme?: (theme: string) => Promise<void>; // Add theme update method
+  deleteUserAccount?: () => Promise<void>; // Add account deletion method
 };

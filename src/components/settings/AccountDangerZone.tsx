@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 
 const AccountDangerZone = () => {
-  const { logout } = useAuth();
+  const { deleteUserAccount, logout } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -27,24 +26,19 @@ const AccountDangerZone = () => {
   const handleDeactivateAccount = async () => {
     setLoading(true);
     try {
-      // Here we would implement actual account deactivation
-      // For now, we'll just mock it and log out the user
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Account deactivated",
-        description: "Your account has been deactivated. You will be logged out.",
-      });
-      
-      // Log the user out
-      setTimeout(() => {
-        logout();
-      }, 2000);
+      if (deleteUserAccount) {
+        await deleteUserAccount();
+        
+        toast({
+          title: "Account deleted",
+          description: "Your account has been permanently deleted.",
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Deactivation failed",
-        description: "There was an error deactivating your account.",
+        title: "Deletion failed",
+        description: "There was an error deleting your account.",
       });
     } finally {
       setLoading(false);
