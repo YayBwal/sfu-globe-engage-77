@@ -19,6 +19,13 @@ import {
 const AccountSettings = () => {
   const [activeTab, setActiveTab] = useState("profile");
 
+  const handleTabChange = (value: string) => {
+    // Use setTimeout to avoid any potential event propagation issues
+    setTimeout(() => {
+      setActiveTab(value);
+    }, 0);
+  };
+
   const tabs = [
     { id: "profile", label: "Profile", icon: <User size={18} />, component: <ProfileSettings /> },
     { id: "security", label: "Security", icon: <ShieldCheck size={18} />, component: <SecuritySettings /> },
@@ -40,7 +47,7 @@ const AccountSettings = () => {
               {tabs.map((tab) => (
                 <li key={tab.id}>
                   <button
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-md transition-all duration-200 ${
                       activeTab === tab.id
                         ? tab.danger
@@ -48,6 +55,7 @@ const AccountSettings = () => {
                           : "bg-white shadow-sm text-sfu-red font-medium"
                         : "hover:bg-white/80"
                     }`}
+                    type="button"
                   >
                     <span className={activeTab === tab.id && !tab.danger ? "text-sfu-red" : ""}>
                       {tab.icon}

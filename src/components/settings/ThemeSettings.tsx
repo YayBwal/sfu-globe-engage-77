@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +41,13 @@ const ThemeSettings = () => {
     }
   };
 
+  const handleRadioChange = (value: string) => {
+    // Prevent event propagation issues
+    setTimeout(() => {
+      setSelectedTheme(value);
+    }, 0);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -48,7 +56,7 @@ const ThemeSettings = () => {
           
           <RadioGroup 
             value={selectedTheme} 
-            onValueChange={setSelectedTheme} 
+            onValueChange={handleRadioChange}
             className="space-y-4"
           >
             <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors">
