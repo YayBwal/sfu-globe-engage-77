@@ -44,18 +44,26 @@ export const registerUser = async (
   try {
     console.log("Starting registration process with:", { email, name, studentId, major, batch });
     
+    // First check if a profile with this student ID or email already exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`student_id.eq.${studentId},email.eq.${email}`)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking if user exists:", checkError);
+      throw checkError;
+    }
+
+    if (existingProfile) {
+      throw new Error("A user with this student ID or email already exists");
+    }
+    
     // Step 1: Create the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
-      options: {
-        data: {
-          name: name,
-          student_id: studentId,
-          major: major,
-          batch: batch,
-        },
-      },
     });
 
     if (error) {

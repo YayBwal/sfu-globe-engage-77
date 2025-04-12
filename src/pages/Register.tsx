@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -162,17 +161,6 @@ const Register = () => {
     try {
       setIsSubmitting(true);
       
-      // Check if user already exists
-      const userExists = await checkUserExists(values.studentId, values.email);
-      if (userExists) {
-        toast({
-          title: 'Registration failed',
-          description: 'A user with this student ID or email already exists',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       console.log("Starting registration with values:", {
         email: values.email,
         name: values.name,
