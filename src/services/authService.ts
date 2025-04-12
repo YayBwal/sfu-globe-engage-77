@@ -1,126 +1,131 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Book, Users, Calendar, GraduationCap, HelpCircle, CalendarCheck, Trophy, Gamepad, BookOpen, Bookmark } from 'lucide-react';
-import { Card, CardContent } from "@/components/ui/card";
 
-const HomeResourcesSection: React.FC = () => {
-  const resources = [
-    {
-      title: "Study Resources",
-      description: "Access course materials, study guides, and academic resources to enhance your learning experience.",
-      icon: <Book className="h-10 w-10" />,
-      link: "/study",
-      bgClass: "bg-orange-50"
-    },
-    {
-      title: "Campus Clubs",
-      description: "Discover and join various student clubs to pursue your interests and build community connections.",
-      icon: <Users className="h-10 w-10" />,
-      link: "/clubs",
-      bgClass: "bg-blue-50"
-    },
-    {
-      title: "Events Calendar",
-      description: "Stay updated with upcoming campus events, workshops, seminars, and important academic dates.",
-      icon: <Calendar className="h-10 w-10" />,
-      link: "/newsfeed",
-      bgClass: "bg-green-50"
-    },
-    {
-      title: "Study Buddy",
-      description: "Find the perfect study partner to collaborate and excel in your courses together.",
-      icon: <BookOpen className="h-10 w-10" />,
-      link: "/study",
-      bgClass: "bg-yellow-50"
-    },
-    {
-      title: "Interactive Quizzes",
-      description: "Test your knowledge with engaging quizzes designed to reinforce learning.",
-      icon: <HelpCircle className="h-10 w-10" />,
-      link: "/gaming/quiz",
-      bgClass: "bg-pink-50"
-    },
-    {
-      title: "Attendance Tracking",
-      description: "Never miss a class with our sophisticated attendance tracking system.",
-      icon: <CalendarCheck className="h-10 w-10" />,
-      link: "/attendance",
-      bgClass: "bg-purple-50"
-    },
-    {
-      title: "Ranking System",
-      description: "Compete with peers and earn recognition for your academic achievements.",
-      icon: <Trophy className="h-10 w-10" />,
-      link: "/gaming/leaderboard",
-      bgClass: "bg-indigo-50"
-    },
-    {
-      title: "Minor Games",
-      description: "Take a study break with our collection of fun, brain-stimulating mini-games.",
-      icon: <Gamepad className="h-10 w-10" />,
-      link: "/gaming/games",
-      bgClass: "bg-teal-50"
-    },
-    {
-      title: "Marketplace",
-      description: "Buy, sell, or exchange textbooks, study materials, and other student essentials.",
-      icon: <Bookmark className="h-10 w-10" />,
-      link: "/marketplace",
-      bgClass: "bg-rose-50"
-    }
-  ];
+import { supabase } from '@/integrations/supabase/client';
 
-  return (
-    <section id="resources" className="section bg-gradient-to-b from-white to-sfu-lightgray py-20">
-      <div className="container-narrow">
-        <div className="text-center mb-16">
-          <span className="pill bg-sfu-red/10 text-sfu-red mb-4 inline-block">Features & Resources</span>
-          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Everything You Need</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            SFU Globe combines powerful features and resources to enhance your university experience
-            both academically and socially.
-          </p>
-        </div>
+/**
+ * Register a new user with Supabase
+ */
+export const registerUser = async (
+  email: string, 
+  password: string, 
+  name: string, 
+  studentId: string, 
+  major: string, 
+  batch: string,
+  studentIdPhoto?: string
+) => {
+  // Register the user with Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {resources.map((resource, index) => (
-            <Link 
-              to={resource.link} 
-              key={index}
-              className="group block transform transition-all duration-300 hover:-translate-y-1"
-            >
-              <Card className={`h-full transition-all duration-300 hover:shadow-md ${resource.bgClass} border-none overflow-hidden`}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col items-start">
-                    <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:bg-sfu-red transition-colors duration-300">
-                      <div className="text-sfu-red group-hover:text-white transition-colors duration-300">
-                        {resource.icon}
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">{resource.title}</h3>
-                      <p className="text-gray-600">{resource.description}</p>
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-sfu-red/5 rounded-full transform scale-0 transition-transform duration-300 group-hover:scale-[6]"></div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+  if (authError) {
+    throw new Error(authError.message);
+  }
 
-        <div className="mt-12 text-center">
-          <Link 
-            to="/study" 
-            className="inline-flex items-center gap-2 px-6 py-3 bg-sfu-red text-white rounded-lg font-medium hover:bg-sfu-red/90 transition-all duration-300 transform hover:scale-105"
-          >
-            <GraduationCap size={20} />
-            Explore All Resources
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
+  if (!authData.user) {
+    throw new Error('Registration failed');
+  }
+
+  // Create a profile record in the profiles table
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: authData.user.id,
+    email,
+    name,
+    student_id: studentId,
+    major,
+    batch,
+    student_id_photo: studentIdPhoto,
+    approved: false, // New users need approval
+    online: false,
+    created_at: new Date(),
+  });
+
+  if (profileError) {
+    // If profile creation fails, we should clean up the auth user
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    throw new Error(`Profile creation failed: ${profileError.message}`);
+  }
+
+  return authData;
 };
 
-export default HomeResourcesSection;
+/**
+ * Login a user with Supabase
+ */
+export const loginUser = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data.user) {
+    throw new Error('Login failed');
+  }
+
+  // Check if user is approved
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('approved')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError) {
+    throw new Error(`Error fetching profile: ${profileError.message}`);
+  }
+
+  if (!profileData.approved) {
+    // Sign out the user if they're not approved
+    await supabase.auth.signOut();
+    throw new Error('Your account is pending approval by an administrator');
+  }
+
+  return data;
+};
+
+/**
+ * Logout a user from Supabase
+ */
+export const logoutUser = async () => {
+  // Update online status before logging out
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    await supabase.from('profiles').update({ online: false }).eq('id', user.id);
+  }
+  
+  const { error } = await supabase.auth.signOut();
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Send password reset email
+ */
+export const resetPassword = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Update user password
+ */
+export const updatePassword = async (newPassword: string) => {
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
