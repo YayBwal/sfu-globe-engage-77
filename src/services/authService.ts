@@ -1,20 +1,30 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const deleteAccount = async (userId: string) => {
   try {
+    console.log("Attempting to delete account for user ID:", userId);
+    
     // Soft delete by updating the user's profile
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ approval_status: 'deleted' })
       .eq('id', userId);
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      console.error("Error updating profile for deletion:", profileError);
+      throw profileError;
+    }
 
     // Optional: Delete user's auth account 
     const { error: authError } = await supabase.auth.admin.deleteUser(userId);
     
-    if (authError) throw authError;
+    if (authError) {
+      console.error("Error deleting auth user:", authError);
+      throw authError;
+    }
 
+    console.log("Successfully deleted account for user ID:", userId);
     return true;
   } catch (error) {
     console.error("Account deletion error:", error);
@@ -69,11 +79,7 @@ export const registerUser = async (
       batch: batch,
       email: email,
       student_id_photo: studentIdPhoto,
-      approval_status: 'pending',  // Default status
-      online: false,
-      bio: '',
-      interests: [],
-      availability: '',
+      approval_status: 'pending',
     };
 
     console.log("Creating profile with data:", profileData);

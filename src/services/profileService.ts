@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { UserProfile } from '@/types/auth';
+import { UserProfile, NotificationPreferences, PrivacySettings } from '@/types/auth';
 
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
@@ -38,11 +38,14 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
       student_id_photo: data.student_id_photo,
       approval_status: data.approval_status || 'pending',
       phone: data.phone,
+      // Convert JSON to proper TypeScript objects
+      notificationPreferences: data.notification_preferences ? 
+        data.notification_preferences as NotificationPreferences : undefined,
+      privacySettings: data.privacy_settings ? 
+        data.privacy_settings as PrivacySettings : undefined,
       // Keep original DB fields for compatibility
       profile_pic: data.profile_pic,
       cover_pic: data.cover_pic,
-      notificationPreferences: data.notification_preferences,
-      privacySettings: data.privacy_settings,
       theme_preference: data.theme_preference,
     };
     
@@ -99,10 +102,13 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
         student_id_photo: data.student_id_photo,
         approval_status: data.approval_status || 'pending',
         phone: data.phone,
+        // Convert JSON to proper TypeScript objects
+        notificationPreferences: data.notification_preferences ? 
+          data.notification_preferences as NotificationPreferences : undefined,
+        privacySettings: data.privacy_settings ?
+          data.privacy_settings as PrivacySettings : undefined,
         profile_pic: data.profile_pic,
         cover_pic: data.cover_pic,
-        notificationPreferences: data.notification_preferences,
-        privacySettings: data.privacy_settings,
         theme_preference: data.theme_preference,
       };
       
@@ -120,6 +126,8 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 
 export const checkUserExists = async (studentId: string, email: string): Promise<boolean> => {
   try {
+    console.log("Checking if user exists with student ID:", studentId, "or email:", email);
+    
     // Check if a profile with the same student ID or email already exists
     const { data, error } = await supabase
       .from('profiles')
@@ -132,7 +140,9 @@ export const checkUserExists = async (studentId: string, email: string): Promise
       throw error;
     }
     
-    return !!data;
+    const exists = !!data;
+    console.log("User exists:", exists);
+    return exists;
   } catch (error) {
     console.error("Error in checkUserExists:", error);
     return false;

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -27,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
 import { checkUserExists } from '@/services/profileService';
+import { setupStorage } from '@/utils/storageSetup';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
 
@@ -55,6 +57,11 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Ensure storage bucket exists when component mounts
+  useEffect(() => {
+    setupStorage();
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
