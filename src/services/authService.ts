@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const deleteAccount = async (userId: string) => {
@@ -114,6 +115,42 @@ export const logoutUser = async () => {
     }
   } catch (error: any) {
     console.error("Logout failed:", error.message);
+    throw error;
+  }
+};
+
+// Add the missing updatePassword function
+export const updatePassword = async (newPassword: string) => {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error("Password update failed:", error.message);
+    throw error;
+  }
+};
+
+// Add the missing resetPassword function
+export const resetPassword = async (email: string) => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error("Password reset request failed:", error.message);
     throw error;
   }
 };
