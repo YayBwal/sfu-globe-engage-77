@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -14,7 +15,7 @@ const AccountSettings = () => {
     <div className="p-4 max-h-[80vh] overflow-y-auto">
       <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
       <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-4 mb-4">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4 w-full">
           <TabsTrigger value="profile" className="text-xs md:text-sm">Profile</TabsTrigger>
           <TabsTrigger value="security" className="text-xs md:text-sm">Security</TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs md:text-sm">Notifications</TabsTrigger>
@@ -22,7 +23,6 @@ const AccountSettings = () => {
           <TabsTrigger value="appearance" className="text-xs md:text-sm">Appearance</TabsTrigger>
           <TabsTrigger value="danger" className="text-xs md:text-sm text-red-500">Danger Zone</TabsTrigger>
         </TabsList>
-        
         
         <TabsContent value="profile" className="mt-2">
           <ProfileSettings />
