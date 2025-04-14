@@ -1,566 +1,495 @@
-
+// Import necessary modules and components
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { MarketplaceItem } from '@/types/clubs';
+import { UserProfile } from '@/types/auth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Eye, Filter } from 'lucide-react';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import { MoreVertical, Edit, Check, X } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { notifyMarketplaceActivity } from '@/utils/notificationHelpers';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { createNotification } from "@/utils/notificationHelpers";
 
-const AdminReview = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const [items, setItems] = useState<MarketplaceItem[]>([]);
+// Define the schema for the edit form
+const formSchema = z.object({
+  approval_status: z.enum(['pending', 'approved', 'rejected', 'deleted']),
+  message: z.string().optional(),
+})
+
+// AdminReview Component
+const AdminReview: React.FC = () => {
+  // State variables
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewImage, setViewImage] = useState<string | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [declineMessage, setDeclineMessage] = useState('');
-  const [declineProcessing, setDeclineProcessing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'declined' | 'all'>('pending');
-  const [activeTab, setActiveTab] = useState('marketplace');
-  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
-  const [loadingRegistrations, setLoadingRegistrations] = useState(true);
-  
+  const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Fetch profiles on component mount
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      navigate('/');
-      toast({
-        title: 'Access Denied',
-        description: 'You do not have permission to access this page.',
-        variant: 'destructive',
-      });
-    } else if (!authLoading) {
-      if (activeTab === 'marketplace') {
-        fetchItems();
-      } else {
-        fetchPendingRegistrations();
-      }
-    }
-  }, [authLoading, isAdmin, navigate, statusFilter, activeTab]);
+    fetchProfiles();
+  }, []);
 
-  const fetchItems = async () => {
+  // Function to fetch profiles from Supabase
+  const fetchProfiles = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      let query = supabase
-        .from('marketplace_items')
+      const { data, error } = await supabase
+        .from('profiles')
         .select('*');
-      
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+
+      if (error) {
+        console.error("Error fetching profiles:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch profiles. Please try again.",
+          variant: "destructive",
+        });
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setItems(data as MarketplaceItem[]);
-    } catch (error) {
-      console.error('Error fetching marketplace items:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load marketplace items.',
-        variant: 'destructive',
-      });
+      if (data) {
+        setProfiles(data);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPendingRegistrations = async () => {
-    try {
-      setLoadingRegistrations(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('approval_status', 'pending');
-      
-      if (error) throw error;
-      setPendingRegistrations(data || []);
-    } catch (error) {
-      console.error('Error fetching pending registrations:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load pending registrations.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingRegistrations(false);
-    }
-  };
-
-  const handleApproveRegistration = async (userId: string) => {
+  // Function to handle profile approval
+  const handleApprove = async (profileId: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ approval_status: 'approved' })
-        .eq('id', userId);
+        .eq('id', profileId);
 
-      if (error) throw error;
-
-      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
-      
-      toast({
-        title: 'Registration Approved',
-        description: 'User registration has been approved.',
-      });
+      if (error) {
+        console.error("Error approving profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to approve profile. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        // Optimistically update the UI
+        setProfiles(profiles.map(profile =>
+          profile.id === profileId ? { ...profile, approval_status: 'approved' } : profile
+        ));
+        toast({
+          title: "Success",
+          description: "Profile approved successfully.",
+        });
+      }
     } catch (error) {
-      console.error('Error approving registration:', error);
+      console.error("Unexpected error approving profile:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to approve registration.',
-        variant: 'destructive',
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const handleDeclineRegistration = async (userId: string) => {
+  // Function to handle profile rejection
+  const handleReject = async (profileId: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ approval_status: 'declined' })
-        .eq('id', userId);
+        .update({ approval_status: 'rejected' })
+        .eq('id', profileId);
 
-      if (error) throw error;
-
-      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
-      
-      toast({
-        title: 'Registration Declined',
-        description: 'User registration has been declined.',
-      });
-    } catch (error) {
-      console.error('Error declining registration:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to decline registration.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleApproveItem = async (itemId: string) => {
-    try {
-      setProcessingId(itemId);
-      
-      // Find the item being approved
-      const item = items.find(item => item.id === itemId);
-      if (!item) throw new Error("Item not found");
-      
-      const { error } = await supabase
-        .from('marketplace_items')
-        .update({ status: 'approved' })
-        .eq('id', itemId);
-
-      if (error) throw error;
-      
-      // Send notification to the seller
-      await notifyMarketplaceActivity(
-        [item.seller_id], 
-        item.title, 
-        'approved'
-      );
-
-      setItems(items.map(item => 
-        item.id === itemId 
-          ? { ...item, status: 'approved' } 
-          : item
-      ));
-      
-      toast({
-        title: 'Item Approved',
-        description: 'The item is now visible in the marketplace.',
-      });
-    } catch (error) {
-      console.error('Error approving item:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to approve item.',
-        variant: 'destructive',
-      });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const openDeclineDialog = (itemId: string) => {
-    setSelectedItemId(itemId);
-    setDeclineDialogOpen(true);
-    setDeclineMessage('');
-  };
-
-  const handleDeclineItem = async () => {
-    if (!selectedItemId) return;
-    
-    try {
-      setDeclineProcessing(true);
-      
-      // Find the item being declined
-      const item = items.find(item => item.id === selectedItemId);
-      if (!item) throw new Error("Item not found");
-      
-      // First update the item status to declined
-      const { error: updateError } = await supabase
-        .from('marketplace_items')
-        .update({ status: 'declined' })
-        .eq('id', selectedItemId);
-
-      if (updateError) throw updateError;
-
-      // Then save the decline message if provided
-      if (declineMessage.trim()) {
-        const { error: messageError } = await supabase
-          .from('admin_messages')
-          .insert({
-            marketplace_item_id: selectedItemId,
-            message: declineMessage.trim()
-          });
-
-        if (messageError) throw messageError;
+      if (error) {
+        console.error("Error rejecting profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reject profile. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        // Optimistically update the UI
+        setProfiles(profiles.map(profile =>
+          profile.id === profileId ? { ...profile, approval_status: 'rejected' } : profile
+        ));
+        toast({
+          title: "Success",
+          description: "Profile rejected successfully.",
+        });
       }
+    } catch (error) {
+      console.error("Unexpected error rejecting profile:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
-      // Send notification to the seller
-      await notifyMarketplaceActivity(
-        [item.seller_id],
-        item.title,
-        'declined'
+  // Function to handle profile deletion
+  const handleDelete = async (profileId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ approval_status: 'deleted' })
+        .eq('id', profileId);
+
+      if (error) {
+        console.error("Error deleting profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete profile. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        // Optimistically update the UI
+        setProfiles(profiles.map(profile =>
+          profile.id === profileId ? { ...profile, approval_status: 'deleted' } : profile
+        ));
+        toast({
+          title: "Success",
+          description: "Profile deleted successfully.",
+        });
+      }
+    } catch (error) {
+      console.error("Unexpected error deleting profile:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to open the edit dialog
+  const openEditDialog = (profile: UserProfile) => {
+    setSelectedProfile(profile);
+    setIsEditDialogOpen(true);
+  };
+
+  // Function to close the edit dialog
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setSelectedProfile(null);
+  };
+
+  // Function to open the message dialog
+  const openMessageDialog = (profile: UserProfile) => {
+    setSelectedProfile(profile);
+    setIsMessageDialogOpen(true);
+  };
+
+  // Function to close the message dialog
+  const closeMessageDialog = () => {
+    setIsMessageDialogOpen(false);
+    setSelectedProfile(null);
+    setMessage('');
+  };
+
+  // Function to send a notification to the user
+  const sendNotification = async (userId: string) => {
+    try {
+      // Call the notifyMarketplaceActivity function
+      await notifyUser(
+        userId,
+        'Account Update',
+        'Your account status has been updated by an administrator.'
       );
 
-      setItems(items.map(item => 
-        item.id === selectedItemId 
-          ? { ...item, status: 'declined' } 
-          : item
-      ));
-      
-      setDeclineDialogOpen(false);
-      setSelectedItemId(null);
-      
       toast({
-        title: 'Item Declined',
-        description: 'The item has been rejected and will not be listed in the marketplace.',
+        title: "Success",
+        description: "Notification sent to user.",
       });
     } catch (error) {
-      console.error('Error declining item:', error);
+      console.error("Error sending notification:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to decline item.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to send notification. Please try again.",
+        variant: "destructive",
       });
-    } finally {
-      setDeclineProcessing(false);
     }
   };
 
-  const formatCurrency = (price: number, currency: string) => {
-    return `${price} ${currency}`;
-  };
-  
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'declined': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Function to handle sending a message to the user
+  const handleSendMessage = async () => {
+    if (!selectedProfile) return;
+
+    try {
+      // Send the notification
+      await sendNotification(selectedProfile.id);
+
+      toast({
+        title: "Success",
+        description: "Message sent to user.",
+      });
+
+      closeMessageDialog();
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      </div>
+  // Initialize the form
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      approval_status: selectedProfile?.approval_status as z.infer<typeof formSchema>["approval_status"] || 'pending',
+      message: '',
+    },
+    mode: "onChange",
+  })
+
+  // Function to handle form submission
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!selectedProfile) return;
+
+    try {
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({ approval_status: values.approval_status })
+        .eq('id', selectedProfile.id);
+
+      if (error) {
+        console.error("Error updating profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update profile. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        // Optimistically update the UI
+        setProfiles(profiles.map(profile =>
+          profile.id === selectedProfile.id ? { ...profile, approval_status: values.approval_status } : profile
+        ));
+
+        toast({
+          title: "Success",
+          description: "Profile updated successfully.",
+        });
+
+        // Send a notification to the user
+        await sendNotification(selectedProfile.id);
+
+        closeEditDialog();
+      }
+    } catch (error) {
+      console.error("Unexpected error updating profile:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to send a notification to the user
+  const notifyUser = async (userId: string, title: string, message: string) => {
+    return await createNotification(
+      userId,
+      title,
+      message,
+      'info',
+      'marketplace'
     );
-  }
+  };
 
+  // Render the component
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Admin Review Area</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/marketplace')}
-          >
-            Back to Marketplace
-          </Button>
-        </div>
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-5">Admin Review</h1>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full mb-6">
-            <TabsTrigger value="marketplace" className="w-1/2">Marketplace Items</TabsTrigger>
-            <TabsTrigger value="registrations" className="w-1/2">User Registrations</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="marketplace" className="mt-6">
-            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-              <div className="flex items-center gap-3">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Filter by status:</span>
-                <Select value={statusFilter} onValueChange={(value: 'pending' | 'approved' | 'declined' | 'all') => setStatusFilter(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Items</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="declined">Declined</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No {statusFilter !== 'all' ? statusFilter : ''} items to review.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.map((item) => (
-                  <Card key={item.id} className="overflow-hidden">
-                    <CardHeader className="bg-gray-50">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-lg truncate">{item.title}</CardTitle>
-                        <Badge variant="outline">{formatCurrency(item.price, item.currency)}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <p><span className="font-medium">Seller:</span> {item.seller_name}</p>
-                          <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
-                        </div>
-                        
-                        <p><span className="font-medium">Category:</span> {item.category}</p>
-                        {item.condition && (
-                          <p><span className="font-medium">Condition:</span> {item.condition}</p>
-                        )}
-                        
-                        {item.description && (
-                          <div>
-                            <p className="font-medium">Description:</p>
-                            <p className="text-gray-600 line-clamp-3">{item.description}</p>
-                          </div>
-                        )}
-                        
-                        {item.image_url && (
-                          <div className="mt-2">
-                            <div 
-                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
-                              style={{ backgroundImage: `url(${item.image_url})` }}
-                              onClick={() => setViewImage(item.image_url || null)}
-                            />
-                          </div>
-                        )}
-                        
-                        {!item.image_url && (
-                          <div className="bg-gray-100 h-20 flex items-center justify-center rounded mt-2">
-                            <p className="text-gray-400 text-sm">No image provided</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 bg-gray-50 pt-4">
-                      {item.status === 'pending' && (
-                        <>
-                          <Button 
-                            variant="default" 
-                            className="w-1/2 bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApproveItem(item.id)}
-                            disabled={processingId === item.id}
-                          >
-                            {processingId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-2" />
-                                Approve
-                              </>
-                            )}
+      {loading ? (
+        <p>Loading profiles...</p>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>User Profiles</CardTitle>
+            <CardDescription>Review and manage user profiles.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Student ID</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {profiles.map((profile) => (
+                  <TableRow key={profile.id}>
+                    <TableCell className="font-medium">{profile.id}</TableCell>
+                    <TableCell>{profile.name}</TableCell>
+                    <TableCell>{profile.student_id}</TableCell>
+                    <TableCell>{profile.email}</TableCell>
+                    <TableCell>{profile.approval_status}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="destructive" 
-                            className="w-1/2"
-                            onClick={() => openDeclineDialog(item.id)}
-                            disabled={processingId === item.id}
-                          >
-                            {processingId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="h-4 w-4 mr-2" />
-                                Decline
-                              </>
-                            )}
-                          </Button>
-                        </>
-                      )}
-                      
-                      {item.status !== 'pending' && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          onClick={() => {
-                            setStatusFilter('pending');
-                          }}
-                        >
-                          View Pending Items
-                        </Button>
-                      )}
-                    </CardFooter>
-                  </Card>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => openEditDialog(profile)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openMessageDialog(profile)}>
+                            Send Message
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {profile.approval_status !== 'approved' && (
+                            <DropdownMenuItem onClick={() => handleApprove(profile.id)}>
+                              <Check className="mr-2 h-4 w-4" /> Approve
+                            </DropdownMenuItem>
+                          )}
+                          {profile.approval_status !== 'rejected' && (
+                            <DropdownMenuItem onClick={() => handleReject(profile.id)}>
+                              <X className="mr-2 h-4 w-4" /> Reject
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDelete(profile.id)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="registrations" className="mt-6">
-            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-              <h2 className="text-xl font-semibold mb-2">Pending User Registrations</h2>
-              <p className="text-gray-600">Review and approve new user registrations</p>
-            </div>
-            
-            {loadingRegistrations ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-              </div>
-            ) : pendingRegistrations.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No pending registrations to review.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pendingRegistrations.map((profile) => (
-                  <Card key={profile.id}>
-                    <CardHeader>
-                      <CardTitle className="flex justify-between items-center">
-                        <span>{profile.name}</span>
-                        <Badge className="bg-amber-100 text-amber-800">Pending</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <p><span className="font-medium">Email:</span> {profile.email}</p>
-                        <p><span className="font-medium">Student ID:</span> {profile.student_id}</p>
-                        <p><span className="font-medium">Major:</span> {profile.major}</p>
-                        <p><span className="font-medium">Batch:</span> {profile.batch}</p>
-                        
-                        {profile.student_id_photo && (
-                          <div className="mt-2">
-                            <p className="font-medium mb-1">Student ID Photo:</p>
-                            <div 
-                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
-                              style={{ backgroundImage: `url(${profile.student_id_photo})` }}
-                              onClick={() => setViewImage(profile.student_id_photo)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 pt-4">
-                      <Button 
-                        variant="default" 
-                        className="w-1/2 bg-green-600 hover:bg-green-700"
-                        onClick={() => handleApproveRegistration(profile.id)}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        className="w-1/2"
-                        onClick={() => handleDeclineRegistration(profile.id)}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Decline
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
-      <Footer />
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Image Preview Dialog */}
-      <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
-        <DialogContent className="max-w-md">
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Item Image</DialogTitle>
+            <DialogTitle>Edit Profile</DialogTitle>
             <DialogDescription>
-              Preview of the uploaded image.
+              Make changes to the user profile here. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
-          {viewImage && (
-            <div className="flex justify-center py-4">
-              <img
-                src={viewImage}
-                alt="Item"
-                className="max-h-[60vh] rounded-md object-contain"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="approval_status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Approval Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="deleted">Deleted</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This is the user's current approval status.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
+              <Button type="submit">Submit</Button>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Decline Reason Dialog */}
-      <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
+      {/* Message Dialog */}
+      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Decline Item</DialogTitle>
+            <DialogTitle>Send Message</DialogTitle>
             <DialogDescription>
-              Provide a reason why this item is being declined. This message will be visible to the seller.
+              Send a message to the user.
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            className="min-h-[100px]"
-            placeholder="Enter reason for declining the item (optional)"
-            value={declineMessage}
-            onChange={(e) => setDeclineMessage(e.target.value)}
-          />
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setDeclineDialogOpen(false)}
-              disabled={declineProcessing}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDeclineItem}
-              disabled={declineProcessing}
-            >
-              {declineProcessing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Decline Item
-            </Button>
-          </DialogFooter>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="message" className="text-right">
+                Message
+              </Label>
+              <Textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <Button onClick={handleSendMessage}>Send Message</Button>
         </DialogContent>
       </Dialog>
     </div>

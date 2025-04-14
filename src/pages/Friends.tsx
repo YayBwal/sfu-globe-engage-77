@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { FindFriendSection } from "@/components/newsfeed/FindFriendSection";
+import FindFriendSection from "@/components/newsfeed/FindFriendSection";
 import { FriendRequestsSection } from "@/components/newsfeed/FriendRequestsSection";
 import { FriendsListSection } from "@/components/newsfeed/FriendsListSection";
 import { FriendSuggestionsSection } from "@/components/newsfeed/FriendSuggestionsSection";

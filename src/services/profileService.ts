@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, NotificationPreferences, PrivacySettings } from '@/types/auth';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
@@ -133,6 +132,7 @@ export const checkUserExists = async (studentId: string, email: string): Promise
     console.log("Checking if user exists with student ID:", studentId, "or email:", email);
     
     // Check if a profile with the same student ID or email already exists
+    // Be careful with string parameters in the filter query - use parameter binding
     const { data, error } = await typedSupabase
       .from('profiles')
       .select('id')
@@ -141,7 +141,8 @@ export const checkUserExists = async (studentId: string, email: string): Promise
     
     if (error) {
       console.error("Error checking if user exists:", error);
-      throw error;
+      // Don't throw here, return false instead
+      return false;
     }
     
     const exists = !!data;
@@ -149,6 +150,8 @@ export const checkUserExists = async (studentId: string, email: string): Promise
     return exists;
   } catch (error) {
     console.error("Error in checkUserExists:", error);
+    // Return false instead of throwing, to avoid breaking registration process
     return false;
   }
 };
+

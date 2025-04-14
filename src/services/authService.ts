@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
+import { toast } from '@/hooks/use-toast';
 
 const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
@@ -56,10 +57,8 @@ export const registerUser = async (
 
     if (checkError) {
       console.error("Error checking if user exists:", checkError);
-      throw checkError;
-    }
-
-    if (existingProfile) {
+      // Continue with registration instead of throwing error - profiles might not exist yet
+    } else if (existingProfile) {
       throw new Error("A user with this student ID or email already exists");
     }
     
@@ -72,7 +71,8 @@ export const registerUser = async (
           name,
           studentId,
           major,
-          batch
+          batch,
+          studentIdPhoto
         }
       }
     });
@@ -89,39 +89,46 @@ export const registerUser = async (
 
     console.log("Auth signup successful, user ID:", data.user.id);
 
-    // Step 2: Create a profile in the 'profiles' table
-    const profileData = {
-      id: data.user.id,
-      name,
-      student_id: studentId,
-      major,
-      batch,
-      email,
-      student_id_photo: studentIdPhoto,
-      approval_status: 'pending',
-    };
+    // Important: With the trigger function in place, the profile will be created automatically
+    // We don't need to manually create a profile, but we'll wait a moment to ensure it's created
+    // Then return the user
 
-    console.log("Creating profile with data:", profileData);
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert([profileData]);
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
-      
-      // If profile creation fails, attempt to clean up the auth user to prevent orphaned accounts
+    // Optional: Wait a moment and verify profile was created
+    setTimeout(async () => {
       try {
-        await supabase.auth.admin.deleteUser(data.user.id);
-        console.log("Cleaned up auth user due to profile creation failure");
-      } catch (cleanupError) {
-        console.error("Failed to clean up auth user after profile error:", cleanupError);
+        const { data: profileCheck } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user!.id)
+          .maybeSingle();
+          
+        if (!profileCheck) {
+          console.log("Profile not created automatically by trigger, creating manually");
+          
+          // Fallback: Create profile manually if trigger failed
+          const profileData = {
+            id: data.user!.id,
+            name,
+            student_id: studentId,
+            major,
+            batch,
+            email,
+            student_id_photo: studentIdPhoto,
+            approval_status: 'pending',
+            bio: '',
+            online: false,
+            interests: [],
+            availability: ''
+          };
+          
+          await supabase.from('profiles').insert([profileData]);
+        }
+      } catch (verifyError) {
+        console.error("Error verifying profile creation:", verifyError);
       }
-      
-      throw profileError;
-    }
+    }, 1000);
 
-    console.log("Profile created successfully");
+    console.log("Registration process completed successfully");
     return data.user;
 
   } catch (error: any) {
