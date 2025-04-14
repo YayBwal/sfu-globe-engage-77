@@ -38,7 +38,11 @@ const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     }).format(date);
   };
   
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (e: React.MouseEvent) => {
+    // Prevent event propagation to avoid dialog closing
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!message.trim()) {
       toast({
         title: "Message is empty",
@@ -97,7 +101,11 @@ const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     }
   };
   
-  const handleDeleteItem = async () => {
+  const handleDeleteItem = async (e: React.MouseEvent) => {
+    // Prevent event propagation to avoid dialog closing
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!user || user.id !== item.seller_id) {
       toast({
         title: "Permission denied",
@@ -149,7 +157,7 @@ const ItemDetailView: React.FC<ItemDetailViewProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">{item.title}</DialogTitle>
         </DialogHeader>
@@ -225,6 +233,7 @@ const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                   onChange={(e) => setMessage(e.target.value)}
                   rows={4}
                   className="resize-none"
+                  onClick={(e) => e.stopPropagation()}
                 />
                 <Button 
                   onClick={handleSendMessage} 
@@ -261,7 +270,13 @@ const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
             Close
           </Button>
         </DialogFooter>

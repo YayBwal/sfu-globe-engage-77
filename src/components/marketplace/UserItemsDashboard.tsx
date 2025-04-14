@@ -84,7 +84,9 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
     }
   };
 
-  const handleViewDetails = (item: MarketplaceItem) => {
+  const handleViewDetails = (e: React.MouseEvent, item: MarketplaceItem) => {
+    e.preventDefault();
+    e.stopPropagation();
     setSelectedItem(item);
     if (item.status === 'declined') {
       fetchAdminMessage(item.id);
@@ -115,7 +117,7 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Your Marketplace Items</DialogTitle>
         </DialogHeader>
@@ -128,7 +130,10 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
           <div className="text-center py-8">
             <p>You haven't posted any items yet.</p>
             <Button 
-              onClick={onClose} 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               className="mt-4"
               variant="outline"
             >
@@ -173,7 +178,11 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
                           </div>
                         </CardContent>
                         <CardFooter className="flex justify-end pt-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => handleViewDetails(e, item)}
+                          >
                             View Details
                           </Button>
                         </CardFooter>
@@ -189,8 +198,13 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
       
       {/* Item Detail Dialog */}
       {selectedItem && (
-        <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-          <DialogContent className="sm:max-w-[600px]">
+        <Dialog 
+          open={!!selectedItem} 
+          onOpenChange={(open) => {
+            if (!open) setSelectedItem(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-[600px]" onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle>{selectedItem.title}</DialogTitle>
             </DialogHeader>
@@ -264,6 +278,18 @@ const UserItemsDashboard: React.FC<UserItemsDashboardProps> = ({ isOpen, onClose
                   </div>
                 </div>
               )}
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <Button 
+                variant="outline" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedItem(null);
+                }}
+              >
+                Close
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
