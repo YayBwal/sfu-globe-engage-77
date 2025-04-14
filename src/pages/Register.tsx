@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -26,7 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
-import { ensureBucketExists } from '@/utils/storageSetup';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
 
@@ -58,20 +59,41 @@ const Register = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkProfileImagesBucket = async () => {
-      const exists = await ensureBucketExists('profile-images');
-      setBucketAvailable(exists);
-      
-      if (!exists) {
-        toast({
-          title: 'Storage Error',
-          description: 'Profile images storage is not configured properly. Please contact support.',
-          variant: 'destructive',
-        });
+    const checkBucketAccess = async () => {
+      try {
+        // Try to list buckets to check if we have access
+        const { data, error } = await supabase.storage.listBuckets();
+        
+        if (error) {
+          console.error("Storage access error:", error);
+          setBucketAvailable(false);
+          toast({
+            title: 'Storage System Unavailable',
+            description: 'There was a problem accessing the storage system. Some features may be limited.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        // Check if the profile-images bucket exists
+        const bucketExists = data?.some(bucket => bucket.name === 'profile-images');
+        setBucketAvailable(bucketExists === true);
+        
+        if (!bucketExists) {
+          console.warn("Profile images bucket not found or not accessible");
+          toast({
+            title: 'Storage Configuration Issue',
+            description: 'The profile images storage is not properly configured. You may continue registration, but photo upload may not work.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error("Error checking storage:", error);
+        setBucketAvailable(false);
       }
     };
     
-    checkProfileImagesBucket();
+    checkBucketAccess();
   }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -93,9 +115,9 @@ const Register = () => {
     
     if (!bucketAvailable) {
       toast({
-        title: 'Storage Error',
-        description: 'Profile images storage is not available. Please contact support.',
-        variant: 'destructive',
+        title: 'Storage Unavailable',
+        description: 'Profile image upload is currently unavailable. You may proceed with registration without a photo.',
+        variant: 'warning',
       });
       return;
     }
@@ -139,6 +161,11 @@ const Register = () => {
         
       if (error) {
         console.error("Upload failed:", error);
+        
+        if (error.message.includes("new row violates row-level security policy")) {
+          throw new Error("Permission denied: You need to sign in before uploading files.");
+        }
+        
         throw error;
       }
       
@@ -163,10 +190,13 @@ const Register = () => {
       // Provide more specific error messages
       let errorMessage = 'Something went wrong with the upload';
       
-      if (error.message && error.message.includes("bucket")) {
-        errorMessage = 'Storage bucket not found. Please contact support.';
+      if (error.message && error.message.includes("Permission denied")) {
+        // This case should not happen during registration since we're making the bucket publicly writable
+        errorMessage = 'You need to be signed in to upload files. Please continue registration without a photo and add it later from your profile.';
+      } else if (error.message && error.message.includes("bucket")) {
+        errorMessage = 'Storage system not properly configured. Please continue registration without a photo.';
       } else if (error.message && error.message.includes("permission")) {
-        errorMessage = 'You do not have permission to upload files. Please log out and log in again.';
+        errorMessage = 'Storage permissions issue. Please continue registration without a photo and add it later.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -182,15 +212,6 @@ const Register = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!photoUrl) {
-      toast({
-        title: 'Photo required',
-        description: 'Please upload your student ID photo',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     try {
       setIsSubmitting(true);
       
@@ -248,6 +269,65 @@ const Register = () => {
     }
   };
 
+  // Student ID photo display and upload component
+  const StudentIdPhotoField = ({ field }: { field: any }) => (
+    <div className="border-2 border-dashed rounded-lg p-4 text-center">
+      {photoUrl ? (
+        <div className="space-y-2">
+          <div className="flex justify-center">
+            <img 
+              src={photoUrl} 
+              alt="Student ID" 
+              className="max-h-40 rounded-md" 
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline" 
+            onClick={() => setPhotoUrl(null)}
+          >
+            Replace Photo
+          </Button>
+        </div>
+      ) : isUploading ? (
+        <div className="space-y-2">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+          <p className="text-sm text-gray-500">Uploading...</p>
+        </div>
+      ) : (
+        <div>
+          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+          <p className="text-sm text-gray-500 mb-2">Click to upload or drag and drop</p>
+          <p className="text-xs text-gray-400">JPG, PNG, GIF up to 2MB</p>
+          <Input
+            {...field}
+            id="file-upload"
+            type="file"
+            accept="image/*"
+            className="hidden" 
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileUpload(file);
+              }
+            }}
+            disabled={isUploading}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2"
+            onClick={() => {
+              document.getElementById('file-upload')?.click();
+            }}
+            disabled={isUploading}
+          >
+            Select File
+          </Button>
+        </div>
+      )}
+    </div>
+  );
   
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-white to-gray-100">
@@ -414,69 +494,15 @@ const Register = () => {
             <FormField
               control={form.control}
               name="studentIdPhoto"
-              render={({ field: { onChange, ...field } }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Student ID Photo</FormLabel>
                   <FormControl>
-                    <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                      {photoUrl ? (
-                        <div className="space-y-2">
-                          <div className="flex justify-center">
-                            <img 
-                              src={photoUrl} 
-                              alt="Student ID" 
-                              className="max-h-40 rounded-md" 
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline" 
-                            onClick={() => setPhotoUrl(null)}
-                          >
-                            Replace Photo
-                          </Button>
-                        </div>
-                      ) : isUploading ? (
-                        <div className="space-y-2">
-                          <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                          <p className="text-sm text-gray-500">Uploading...</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-500 mb-2">Click to upload or drag and drop</p>
-                          <p className="text-xs text-gray-400">JPG, PNG, GIF up to 2MB</p>
-                          <Input
-                            {...field}
-                            id="file-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleFileUpload(file);
-                              }
-                            }}
-                            disabled={isUploading}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="mt-2"
-                            onClick={() => {
-                              document.getElementById('file-upload')?.click();
-                            }}
-                            disabled={isUploading}
-                          >
-                            Select File
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                    <StudentIdPhotoField field={field} />
                   </FormControl>
                   <FormDescription>
-                    Upload a clear photo of your student ID card.
+                    Upload a clear photo of your student ID card. 
+                    {!bucketAvailable && " (Optional - you can add it later from your profile)"}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

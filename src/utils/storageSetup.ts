@@ -21,7 +21,7 @@ export const setupStorage = async () => {
     const profileBucketExists = buckets?.some(bucket => bucket.name === 'profile-images');
     
     if (!profileBucketExists) {
-      console.error("Profile-images bucket doesn't exist. The bucket should be created via SQL migrations.");
+      console.error("Profile-images bucket doesn't exist. Creating via API as fallback...");
       // Attempt to create the bucket as a fallback (this requires admin privileges)
       try {
         const { data, error } = await supabase
@@ -77,25 +77,8 @@ export const ensureBucketExists = async (bucketName: string) => {
     const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
     
     if (!bucketExists) {
-      console.error(`Bucket "${bucketName}" doesn't exist. Attempting to create it...`);
-      
-      // Attempt to create the bucket (requires admin privileges)
-      try {
-        const { data, error } = await supabase
-          .storage
-          .createBucket(bucketName, { public: true });
-          
-        if (error) {
-          console.error(`Failed to create "${bucketName}" bucket:`, error);
-          return false;
-        }
-        
-        console.log(`Successfully created "${bucketName}" bucket.`);
-        return true;
-      } catch (createError) {
-        console.error(`Exception when creating "${bucketName}" bucket:`, createError);
-        return false;
-      }
+      console.warn(`Bucket "${bucketName}" doesn't exist. Attempting to access via API...`);
+      return false;
     }
     
     return true;
