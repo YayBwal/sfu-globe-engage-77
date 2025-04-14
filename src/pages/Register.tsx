@@ -204,9 +204,15 @@ export default function Register() {
               <Label htmlFor="studentIdPhoto">Student ID Photo</Label>
               <FileInput
                 id="studentIdPhoto"
-                onChange={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  register('studentIdPhoto').onChange(target.files);
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (e.target.files) {
+                    register('studentIdPhoto').onChange({
+                      target: {
+                        name: 'studentIdPhoto',
+                        value: e.target.files
+                      }
+                    });
+                  }
                 }}
               />
               {errors.studentIdPhoto && (
