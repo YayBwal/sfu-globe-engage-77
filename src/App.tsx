@@ -22,8 +22,6 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ClubProvider } from '@/contexts/ClubContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { AttendanceProvider } from '@/contexts/AttendanceContext';
-import { supabase } from '@/integrations/supabase/client';
-import { setupStorageBuckets } from '@/utils/storageSetup';
 import { usePresence } from '@/hooks/usePresence';
 import { ChatBubble } from '@/components/ai-chat/ChatBubble';
 import AdminReview from '@/pages/AdminReview';
@@ -35,9 +33,12 @@ const PresenceWrapper = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
-  // Create storage buckets if they don't exist
+  // Initialize Supabase storage on app load
   useEffect(() => {
-    setupStorageBuckets();
+    // Import lazily to avoid import cycles
+    import('@/utils/storageSetup').then(({ initializeStorage }) => {
+      initializeStorage();
+    });
   }, []);
   
   return (

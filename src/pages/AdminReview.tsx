@@ -1,568 +1,250 @@
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { MarketplaceItem } from '@/types/clubs';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Eye, Filter } from 'lucide-react';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { notifyMarketplaceActivity } from '@/utils/notificationHelpers';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from "react";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { UserProfile } from "@/types/auth";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 const AdminReview = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const [items, setItems] = useState<MarketplaceItem[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewImage, setViewImage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [declineMessage, setDeclineMessage] = useState('');
-  const [declineProcessing, setDeclineProcessing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'declined' | 'all'>('pending');
-  const [activeTab, setActiveTab] = useState('marketplace');
-  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
-  const [loadingRegistrations, setLoadingRegistrations] = useState(true);
-  
-  useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      navigate('/');
-      toast({
-        title: 'Access Denied',
-        description: 'You do not have permission to access this page.',
-        variant: 'destructive',
-      });
-    } else if (!authLoading) {
-      if (activeTab === 'marketplace') {
-        fetchItems();
-      } else {
-        fetchPendingRegistrations();
-      }
-    }
-  }, [authLoading, isAdmin, navigate, statusFilter, activeTab]);
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
 
-  const fetchItems = async () => {
+  useEffect(() => {
+    // Check if user is admin
+    if (!isAdmin) {
+      navigate("/");
+      return;
+    }
+
+    fetchPendingUsers();
+  }, [isAdmin, navigate]);
+
+  const fetchPendingUsers = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('marketplace_items')
-        .select('*');
-      
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("approval_status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setItems(data as MarketplaceItem[]);
+      if (data) {
+        // Map database fields to UserProfile type
+        const mappedProfiles: UserProfile[] = data.map(profile => ({
+          id: profile.id,
+          name: profile.name,
+          student_id: profile.student_id,
+          major: profile.major,
+          batch: profile.batch,
+          email: profile.email,
+          online: Boolean(profile.online),
+          bio: profile.bio || "",
+          interests: profile.interests || [],
+          availability: profile.availability || "",
+          profilePic: profile.profile_pic,
+          coverPic: profile.cover_pic,
+          student_id_photo: profile.student_id_photo,
+          approval_status: profile.approval_status || 'pending',
+          phone: profile.phone,
+          // Convert JSON to proper TypeScript objects
+          notificationPreferences: profile.notification_preferences ? 
+            profile.notification_preferences as any : undefined,
+          privacySettings: profile.privacy_settings ? 
+            profile.privacy_settings as any : undefined,
+          // Keep original DB fields for compatibility
+          profile_pic: profile.profile_pic,
+          cover_pic: profile.cover_pic,
+          theme_preference: profile.theme_preference,
+        }));
+        
+        setPendingUsers(mappedProfiles);
+      } else {
+        setPendingUsers([]);
+      }
     } catch (error) {
-      console.error('Error fetching marketplace items:', error);
+      console.error("Error fetching pending users:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load marketplace items.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to fetch pending users",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPendingRegistrations = async () => {
+  const handleApprove = async (userId: string) => {
     try {
-      setLoadingRegistrations(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('approval_status', 'pending');
-      
-      if (error) throw error;
-      setPendingRegistrations(data || []);
-    } catch (error) {
-      console.error('Error fetching pending registrations:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load pending registrations.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingRegistrations(false);
-    }
-  };
-
-  const handleApproveRegistration = async (userId: string) => {
-    try {
+      setProcessingId(userId);
       const { error } = await supabase
-        .from('profiles')
-        .update({ approval_status: 'approved' })
-        .eq('id', userId);
+        .from("profiles")
+        .update({ approval_status: "approved" })
+        .eq("id", userId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
-      
       toast({
-        title: 'Registration Approved',
-        description: 'User registration has been approved.',
+        title: "User Approved",
+        description: "The user can now log in to the platform",
       });
+
+      setPendingUsers((prev) => prev.filter((user) => user.id !== userId));
     } catch (error) {
-      console.error('Error approving registration:', error);
+      console.error("Error approving user:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to approve registration.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDeclineRegistration = async (userId: string) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ approval_status: 'declined' })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      setPendingRegistrations(pendingRegistrations.filter(profile => profile.id !== userId));
-      
-      toast({
-        title: 'Registration Declined',
-        description: 'User registration has been declined.',
-      });
-    } catch (error) {
-      console.error('Error declining registration:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to decline registration.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleApproveItem = async (itemId: string) => {
-    try {
-      setProcessingId(itemId);
-      
-      // Find the item being approved
-      const item = items.find(item => item.id === itemId);
-      if (!item) throw new Error("Item not found");
-      
-      const { error } = await supabase
-        .from('marketplace_items')
-        .update({ status: 'approved' })
-        .eq('id', itemId);
-
-      if (error) throw error;
-      
-      // Send notification to the seller
-      await notifyMarketplaceActivity(
-        [item.seller_id], 
-        item.title, 
-        'approved'
-      );
-
-      setItems(items.map(item => 
-        item.id === itemId 
-          ? { ...item, status: 'approved' } 
-          : item
-      ));
-      
-      toast({
-        title: 'Item Approved',
-        description: 'The item is now visible in the marketplace.',
-      });
-    } catch (error) {
-      console.error('Error approving item:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to approve item.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to approve user",
+        variant: "destructive",
       });
     } finally {
       setProcessingId(null);
     }
   };
 
-  const openDeclineDialog = (itemId: string) => {
-    setSelectedItemId(itemId);
-    setDeclineDialogOpen(true);
-    setDeclineMessage('');
-  };
-
-  const handleDeclineItem = async () => {
-    if (!selectedItemId) return;
-    
+  const handleReject = async (userId: string) => {
     try {
-      setDeclineProcessing(true);
-      
-      // Find the item being declined
-      const item = items.find(item => item.id === selectedItemId);
-      if (!item) throw new Error("Item not found");
-      
-      // First update the item status to declined
-      const { error: updateError } = await supabase
-        .from('marketplace_items')
-        .update({ status: 'declined' })
-        .eq('id', selectedItemId);
+      setProcessingId(userId);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ approval_status: "rejected" })
+        .eq("id", userId);
 
-      if (updateError) throw updateError;
-
-      // Then save the decline message if provided
-      if (declineMessage.trim()) {
-        const { error: messageError } = await supabase
-          .from('admin_messages')
-          .insert({
-            marketplace_item_id: selectedItemId,
-            message: declineMessage.trim()
-          });
-
-        if (messageError) throw messageError;
+      if (error) {
+        throw error;
       }
 
-      // Send notification to the seller
-      await notifyMarketplaceActivity(
-        [item.seller_id],
-        item.title,
-        'declined'
-      );
-
-      setItems(items.map(item => 
-        item.id === selectedItemId 
-          ? { ...item, status: 'declined' } 
-          : item
-      ));
-      
-      setDeclineDialogOpen(false);
-      setSelectedItemId(null);
-      
       toast({
-        title: 'Item Declined',
-        description: 'The item has been rejected and will not be listed in the marketplace.',
+        title: "User Rejected",
+        description: "The user has been rejected",
       });
+
+      setPendingUsers((prev) => prev.filter((user) => user.id !== userId));
     } catch (error) {
-      console.error('Error declining item:', error);
+      console.error("Error rejecting user:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to decline item.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to reject user",
+        variant: "destructive",
       });
     } finally {
-      setDeclineProcessing(false);
+      setProcessingId(null);
     }
   };
-
-  const formatCurrency = (price: number, currency: string) => {
-    return `${price} ${currency}`;
-  };
-  
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'declined': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Admin Review Area</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/marketplace')}
-          >
-            Back to Marketplace
-          </Button>
-        </div>
+      <main className="container mx-auto px-4 py-24">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold">Admin Review Panel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="pending">
+              <TabsList className="mb-4">
+                <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+              </TabsList>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full mb-6">
-            <TabsTrigger value="marketplace" className="w-1/2">Marketplace Items</TabsTrigger>
-            <TabsTrigger value="registrations" className="w-1/2">User Registrations</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="marketplace" className="mt-6">
-            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-              <div className="flex items-center gap-3">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Filter by status:</span>
-                <Select value={statusFilter} onValueChange={(value: 'pending' | 'approved' | 'declined' | 'all') => setStatusFilter(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Items</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="declined">Declined</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No {statusFilter !== 'all' ? statusFilter : ''} items to review.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.map((item) => (
-                  <Card key={item.id} className="overflow-hidden">
-                    <CardHeader className="bg-gray-50">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-lg truncate">{item.title}</CardTitle>
-                        <Badge variant="outline">{formatCurrency(item.price, item.currency)}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <p><span className="font-medium">Seller:</span> {item.seller_name}</p>
-                          <Badge className={getStatusBadgeColor(item.status)}>{item.status}</Badge>
-                        </div>
-                        
-                        <p><span className="font-medium">Category:</span> {item.category}</p>
-                        {item.condition && (
-                          <p><span className="font-medium">Condition:</span> {item.condition}</p>
-                        )}
-                        
-                        {item.description && (
-                          <div>
-                            <p className="font-medium">Description:</p>
-                            <p className="text-gray-600 line-clamp-3">{item.description}</p>
+              <TabsContent value="pending">
+                {loading ? (
+                  <div className="flex justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : pendingUsers.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">
+                    No pending approvals at this time.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingUsers.map((user) => (
+                      <Card key={user.id} className="overflow-hidden">
+                        <CardContent className="p-0">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Student ID Card Image */}
+                            <div className="flex justify-center items-center bg-gray-100 p-4">
+                              {user.student_id_photo ? (
+                                <img
+                                  src={user.student_id_photo}
+                                  alt="Student ID Card"
+                                  className="max-h-64 object-contain"
+                                />
+                              ) : (
+                                <p className="text-gray-500 italic">No ID card uploaded</p>
+                              )}
+                            </div>
+
+                            {/* User Information */}
+                            <div className="p-6 md:col-span-2">
+                              <h3 className="font-bold text-lg mb-4">{user.name}</h3>
+                              <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                  <p className="text-gray-600 text-sm">Email</p>
+                                  <p>{user.email}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 text-sm">Student ID</p>
+                                  <p>{user.student_id}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 text-sm">Major</p>
+                                  <p>{user.major}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 text-sm">Batch</p>
+                                  <p>{user.batch}</p>
+                                </div>
+                              </div>
+
+                              <div className="space-x-2">
+                                <Button
+                                  onClick={() => handleApprove(user.id)}
+                                  disabled={processingId === user.id}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  {processingId === user.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleReject(user.id)}
+                                  disabled={processingId === user.id}
+                                >
+                                  {processingId === user.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        
-                        {item.image_url && (
-                          <div className="mt-2">
-                            <div 
-                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
-                              style={{ backgroundImage: `url(${item.image_url})` }}
-                              onClick={() => setViewImage(item.image_url || null)}
-                            />
-                          </div>
-                        )}
-                        
-                        {!item.image_url && (
-                          <div className="bg-gray-100 h-20 flex items-center justify-center rounded mt-2">
-                            <p className="text-gray-400 text-sm">No image provided</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 bg-gray-50 pt-4">
-                      {item.status === 'pending' && (
-                        <>
-                          <Button 
-                            variant="default" 
-                            className="w-1/2 bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApproveItem(item.id)}
-                            disabled={processingId === item.id}
-                          >
-                            {processingId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-2" />
-                                Approve
-                              </>
-                            )}
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            className="w-1/2"
-                            onClick={() => openDeclineDialog(item.id)}
-                            disabled={processingId === item.id}
-                          >
-                            {processingId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="h-4 w-4 mr-2" />
-                                Decline
-                              </>
-                            )}
-                          </Button>
-                        </>
-                      )}
-                      
-                      {item.status !== 'pending' && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          onClick={() => {
-                            setStatusFilter('pending');
-                          }}
-                        >
-                          View Pending Items
-                        </Button>
-                      )}
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="registrations" className="mt-6">
-            <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-              <h2 className="text-xl font-semibold mb-2">Pending User Registrations</h2>
-              <p className="text-gray-600">Review and approve new user registrations</p>
-            </div>
-            
-            {loadingRegistrations ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-              </div>
-            ) : pendingRegistrations.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No pending registrations to review.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pendingRegistrations.map((profile) => (
-                  <Card key={profile.id}>
-                    <CardHeader>
-                      <CardTitle className="flex justify-between items-center">
-                        <span>{profile.name}</span>
-                        <Badge className="bg-amber-100 text-amber-800">Pending</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <p><span className="font-medium">Email:</span> {profile.email}</p>
-                        <p><span className="font-medium">Student ID:</span> {profile.student_id}</p>
-                        <p><span className="font-medium">Major:</span> {profile.major}</p>
-                        <p><span className="font-medium">Batch:</span> {profile.batch}</p>
-                        
-                        {profile.student_id_photo && (
-                          <div className="mt-2">
-                            <p className="font-medium mb-1">Student ID Photo:</p>
-                            <div 
-                              className="h-40 bg-contain bg-center bg-no-repeat cursor-pointer"
-                              style={{ backgroundImage: `url(${profile.student_id_photo})` }}
-                              onClick={() => setViewImage(profile.student_id_photo)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 pt-4">
-                      <Button 
-                        variant="default" 
-                        className="w-1/2 bg-green-600 hover:bg-green-700"
-                        onClick={() => handleApproveRegistration(profile.id)}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        className="w-1/2"
-                        onClick={() => handleDeclineRegistration(profile.id)}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Decline
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </main>
       <Footer />
-
-      {/* Image Preview Dialog */}
-      <Dialog open={!!viewImage} onOpenChange={() => setViewImage(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Item Image</DialogTitle>
-            <DialogDescription>
-              Preview of the uploaded image.
-            </DialogDescription>
-          </DialogHeader>
-          {viewImage && (
-            <div className="flex justify-center py-4">
-              <img
-                src={viewImage}
-                alt="Item"
-                className="max-h-[60vh] rounded-md object-contain"
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Decline Reason Dialog */}
-      <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Decline Item</DialogTitle>
-            <DialogDescription>
-              Provide a reason why this item is being declined. This message will be visible to the seller.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            className="min-h-[100px]"
-            placeholder="Enter reason for declining the item (optional)"
-            value={declineMessage}
-            onChange={(e) => setDeclineMessage(e.target.value)}
-          />
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setDeclineDialogOpen(false)}
-              disabled={declineProcessing}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDeclineItem}
-              disabled={declineProcessing}
-            >
-              {declineProcessing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Decline Item
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
