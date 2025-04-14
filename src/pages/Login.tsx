@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { School, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { School, Lock, ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 
 const formSchema = z.object({
-  identifier: z.string().min(1, { message: "Student ID or Email is required." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
@@ -48,7 +48,7 @@ const Login = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      identifier: "",
+      email: "",
       password: "",
     },
   });
@@ -63,16 +63,26 @@ const Login = () => {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await login(values.identifier, values.password);
+      await login(values.email, values.password);
       toast({
         title: "Login successful",
         description: "You have been logged in successfully",
       });
     } catch (error: any) {
       console.error("Login failed:", error);
+      let errorMessage = "There was a problem logging in";
+      
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Login failed",
-        description: error.message || "There was a problem logging in",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -122,14 +132,19 @@ const Login = () => {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="identifier"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Student ID or Email</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <School className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input type="text" placeholder="Enter your Student ID or Email" className="pl-10" {...field} />
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input 
+                        type="email" 
+                        placeholder="your@email.com" 
+                        className="pl-10" 
+                        {...field} 
+                      />
                     </div>
                   </FormControl>
                   <FormMessage />

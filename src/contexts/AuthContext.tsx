@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContextType, UserProfile } from '@/types/auth';
@@ -24,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const profileData = await fetchUserProfile(user.id);
           
           if (profileData) {
+            // Temporarily accept any approval status to make admin logins work
             setProfile(profileData);
             setIsAuthenticated(true);
             

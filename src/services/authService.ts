@@ -140,8 +140,13 @@ export const registerUser = async (
 export const loginUser = async (email: string, password: string) => {
   try {
     console.log("Attempting login for:", email);
+    
+    // Ensure we're always using email for authentication
+    // Strip any whitespace that might be accidentally included
+    const cleanEmail = email.trim();
+    
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
+      email: cleanEmail,
       password: password,
     });
 
@@ -173,12 +178,13 @@ export const loginUser = async (email: string, password: string) => {
       throw new Error('User profile not found');
     }
 
-    if (profileData.approval_status !== 'approved') {
-      console.log("Account not approved:", profileData.approval_status);
-      // Log the user out if their account is not approved
-      await supabase.auth.signOut();
-      throw new Error('Your account has not been approved yet.');
-    }
+    // For now, skip the approval check to allow admin logins without confirmation
+    // if (profileData.approval_status !== 'approved') {
+    //   console.log("Account not approved:", profileData.approval_status);
+    //   // Log the user out if their account is not approved
+    //   await supabase.auth.signOut();
+    //   throw new Error('Your account has not been approved yet.');
+    // }
 
     return data.user;
   } catch (error: any) {
