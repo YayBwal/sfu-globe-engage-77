@@ -1,267 +1,71 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useForm } from 'react-hook-form';
+import { Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FileInput } from '@/components/ui/file-input';
 
-const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
+type RegisterFormValues = {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  studentId: string;
+  major: string;
+  batch: string;
+  studentIdPhoto?: FileList;
+};
 
-const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters long' }),
-  email: z.string().email({ message: 'Invalid email address' }),
-  password: passwordSchema,
-  confirmPassword: z.string().min(1, { message: 'Please confirm your password' }),
-  studentId: z.string().min(3, { message: 'Student ID is required' }),
-  major: z.string().min(1, { message: 'Major is required' }),
-  batch: z.string().min(1, { message: 'Batch is required' }),
-  studentIdPhoto: z.any().optional(),
-  termsAccepted: z.boolean().refine(val => val === true, {
-    message: 'You must accept the terms and conditions',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-const Register = () => {
+export default function Register() {
   const { register: registerUser } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [bucketAvailable, setBucketAvailable] = useState(true);
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormValues>();
 
-  useEffect(() => {
-    const checkBucketAccess = async () => {
-      try {
-        // Try to list buckets to check if we have access
-        const { data, error } = await supabase.storage.listBuckets();
-        
-        if (error) {
-          console.error("Storage access error:", error);
-          setBucketAvailable(false);
-          toast({
-            title: 'Storage System Unavailable',
-            description: 'There was a problem accessing the storage system. Some features may be limited.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        
-        // Check if the profile-images bucket exists
-        const bucketExists = data?.some(bucket => bucket.name === 'profile-images');
-        setBucketAvailable(bucketExists === true);
-        
-        if (!bucketExists) {
-          console.warn("Profile images bucket not found or not accessible");
-          toast({
-            title: 'Storage Configuration Issue',
-            description: 'The profile images storage is not properly configured. You may continue registration, but photo upload may not work.',
-            variant: 'destructive',
-          });
-        }
-      } catch (error) {
-        console.error("Error checking storage:", error);
-        setBucketAvailable(false);
-      }
-    };
-    
-    checkBucketAccess();
-  }, []);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      studentId: '',
-      major: '',
-      batch: '',
-      termsAccepted: false,
-    },
-  });
-
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
-    
-    if (!bucketAvailable) {
-      toast({
-        title: 'Storage Unavailable',
-        description: 'Profile image upload is currently unavailable. You may proceed with registration without a photo.',
-        variant: 'warning',
-      });
-      return;
-    }
-    
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    const allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    
-    if (!fileExt || !allowedTypes.includes(fileExt)) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image file (jpg, jpeg, png, gif, webp)',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload an image smaller than 2MB',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const onSubmit = async (data: RegisterFormValues) => {
+    setIsSubmitting(true);
     
     try {
-      setIsUploading(true);
-      
-      const timestamp = new Date().getTime();
-      const filePath = `student_id_${timestamp}`;
-      
-      console.log("Uploading file:", filePath);
-      
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('profile-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      if (data.password !== data.confirmPassword) {
+        toast({
+          title: 'Registration failed',
+          description: 'Passwords do not match',
+          variant: 'destructive',
         });
-        
-      if (error) {
-        console.error("Upload failed:", error);
-        
-        if (error.message.includes("new row violates row-level security policy")) {
-          throw new Error("Permission denied: You need to sign in before uploading files.");
-        }
-        
-        throw error;
+        return;
       }
-      
-      console.log("Upload successful:", data);
-      
-      // Get the public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(filePath);
-      
-      console.log("Public URL:", publicUrlData.publicUrl);
-      setPhotoUrl(publicUrlData.publicUrl);
-      
-      toast({
-        title: 'Upload successful',
-        description: 'Your ID photo has been uploaded successfully',
-      });
-      
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Something went wrong with the upload';
-      
-      if (error.message && error.message.includes("Permission denied")) {
-        // This case should not happen during registration since we're making the bucket publicly writable
-        errorMessage = 'You need to be signed in to upload files. Please continue registration without a photo and add it later from your profile.';
-      } else if (error.message && error.message.includes("bucket")) {
-        errorMessage = 'Storage system not properly configured. Please continue registration without a photo.';
-      } else if (error.message && error.message.includes("permission")) {
-        errorMessage = 'Storage permissions issue. Please continue registration without a photo and add it later.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: 'Upload failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      setIsSubmitting(true);
-      
-      console.log("Starting registration with values:", {
-        email: values.email,
-        name: values.name,
-        studentId: values.studentId,
-        major: values.major,
-        batch: values.batch,
-        photo: photoUrl
-      });
-      
+      let studentIdPhotoBase64: string | undefined;
+      if (data.studentIdPhoto && data.studentIdPhoto[0]) {
+        const file = data.studentIdPhoto[0];
+        studentIdPhotoBase64 = await convertFileToBase64(file);
+      }
+
       await registerUser(
-        values.email, 
-        values.password, 
-        values.name, 
-        values.studentId, 
-        values.major, 
-        values.batch,
-        photoUrl
+        data.email,
+        data.password,
+        data.name,
+        data.studentId,
+        data.major,
+        data.batch,
+        studentIdPhotoBase64
       );
       
       toast({
         title: 'Registration successful',
-        description: 'Your registration is pending admin approval. You will be notified once approved.',
+        description: 'You have successfully registered. Please log in.',
       });
-      
       navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
-      
-      // Improved error handling with specific messages
-      let errorMessage = 'Something went wrong with registration. Please try again.';
-      
-      if (error.message) {
-        if (error.message.includes('already exists')) {
-          errorMessage = 'A user with this email or student ID already exists.';
-        } else if (error.message.includes('valid email')) {
-          errorMessage = 'Please enter a valid email address.';
-        } else if (error.message.includes('password')) {
-          errorMessage = 'Password should be at least 6 characters.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      // Display a user-friendly error message
       toast({
         title: 'Registration failed',
-        description: errorMessage,
+        description: error.message || 'An error occurred during registration. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -269,298 +73,173 @@ const Register = () => {
     }
   };
 
-  // Student ID photo display and upload component
-  const StudentIdPhotoField = ({ field }: { field: any }) => (
-    <div className="border-2 border-dashed rounded-lg p-4 text-center">
-      {photoUrl ? (
-        <div className="space-y-2">
-          <div className="flex justify-center">
-            <img 
-              src={photoUrl} 
-              alt="Student ID" 
-              className="max-h-40 rounded-md" 
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline" 
-            onClick={() => setPhotoUrl(null)}
-          >
-            Replace Photo
-          </Button>
-        </div>
-      ) : isUploading ? (
-        <div className="space-y-2">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-          <p className="text-sm text-gray-500">Uploading...</p>
-        </div>
-      ) : (
-        <div>
-          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-          <p className="text-sm text-gray-500 mb-2">Click to upload or drag and drop</p>
-          <p className="text-xs text-gray-400">JPG, PNG, GIF up to 2MB</p>
-          <Input
-            {...field}
-            id="file-upload"
-            type="file"
-            accept="image/*"
-            className="hidden" 
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                handleFileUpload(file);
-              }
-            }}
-            disabled={isUploading}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-2"
-            onClick={() => {
-              document.getElementById('file-upload')?.click();
-            }}
-            disabled={isUploading}
-          >
-            Select File
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-  
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-white to-gray-100">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-md">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <img 
-              src="/lovable-uploads/f63a18ce-0dc7-4e9f-8efe-f8e2e695c339.png" 
-              alt="S1st Logo" 
-              className="h-16 w-auto" 
-            />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Create an account</h1>
-          <p className="mt-2 text-gray-600">Join the student community</p>
-        </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+          <CardDescription>
+            Enter your information to create an account
+          </CardDescription>
+        </CardHeader>
+        
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter your name"
+                {...register('name', { required: 'Name is required' })}
+              />
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name.message}</p>
               )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="you@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type={showPassword ? "text" : "password"} 
-                          placeholder="••••••••" 
-                          {...field} 
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type={showConfirmPassword ? "text" : "password"} 
-                          placeholder="••••••••" 
-                          {...field} 
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="studentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Student ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Your student ID" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="major"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Major</FormLabel>
-                    <FormControl>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value} 
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your major" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="DC">DC - Diploma in Computing</SelectItem>
-                          <SelectItem value="DCBM">DCBM - Computing & Business Management</SelectItem>
-                          <SelectItem value="BM">BM - Business Management</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="batch"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Batch</FormLabel>
-                    <FormControl>
-                      <Input placeholder="2023" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
             
-            <FormField
-              control={form.control}
-              name="studentIdPhoto"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Student ID Photo</FormLabel>
-                  <FormControl>
-                    <StudentIdPhotoField field={field} />
-                  </FormControl>
-                  <FormDescription>
-                    Upload a clear photo of your student ID card. 
-                    {!bucketAvailable && " (Optional - you can add it later from your profile)"}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                {...register('email', { 
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Invalid email address',
+                  },
+                })}
+              />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
-            />
-
-            <FormField
-              control={form.control}
-              name="termsAccepted"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      I accept the terms and conditions
-                    </FormLabel>
-                    <FormDescription>
-                      By registering, you agree to our terms of service and privacy policy.
-                    </FormDescription>
-                  </div>
-                  <FormMessage />
-                </FormItem>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                {...register('password', { 
+                  required: 'Password is required',
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters',
+                  },
+                })}
+              />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
-            />
+            </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm password"
+                {...register('confirmPassword', {
+                  required: 'Confirm password is required',
+                  validate: (value) => value === watch('password') || 'Passwords do not match',
+                })}
+              />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="studentId">Student ID</Label>
+              <Input
+                id="studentId"
+                type="text"
+                placeholder="Enter your Student ID"
+                {...register('studentId', { required: 'Student ID is required' })}
+              />
+              {errors.studentId && (
+                <p className="text-sm text-red-500">{errors.studentId.message}</p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="major">Major</Label>
+              <Input
+                id="major"
+                type="text"
+                placeholder="Enter your major"
+                {...register('major', { required: 'Major is required' })}
+              />
+              {errors.major && (
+                <p className="text-sm text-red-500">{errors.major.message}</p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="batch">Batch</Label>
+              <Input
+                id="batch"
+                type="text"
+                placeholder="Enter your batch"
+                {...register('batch', { required: 'Batch is required' })}
+              />
+              {errors.batch && (
+                <p className="text-sm text-red-500">{errors.batch.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="studentIdPhoto">Student ID Photo</Label>
+              <FileInput
+                id="studentIdPhoto"
+                onChange={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  register('studentIdPhoto').onChange(target.files);
+                }}
+              />
+              {errors.studentIdPhoto && (
+                <p className="text-sm text-red-500">{errors.studentIdPhoto.message}</p>
+              )}
+            </div>
+          </CardContent>
+          
+          <CardFooter className="flex flex-col">
             <Button 
               type="submit" 
-              className="w-full"
-              disabled={isSubmitting || isUploading}
+              className="w-full" 
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Registering...
+                  Creating account...
                 </>
               ) : (
-                'Register'
+                'Create account'
               )}
             </Button>
-          </form>
-        </Form>
-
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-red-600 hover:text-red-500">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
+            
+            <p className="mt-4 text-center text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-blue-600 hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
-};
-
-export default Register;
+}

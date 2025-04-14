@@ -114,7 +114,13 @@ const AdminReview = () => {
         throw error;
       }
 
-      setPendingItems(data || []);
+      // Ensure the correct type is assigned to the data
+      const typedItems: MarketplaceItem[] = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'pending' | 'approved' | 'declined'
+      }));
+
+      setPendingItems(typedItems);
     } catch (error) {
       console.error("Error fetching pending marketplace items:", error);
       toast({
@@ -188,6 +194,7 @@ const AdminReview = () => {
   };
 
   const handleApproveItem = async (itemId: string) => {
+    console.log("Approving item:", itemId); // Debug log
     try {
       setProcessingId(itemId);
       const { error } = await supabase
@@ -196,6 +203,7 @@ const AdminReview = () => {
         .eq("id", itemId);
 
       if (error) {
+        console.error("Database error when approving item:", error);
         throw error;
       }
 
@@ -218,13 +226,17 @@ const AdminReview = () => {
   };
 
   const openFeedbackDialog = (itemId: string) => {
+    console.log("Opening feedback dialog for item:", itemId); // Debug log
     setSelectedItemId(itemId);
     setFeedbackText('');
     setFeedbackDialogOpen(true);
   };
 
   const handleRejectItem = async () => {
-    if (!selectedItemId || !feedbackText.trim()) return;
+    if (!selectedItemId || !feedbackText.trim()) {
+      console.log("Missing required data for rejection", { selectedItemId, feedbackText }); // Debug log
+      return;
+    }
     
     try {
       setProcessingId(selectedItemId);
@@ -236,6 +248,7 @@ const AdminReview = () => {
         .eq("id", selectedItemId);
 
       if (itemError) {
+        console.error("Database error when declining item:", itemError);
         throw itemError;
       }
 
@@ -435,6 +448,7 @@ const AdminReview = () => {
                                   onClick={() => handleApproveItem(item.id)}
                                   disabled={processingId === item.id}
                                   className="bg-green-600 hover:bg-green-700"
+                                  type="button"
                                 >
                                   {processingId === item.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -445,6 +459,7 @@ const AdminReview = () => {
                                   variant="destructive"
                                   onClick={() => openFeedbackDialog(item.id)}
                                   disabled={processingId === item.id}
+                                  type="button"
                                 >
                                   {processingId === item.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -492,6 +507,7 @@ const AdminReview = () => {
               variant="destructive" 
               onClick={handleRejectItem} 
               disabled={!feedbackText.trim() || processingId === selectedItemId}
+              type="button"
             >
               {processingId === selectedItemId ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

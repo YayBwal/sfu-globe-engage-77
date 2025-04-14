@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Filter, Search, ShoppingBag, Tag, ArrowUpDown, Grid, List, Loader2, Package2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,11 +54,17 @@ const Marketplace = () => {
           return;
         }
         
-        setMarketplaceItems(data || []);
+        // Ensure proper typing for the data
+        const typedItems: MarketplaceItem[] = (data || []).map(item => ({
+          ...item,
+          status: item.status as 'pending' | 'approved' | 'declined'
+        }));
+        
+        setMarketplaceItems(typedItems);
 
         // Check if the user has any pending items
         if (user) {
-          const pendingItemsCount = data?.filter(item => 
+          const pendingItemsCount = typedItems.filter(item => 
             item.seller_id === user.id && item.status === 'pending'
           ).length || 0;
           

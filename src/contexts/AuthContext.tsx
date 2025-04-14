@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContextType, UserProfile } from '@/types/auth';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -17,44 +16,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const getProfile = async () => {
-      setLoading(true);
-      try {
-        if (user) {
-          const profileData = await fetchUserProfile(user.id);
+  // Memoize profile fetching to prevent unnecessary re-renders
+  const getProfile = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      setIsAuthenticated(false);
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const profileData = await fetchUserProfile(user.id);
+      
+      if (profileData) {
+        // Only update state if the profile data has changed
+        const profileChanged = JSON.stringify(profileData) !== JSON.stringify(profile);
+        if (profileChanged) {
+          setProfile(profileData);
+          setIsAuthenticated(true);
           
-          if (profileData) {
-            // Temporarily accept any approval status to make admin logins work
-            setProfile(profileData);
-            setIsAuthenticated(true);
-            
-            // Check if user is admin
-            checkAdminStatus();
-            
-            // Update online status when user logs in
-            if (profileData.online === false) {
-              await updateUserProfile(user.id, { online: true });
-            }
-          } else {
-            setProfile(null);
-            setIsAuthenticated(false);
+          // Check if user is admin
+          await checkAdminStatus();
+          
+          // Update online status when user logs in
+          if (profileData.online === false) {
+            await updateUserProfile(user.id, { online: true });
           }
-        } else {
-          setProfile(null);
-          setIsAuthenticated(false);
         }
-      } catch (error) {
-        console.error("Unexpected error fetching profile:", error);
-      } finally {
-        setLoading(false);
+      } else {
+        setProfile(null);
+        setIsAuthenticated(false);
       }
-    };
+    } catch (error) {
+      console.error("Unexpected error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, profile]);
 
+  useEffect(() => {
+    setLoading(true);
     getProfile();
-  }, [user]);
+  }, [user, getProfile]);
 
-  const checkAdminStatus = async () => {
+  // Memoize admin status check to prevent re-renders
+  const checkAdminStatus = useCallback(async () => {
     try {
       if (!user) return;
 
@@ -66,12 +73,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      setIsAdmin(data);
+      // Only update if changed
+      if (data !== isAdmin) {
+        setIsAdmin(data);
+      }
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
     }
-  };
+  }, [user, isAdmin]);
 
   const register = async (
     email: string, 
