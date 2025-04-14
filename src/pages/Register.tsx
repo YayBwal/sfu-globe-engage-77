@@ -26,7 +26,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, Eye, EyeOff } from 'lucide-react';
-import { setupStorage } from '@/utils/storageSetup';
+import { ensureBucketExists } from '@/utils/storageSetup';
 
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters long' });
 
@@ -50,15 +50,24 @@ const formSchema = z.object({
 const Register = () => {
   const { register: registerUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // Fix: Initialize before using
+  const [isUploading, setIsUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Ensure storage bucket exists when component mounts
   useEffect(() => {
-    setupStorage();
+    const checkProfileImagesBucket = async () => {
+      const bucketExists = await ensureBucketExists('profile-images');
+      if (!bucketExists) {
+        toast({
+          title: 'Storage Error',
+          description: 'Profile images storage is not configured. Please contact support.',
+          variant: 'destructive',
+        });
+      }
+    };
+    checkProfileImagesBucket();
   }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -78,7 +87,6 @@ const Register = () => {
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     
-    // Validate file type
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     
@@ -91,7 +99,6 @@ const Register = () => {
       return;
     }
     
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast({
         title: 'File too large',
@@ -104,33 +111,9 @@ const Register = () => {
     try {
       setIsUploading(true);
       
-      // Create a unique filename
       const timestamp = new Date().getTime();
       const filePath = `student_id_${timestamp}`;
       
-      console.log("Uploading file:", filePath);
-      
-      // Check if the bucket exists first
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-      
-      if (bucketError) {
-        console.error("Error listing buckets:", bucketError);
-        throw bucketError;
-      }
-      
-      const profileBucketExists = buckets.some(bucket => bucket.name === 'profile-images');
-      
-      if (!profileBucketExists) {
-        console.error("The 'profile-images' bucket doesn't exist");
-        toast({
-          title: 'Storage error',
-          description: 'Storage is not properly configured. Please contact support.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('profile-images')
         .upload(filePath, file, {
@@ -143,14 +126,10 @@ const Register = () => {
         throw error;
       }
       
-      console.log("Upload successful:", data);
-      
-      // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
         .getPublicUrl(filePath);
       
-      console.log("Public URL:", publicUrlData.publicUrl);
       setPhotoUrl(publicUrlData.publicUrl);
       
       toast({

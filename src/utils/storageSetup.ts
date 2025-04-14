@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const setupStorage = async () => {
   try {
-    // Check if the profile-images bucket exists
     const { data: buckets, error: bucketError } = await supabase
       .storage
       .listBuckets();
@@ -26,15 +25,12 @@ export const setupStorage = async () => {
   }
 };
 
-// Call this function when the application starts
 export const initializeStorage = () => {
   setupStorage().catch(console.error);
 };
 
-// Added for compatibility with existing code
 export const setupStorageBuckets = setupStorage;
 
-// Function to ensure a bucket exists before using it
 export const ensureBucketExists = async (bucketName: string) => {
   try {
     const { data: buckets, error: bucketError } = await supabase
