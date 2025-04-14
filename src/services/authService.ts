@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
 import { toast } from '@/hooks/use-toast';
@@ -137,26 +136,68 @@ export const registerUser = async (
   }
 };
 
-export const loginUser = async (email: string, password: string) => {
+export const loginUser = async (identifier: string, password: string) => {
   try {
-    console.log("Attempting login for:", email);
+    console.log("Attempting login with identifier:", identifier);
     
-    // Ensure we're always using email for authentication
-    // Strip any whitespace that might be accidentally included
-    const cleanEmail = email.trim();
+    // Clean up the identifier (remove whitespace)
+    const cleanIdentifier = identifier.trim();
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: password,
-    });
+    // Check if the identifier is an email (contains @ symbol)
+    const isEmail = cleanIdentifier.includes('@');
+    
+    let user;
+    
+    if (isEmail) {
+      // Login with email directly
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanIdentifier,
+        password: password,
+      });
 
-    if (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+      if (error) {
+        console.error("Login with email error:", error);
+        throw error;
+      }
 
-    if (!data.user) {
-      throw new Error("No user returned from login");
+      if (!data.user) {
+        throw new Error("No user returned from login");
+      }
+      
+      user = data.user;
+    } else {
+      // Login with student ID - first find the email associated with this student ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('student_id', cleanIdentifier)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+        throw profileError;
+      }
+
+      if (!profileData || !profileData.email) {
+        throw new Error("No user found with this Student ID");
+      }
+
+      // Now login with the retrieved email
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: profileData.email,
+        password: password,
+      });
+
+      if (error) {
+        console.error("Login error after student ID lookup:", error);
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error("No user returned from login");
+      }
+      
+      user = data.user;
     }
 
     console.log("Login successful, fetching profile");
@@ -165,7 +206,7 @@ export const loginUser = async (email: string, password: string) => {
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('approval_status')
-      .eq('id', data.user.id)
+      .eq('id', user.id)
       .maybeSingle();
 
     if (profileError) {
@@ -174,7 +215,7 @@ export const loginUser = async (email: string, password: string) => {
     }
 
     if (!profileData) {
-      console.error("Profile not found for user:", data.user.id);
+      console.error("Profile not found for user:", user.id);
       throw new Error('User profile not found');
     }
 
@@ -186,7 +227,7 @@ export const loginUser = async (email: string, password: string) => {
     //   throw new Error('Your account has not been approved yet.');
     // }
 
-    return data.user;
+    return user;
   } catch (error: any) {
     console.error("Login process failed:", error);
     throw error;

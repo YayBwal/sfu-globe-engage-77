@@ -95,13 +95,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     setLoading(true);
     try {
-      await loginUser(email, password);
+      await loginUser(identifier, password);
       
       // Special case for admin - check directly rather than waiting for profile fetch
-      if (email === '2024D5764' || email === 'Yan Naing Aung') {
+      if (identifier === '2024D5764' || identifier === 'Yan Naing Aung') {
         setIsAdmin(true);
       }
       
