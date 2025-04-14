@@ -50,7 +50,7 @@ const formSchema = z.object({
 const Register = () => {
   const { register: registerUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // Fix: Initialize before using
+  const [isUploading, setIsUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -211,25 +211,10 @@ const Register = () => {
     } catch (error: any) {
       console.error('Registration error:', error);
       
-      // Improved error handling with specific messages
-      let errorMessage = 'Something went wrong with registration. Please try again.';
-      
-      if (error.message) {
-        if (error.message.includes('already exists')) {
-          errorMessage = 'A user with this email or student ID already exists.';
-        } else if (error.message.includes('valid email')) {
-          errorMessage = 'Please enter a valid email address.';
-        } else if (error.message.includes('password')) {
-          errorMessage = 'Password should be at least 6 characters.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
       // Display a user-friendly error message
       toast({
         title: 'Registration failed',
-        description: errorMessage,
+        description: error.message || 'Something went wrong with registration. Please try again.',
         variant: 'destructive',
       });
     } finally {

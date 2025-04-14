@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
-import { createNotification } from '@/utils/notificationHelpers';
+import { notifyNewMessage } from '@/utils/notificationHelpers';
 import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
@@ -48,13 +48,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ isOpen, onClose, recipient 
       if (error) throw error;
 
       // Create notification for recipient
-      await createNotification(
-        recipient.id,
-        'New Message',
-        `You have received a message from ${user.email || 'a user'}`,
-        'info',
-        'messages'
-      );
+      await notifyNewMessage(recipient.id, user.email || 'A user');
 
       toast({
         title: "Message sent",

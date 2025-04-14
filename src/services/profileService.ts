@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, NotificationPreferences, PrivacySettings } from '@/types/auth';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
@@ -131,16 +132,16 @@ export const checkUserExists = async (studentId: string, email: string): Promise
   try {
     console.log("Checking if user exists with student ID:", studentId, "or email:", email);
     
-    // Use parameterized query to prevent SQL injection
-    const { data, error } = await supabase
+    // Check if a profile with the same student ID or email already exists
+    const { data, error } = await typedSupabase
       .from('profiles')
       .select('id')
-      .or(`student_id.eq."${studentId}",email.eq."${email}"`)
+      .or(`student_id.eq.${studentId},email.eq.${email}`)
       .maybeSingle();
     
     if (error) {
       console.error("Error checking if user exists:", error);
-      return false;
+      throw error;
     }
     
     const exists = !!data;

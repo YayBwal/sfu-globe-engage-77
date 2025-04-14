@@ -12,13 +12,9 @@ import { TypedSupabaseClient } from '@/types/supabaseCustom';
 
 const typedSupabase = supabase as unknown as TypedSupabaseClient;
 
-interface SearchResult extends UserProfile {
-  requestSent?: boolean;
-}
-
 const FindFriendSection = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { user } = useAuth();
 
@@ -37,30 +33,7 @@ const FindFriendSection = () => {
         
       if (error) throw error;
       
-      // Transform database records to match UserProfile type with requestSent property
-      const transformedResults: SearchResult[] = data.map(profile => ({
-        id: profile.id,
-        name: profile.name,
-        student_id: profile.student_id,
-        major: profile.major,
-        batch: profile.batch,
-        email: profile.email,
-        online: Boolean(profile.online),
-        bio: profile.bio || "",
-        interests: profile.interests || [],
-        availability: profile.availability || "",
-        profilePic: profile.profile_pic,
-        coverPic: profile.cover_pic,
-        student_id_photo: profile.student_id_photo,
-        approval_status: profile.approval_status || 'pending',
-        phone: profile.phone,
-        profile_pic: profile.profile_pic,
-        cover_pic: profile.cover_pic,
-        theme_preference: profile.theme_preference,
-        requestSent: false,
-      }));
-      
-      setSearchResults(transformedResults);
+      setSearchResults(data as UserProfile[]);
     } catch (error) {
       console.error('Error searching for users:', error);
     } finally {

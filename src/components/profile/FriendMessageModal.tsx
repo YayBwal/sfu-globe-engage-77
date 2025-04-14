@@ -4,7 +4,7 @@ import { Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { createNotification } from '@/utils/notificationHelpers';
+import { notifyNewMessage } from '@/utils/notificationHelpers';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -125,14 +125,8 @@ const FriendMessageModal: React.FC<FriendMessageModalProps> = ({
 
       if (error) throw error;
 
-      // Create notification for the recipient
-      await createNotification(
-        friend.id,
-        'New Message',
-        `You have received a message from ${user.email || 'a friend'}`,
-        'info',
-        'messages'
-      );
+      // Create notification for the recipient using the notification helper
+      await notifyNewMessage(friend.id, user.email || 'a friend');
 
       setNewMessage('');
     } catch (error) {

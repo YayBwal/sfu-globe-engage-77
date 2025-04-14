@@ -74,24 +74,3 @@ export async function deleteNotification(notificationId: string) {
     return false;
   }
 }
-
-// Add missing notification helper functions
-export async function notifyNewMessage(receiverId: string, senderName: string) {
-  return createNotification(
-    receiverId,
-    'New Message',
-    `You have received a message from ${senderName}`,
-    'info',
-    'messages'
-  );
-}
-
-export async function notifyMarketplaceActivity(userId: string, title: string, message: string) {
-  return createNotification(
-    userId,
-    title,
-    message,
-    'info',
-    'marketplace'
-  );
-}
