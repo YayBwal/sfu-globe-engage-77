@@ -54,19 +54,23 @@ const Register = () => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [bucketAvailable, setBucketAvailable] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkProfileImagesBucket = async () => {
-      const bucketExists = await ensureBucketExists('profile-images');
-      if (!bucketExists) {
+      const exists = await ensureBucketExists('profile-images');
+      setBucketAvailable(exists);
+      
+      if (!exists) {
         toast({
           title: 'Storage Error',
-          description: 'Profile images storage is not configured. Please contact support.',
+          description: 'Profile images storage is not configured properly. Please contact support.',
           variant: 'destructive',
         });
       }
     };
+    
     checkProfileImagesBucket();
   }, []);
 
@@ -86,6 +90,15 @@ const Register = () => {
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
+    
+    if (!bucketAvailable) {
+      toast({
+        title: 'Storage Error',
+        description: 'Profile images storage is not available. Please contact support.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
@@ -114,6 +127,9 @@ const Register = () => {
       const timestamp = new Date().getTime();
       const filePath = `student_id_${timestamp}`;
       
+      console.log("Uploading file:", filePath);
+      
+      // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('profile-images')
         .upload(filePath, file, {
@@ -126,10 +142,14 @@ const Register = () => {
         throw error;
       }
       
+      console.log("Upload successful:", data);
+      
+      // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from('profile-images')
         .getPublicUrl(filePath);
       
+      console.log("Public URL:", publicUrlData.publicUrl);
       setPhotoUrl(publicUrlData.publicUrl);
       
       toast({
@@ -139,9 +159,21 @@ const Register = () => {
       
     } catch (error: any) {
       console.error('Upload error:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Something went wrong with the upload';
+      
+      if (error.message && error.message.includes("bucket")) {
+        errorMessage = 'Storage bucket not found. Please contact support.';
+      } else if (error.message && error.message.includes("permission")) {
+        errorMessage = 'You do not have permission to upload files. Please log out and log in again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Upload failed',
-        description: error.message || 'Something went wrong with the upload',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

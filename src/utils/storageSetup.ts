@@ -1,27 +1,52 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Creates the profile-images bucket if it doesn't exist
+ * Note: This is a fallback; buckets should be created via SQL migrations
+ */
 export const setupStorage = async () => {
   try {
+    // Check if buckets are available (connection is working)
     const { data: buckets, error: bucketError } = await supabase
       .storage
       .listBuckets();
       
     if (bucketError) {
       console.error("Error checking buckets:", bucketError);
-      return;
+      return false;
     }
     
+    // Check if the profile-images bucket exists
     const profileBucketExists = buckets?.some(bucket => bucket.name === 'profile-images');
     
     if (!profileBucketExists) {
-      console.log("Profile-images bucket doesn't exist. The bucket should be created via SQL migrations.");
+      console.error("Profile-images bucket doesn't exist. The bucket should be created via SQL migrations.");
+      // Attempt to create the bucket as a fallback (this requires admin privileges)
+      try {
+        const { data, error } = await supabase
+          .storage
+          .createBucket('profile-images', { public: true });
+          
+        if (error) {
+          console.error("Failed to create profile-images bucket:", error);
+          return false;
+        }
+        
+        console.log("Successfully created profile-images bucket.");
+        return true;
+      } catch (createError) {
+        console.error("Exception when creating profile-images bucket:", createError);
+        return false;
+      }
     } else {
       console.log("Profile-images bucket exists.");
+      return true;
     }
     
   } catch (error) {
     console.error("Storage setup error:", error);
+    return false;
   }
 };
 
@@ -31,8 +56,14 @@ export const initializeStorage = () => {
 
 export const setupStorageBuckets = setupStorage;
 
+/**
+ * Checks if a bucket exists and attempts to create it if it doesn't
+ * @param bucketName The name of the bucket to check
+ * @returns Promise<boolean> True if the bucket exists or was created successfully
+ */
 export const ensureBucketExists = async (bucketName: string) => {
   try {
+    // First check if the bucket exists
     const { data: buckets, error: bucketError } = await supabase
       .storage
       .listBuckets();
@@ -42,7 +73,32 @@ export const ensureBucketExists = async (bucketName: string) => {
       return false;
     }
     
-    return buckets?.some(bucket => bucket.name === bucketName) || false;
+    // Check if the bucket exists in the returned list
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    
+    if (!bucketExists) {
+      console.error(`Bucket "${bucketName}" doesn't exist. Attempting to create it...`);
+      
+      // Attempt to create the bucket (requires admin privileges)
+      try {
+        const { data, error } = await supabase
+          .storage
+          .createBucket(bucketName, { public: true });
+          
+        if (error) {
+          console.error(`Failed to create "${bucketName}" bucket:`, error);
+          return false;
+        }
+        
+        console.log(`Successfully created "${bucketName}" bucket.`);
+        return true;
+      } catch (createError) {
+        console.error(`Exception when creating "${bucketName}" bucket:`, createError);
+        return false;
+      }
+    }
+    
+    return true;
   } catch (error) {
     console.error(`Error ensuring bucket "${bucketName}" exists:`, error);
     return false;
