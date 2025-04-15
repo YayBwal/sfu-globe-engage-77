@@ -230,14 +230,12 @@ export const loginUser = async (identifier: string, password: string) => {
       // }
 
       return user;
-    } catch (fetchError: any) {
+    } catch (fetchError) {
       // Network error or Supabase connection issue
       console.error("Login process failed:", fetchError);
       
       // Enhanced error handling for network issues
-      if (fetchError instanceof TypeError && 
-          (fetchError.message.includes('Failed to fetch') || 
-           fetchError.message.includes('Network request failed'))) {
+      if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
         throw new Error('Network connection error. Please check your internet connection and try again.');
       }
       

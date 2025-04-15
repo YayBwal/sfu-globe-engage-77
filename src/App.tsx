@@ -1,6 +1,5 @@
-
 import React, { useEffect } from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
@@ -36,66 +35,68 @@ function App() {
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/email-verification" element={<EmailVerification />} />
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/email-verification" element={<EmailVerification />} />
 
-        {/* Private Routes */}
-        <Route
-          path="/profile"
-          element={
-            isAuthenticated ? (
-              <ProfileUnified />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/clubs"
-          element={
-            isAuthenticated ? (
-              <Clubs />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/quizzes"
-          element={
-            isAuthenticated ? (
-              <Quizzes />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            isAuthenticated && isAdmin ? (
-              <AdminDashboard />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            isAuthenticated ? (
-              <AccountSettings />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-      </Routes>
+          {/* Private Routes */}
+          <Route
+            path="/profile"
+            element={
+              isAuthenticated ? (
+                <ProfileUnified />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/clubs"
+            element={
+              isAuthenticated ? (
+                <Clubs />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/quizzes"
+            element={
+              isAuthenticated ? (
+                <Quizzes />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              isAuthenticated && isAdmin ? (
+                <AdminDashboard />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              isAuthenticated ? (
+                <AccountSettings />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+        </Routes>
+      </Router>
       <Toaster />
     </>
   );

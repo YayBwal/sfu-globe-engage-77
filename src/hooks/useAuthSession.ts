@@ -45,28 +45,22 @@ export const useAuthSession = () => {
     );
 
     // Then check for existing session
-    const getSessionData = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => {
         if (isSubscribed) {
           updateSession(currentSession);
-          setConnectionError(null); // Clear connection error on success
         }
-      } catch (error) {
+      })
+      .catch((error) => {
         console.error("Error getting session:", error);
         if (isSubscribed) {
-          // Set connection error for network-related issues
-          if (error instanceof TypeError && 
-              (error.message.includes('Failed to fetch') || 
-               error.message.includes('Network request failed'))) {
+          // Only set connection error for network-related issues
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
             setConnectionError(new Error('Unable to connect to authentication service. Please check your internet connection.'));
           }
           setLoading(false);
         }
-      }
-    };
-
-    getSessionData();
+      });
 
     return () => {
       isSubscribed = false;
