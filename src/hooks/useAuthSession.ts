@@ -7,6 +7,7 @@ export const useAuthSession = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<Error | null>(null);
 
   // Memoize session update function to prevent unnecessary re-renders
   const updateSession = useCallback((newSession: Session | null) => {
@@ -38,16 +39,28 @@ export const useAuthSession = () => {
       (_event, currentSession) => {
         if (isSubscribed) {
           updateSession(currentSession);
+          setConnectionError(null); // Clear any connection error on successful auth state change
         }
       }
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      if (isSubscribed) {
-        updateSession(currentSession);
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => {
+        if (isSubscribed) {
+          updateSession(currentSession);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting session:", error);
+        if (isSubscribed) {
+          // Only set connection error for network-related issues
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            setConnectionError(new Error('Unable to connect to authentication service. Please check your internet connection.'));
+          }
+          setLoading(false);
+        }
+      });
 
     return () => {
       isSubscribed = false;
@@ -55,5 +68,5 @@ export const useAuthSession = () => {
     };
   }, [updateSession]);
 
-  return { user, session, loading };
+  return { user, session, loading, connectionError };
 };

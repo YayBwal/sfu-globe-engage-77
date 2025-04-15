@@ -5,16 +5,28 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { fetchUserProfile, updateUserProfile } from '@/services/profileService';
 import { registerUser, loginUser, logoutUser, deleteAccount } from '@/services/authService';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading: sessionLoading } = useAuthSession();
+  const { user, loading: sessionLoading, connectionError } = useAuthSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
+
+  // Effect to handle connection errors
+  useEffect(() => {
+    if (connectionError) {
+      toast({
+        title: "Connection Error",
+        description: connectionError.message,
+        variant: "destructive",
+      });
+    }
+  }, [connectionError]);
 
   // Memoize profile fetching to prevent unnecessary re-renders
   const getProfile = useCallback(async () => {
@@ -50,6 +62,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Unexpected error fetching profile:", error);
+      
+      // Check if it's a network connection error
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        toast({
+          title: "Connection Error",
+          description: "Unable to load your profile. Please check your internet connection.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate('/login');
     } catch (error: any) {
       console.error("Registration failed:", error.message);
-      throw error;
+      
+      // Enhanced error message for network issues
+      let errorMsg = error.message;
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMsg = "Network error. Please check your internet connection and try again.";
+      }
+      
+      throw new Error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -119,7 +147,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate('/');
     } catch (error: any) {
       console.error("Login failed:", error.message);
-      throw error;
+      
+      // Enhanced error handling
+      let errorMsg = error.message;
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMsg = "Network error. Please check your internet connection and try again.";
+      }
+      
+      throw new Error(errorMsg);
     } finally {
       setLoading(false);
     }

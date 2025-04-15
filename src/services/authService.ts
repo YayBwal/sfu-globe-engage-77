@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
 import { toast } from '@/hooks/use-toast';
@@ -148,29 +149,66 @@ export const loginUser = async (identifier: string, password: string) => {
     
     let user;
     
-    if (isEmail) {
-      // Login with email directly
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanIdentifier,
-        password: password,
-      });
+    try {
+      if (isEmail) {
+        // Login with email directly
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanIdentifier,
+          password: password,
+        });
 
-      if (error) {
-        console.error("Login with email error:", error);
-        throw error;
+        if (error) {
+          console.error("Login with email error:", error);
+          throw error;
+        }
+
+        if (!data.user) {
+          throw new Error("No user returned from login");
+        }
+        
+        user = data.user;
+      } else {
+        // Login with student ID - first find the email associated with this student ID
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('student_id', cleanIdentifier)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error("Profile fetch error:", profileError);
+          throw profileError;
+        }
+
+        if (!profileData || !profileData.email) {
+          throw new Error("No user found with this Student ID");
+        }
+
+        // Now login with the retrieved email
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: profileData.email,
+          password: password,
+        });
+
+        if (error) {
+          console.error("Login error after student ID lookup:", error);
+          throw error;
+        }
+
+        if (!data.user) {
+          throw new Error("No user returned from login");
+        }
+        
+        user = data.user;
       }
 
-      if (!data.user) {
-        throw new Error("No user returned from login");
-      }
-      
-      user = data.user;
-    } else {
-      // Login with student ID - first find the email associated with this student ID
+      console.log("Login successful, fetching profile");
+
+      // Fetch the user's profile to check approval status
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('email')
-        .eq('student_id', cleanIdentifier)
+        .select('approval_status')
+        .eq('id', user.id)
         .maybeSingle();
 
       if (profileError) {
@@ -178,56 +216,31 @@ export const loginUser = async (identifier: string, password: string) => {
         throw profileError;
       }
 
-      if (!profileData || !profileData.email) {
-        throw new Error("No user found with this Student ID");
+      if (!profileData) {
+        console.error("Profile not found for user:", user.id);
+        throw new Error('User profile not found');
       }
 
-      // Now login with the retrieved email
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: profileData.email,
-        password: password,
-      });
+      // For now, skip the approval check to allow admin logins without confirmation
+      // if (profileData.approval_status !== 'approved') {
+      //   console.log("Account not approved:", profileData.approval_status);
+      //   // Log the user out if their account is not approved
+      //   await supabase.auth.signOut();
+      //   throw new Error('Your account has not been approved yet.');
+      // }
 
-      if (error) {
-        console.error("Login error after student ID lookup:", error);
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error("No user returned from login");
+      return user;
+    } catch (fetchError) {
+      // Network error or Supabase connection issue
+      console.error("Login process failed:", fetchError);
+      
+      // Enhanced error handling for network issues
+      if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+        throw new Error('Network connection error. Please check your internet connection and try again.');
       }
       
-      user = data.user;
+      throw fetchError;
     }
-
-    console.log("Login successful, fetching profile");
-
-    // Fetch the user's profile to check approval status
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('approval_status')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-      throw profileError;
-    }
-
-    if (!profileData) {
-      console.error("Profile not found for user:", user.id);
-      throw new Error('User profile not found');
-    }
-
-    // For now, skip the approval check to allow admin logins without confirmation
-    // if (profileData.approval_status !== 'approved') {
-    //   console.log("Account not approved:", profileData.approval_status);
-    //   // Log the user out if their account is not approved
-    //   await supabase.auth.signOut();
-    //   throw new Error('Your account has not been approved yet.');
-    // }
-
-    return user;
   } catch (error: any) {
     console.error("Login process failed:", error);
     throw error;
