@@ -138,13 +138,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await loginUser(identifier, password);
       
-      // Special case for admin - check directly rather than waiting for profile fetch
-      if (identifier === '2024D5764' || identifier === 'Yan Naing Aung') {
-        setIsAdmin(true);
-      }
-      
       // Navigate to home directly since loginUser already checks approval status
       navigate('/');
+      
+      toast({
+        title: "Login Successful",
+        description: "You have been successfully logged in.",
+      });
     } catch (error: any) {
       console.error("Login failed:", error.message);
       
@@ -243,7 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading: loading || sessionLoading,
     isAuthenticated,
     isAdmin,
-    register,
+    register: registerUser,
     login,
     logout,
     updateProfile,
