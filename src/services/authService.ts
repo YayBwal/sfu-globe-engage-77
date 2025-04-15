@@ -165,6 +165,12 @@ export const loginUser = async (identifier: string, password: string): Promise<v
     console.log("User logged in successfully:", data.user.id);
   } catch (error: any) {
     console.error("User login failed:", error);
+    
+    // Improved network error detection
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error("Network error: Unable to connect to authentication service. Please check your internet connection and try again.");
+    }
+    
     throw error;
   }
 };
@@ -217,6 +223,33 @@ export const deleteAccount = async (userId: string): Promise<void> => {
     // Improve error handling with network detection
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       throw new Error("Network error. Please check your internet connection and try again.");
+    }
+    
+    throw error;
+  }
+};
+
+// Add the missing updatePassword function
+export const updatePassword = async (newPassword: string): Promise<void> => {
+  try {
+    console.log("Attempting to update password");
+    
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error("Password update error:", error);
+      throw new Error(error.message || "Password update failed");
+    }
+
+    console.log("Password updated successfully");
+  } catch (error: any) {
+    console.error("Password update failed:", error);
+    
+    // Improved network error detection
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error("Network error: Unable to connect to authentication service. Please check your internet connection and try again.");
     }
     
     throw error;

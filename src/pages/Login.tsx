@@ -40,8 +40,9 @@ export default function Login() {
       // Improved error handling with more specific messages
       let errorMessage = 'Please check your credentials and try again';
       
-      if (error.message?.includes('Failed to fetch') || error.details?.includes('Failed to fetch') || 
-          error.message?.includes('Network') || error.message?.includes('network')) {
+      if (error.message?.includes('Network error') || 
+          error.message?.includes('Failed to fetch') || 
+          error.message?.includes('Unable to connect')) {
         setConnectionError('Unable to connect to the authentication service. Please check your internet connection and try again.');
         errorMessage = 'Connection error';
       } else if (error.message) {
