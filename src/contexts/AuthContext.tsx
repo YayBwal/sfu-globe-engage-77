@@ -64,7 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Unexpected error fetching profile:", error);
       
       // Check if it's a network connection error
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      if (error instanceof TypeError && 
+          (error.message.includes('Failed to fetch') || 
+           error.message.includes('Network request failed'))) {
         toast({
           title: "Connection Error",
           description: "Unable to load your profile. Please check your internet connection.",
