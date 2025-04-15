@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Unexpected error fetching profile:", error);
       
-      // Check if it's a network connection error
+      // Check if it's a network connection error and show a toast
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         toast({
           title: "Connection Error",
@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error("Login failed:", error.message);
       
-      // Enhanced error handling
+      // Enhanced error handling with more specific error messages
       let errorMsg = error.message;
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         errorMsg = "Network error. Please check your internet connection and try again.";

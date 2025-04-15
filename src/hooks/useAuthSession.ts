@@ -33,6 +33,7 @@ export const useAuthSession = () => {
 
   useEffect(() => {
     let isSubscribed = true;
+    console.log("Setting up auth session listener");
     
     // Set up the auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -54,15 +55,23 @@ export const useAuthSession = () => {
       .catch((error) => {
         console.error("Error getting session:", error);
         if (isSubscribed) {
-          // Only set connection error for network-related issues
+          // Improved error handling for network issues
           if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
             setConnectionError(new Error('Unable to connect to authentication service. Please check your internet connection.'));
+            console.error("Network connection error detected:", error);
+          } else if (error instanceof Error) {
+            setConnectionError(error);
+            console.error("Authentication error:", error.message);
+          } else {
+            setConnectionError(new Error('An unknown error occurred during authentication.'));
+            console.error("Unknown authentication error:", error);
           }
           setLoading(false);
         }
       });
 
     return () => {
+      console.log("Cleaning up auth session listener");
       isSubscribed = false;
       subscription.unsubscribe();
     };

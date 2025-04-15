@@ -150,6 +150,7 @@ export const loginUser = async (identifier: string, password: string) => {
     let user;
     
     try {
+      // Wrap the Supabase calls in a try/catch to handle network errors better
       if (isEmail) {
         // Login with email directly
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -230,13 +231,18 @@ export const loginUser = async (identifier: string, password: string) => {
       // }
 
       return user;
-    } catch (fetchError) {
-      // Network error or Supabase connection issue
+    } catch (fetchError: any) {
+      // Improved network error detection and messaging
       console.error("Login process failed:", fetchError);
       
-      // Enhanced error handling for network issues
       if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
         throw new Error('Network connection error. Please check your internet connection and try again.');
+      } else if (fetchError.message?.includes('Network')) {
+        throw new Error('Network connection error. Please check your internet connection and try again.');
+      } else if (fetchError.error_description) {
+        throw new Error(fetchError.error_description);
+      } else if (fetchError.message) {
+        throw new Error(fetchError.message);
       }
       
       throw fetchError;

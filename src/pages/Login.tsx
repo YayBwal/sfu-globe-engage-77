@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, WifiOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { PasswordInput } from '@/components/ui/password-input';
 
 type LoginFormValues = {
   identifier: string;
@@ -22,15 +24,12 @@ export default function Login() {
   const from = location.state?.from?.pathname || '/';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>();
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
+    setConnectionError(null);
     
     try {
       await login(data.identifier, data.password);
@@ -41,8 +40,10 @@ export default function Login() {
       // Improved error handling with more specific messages
       let errorMessage = 'Please check your credentials and try again';
       
-      if (error.message?.includes('Failed to fetch') || error.details?.includes('Failed to fetch')) {
-        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+      if (error.message?.includes('Failed to fetch') || error.details?.includes('Failed to fetch') || 
+          error.message?.includes('Network') || error.message?.includes('network')) {
+        setConnectionError('Unable to connect to the authentication service. Please check your internet connection and try again.');
+        errorMessage = 'Connection error';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -69,6 +70,14 @@ export default function Login() {
         
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
+            {connectionError && (
+              <Alert variant="destructive">
+                <WifiOff className="h-4 w-4" />
+                <AlertTitle>Connection Error</AlertTitle>
+                <AlertDescription>{connectionError}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="identifier">Email or Student ID</Label>
               <Input
@@ -91,30 +100,13 @@ export default function Login() {
                   Forgot password?
                 </Link>
               </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  className="pr-10"
-                  {...register('password', { 
-                    required: 'Password is required' 
-                  })}
-                />
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
-                  className="absolute right-0 top-0 h-full px-3 py-2"
-                  onClick={togglePasswordVisibility}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-500" />
-                  )}
-                </Button>
-              </div>
+              <PasswordInput
+                id="password"
+                placeholder="Enter password"
+                {...register('password', { 
+                  required: 'Password is required' 
+                })}
+              />
               {errors.password && (
                 <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
