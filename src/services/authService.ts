@@ -1,40 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { TypedSupabaseClient } from '@/types/supabaseCustom';
-import { toast } from '@/hooks/use-toast';
-
-const typedSupabase = supabase as unknown as TypedSupabaseClient;
-
-export const deleteAccount = async (userId: string) => {
-  try {
-    console.log("Attempting to delete account for user ID:", userId);
-    
-    // Soft delete by updating the user's profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ approval_status: 'deleted' })
-      .eq('id', userId);
-
-    if (profileError) {
-      console.error("Error updating profile for deletion:", profileError);
-      throw profileError;
-    }
-
-    // Optional: Delete user's auth account 
-    const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-    
-    if (authError) {
-      console.error("Error deleting auth user:", authError);
-      throw authError;
-    }
-
-    console.log("Successfully deleted account for user ID:", userId);
-    return true;
-  } catch (error) {
-    console.error("Account deletion error:", error);
-    throw error;
-  }
-};
+import { checkUserExists } from './profileService';
 
 export const registerUser = async (
   email: string,
@@ -44,262 +9,216 @@ export const registerUser = async (
   major: string,
   batch: string,
   studentIdPhoto?: string
-) => {
+): Promise<void> => {
   try {
-    console.log("Starting registration process with:", { email, name, studentId, major, batch });
-    
-    // First check if a profile with this student ID or email already exists
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('profiles')
-      .select('id')
-      .or(`student_id.eq.${studentId},email.eq.${email}`)
-      .maybeSingle();
+    console.log("Attempting to register user with email:", email, "studentId:", studentId);
 
-    if (checkError) {
-      console.error("Error checking if user exists:", checkError);
-      // Continue with registration instead of throwing error - profiles might not exist yet
-    } else if (existingProfile) {
-      throw new Error("A user with this student ID or email already exists");
+    // Check if user already exists
+    const userExists = await checkUserExists(studentId, email);
+    if (userExists) {
+      throw new Error("User with this Student ID or Email already exists.");
     }
-    
-    // Step 1: Create the user in Supabase Auth with proper email and password
+
+    // Sign up user with Supabase auth
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: email,
+      password: password,
       options: {
         data: {
-          name,
-          studentId,
-          major,
-          batch,
-          studentIdPhoto
-        }
-      }
+          name: name,
+          student_id: studentId,
+          major: major,
+          batch: batch,
+        },
+      },
     });
 
     if (error) {
-      console.error("Auth signup error:", error);
-      throw error;
+      console.error("Supabase signup error:", error);
+      throw new Error(error.message || "Signup failed");
     }
 
     if (!data.user) {
-      console.error("No user returned from signup");
-      throw new Error("Failed to create user account");
+      throw new Error("User not found after signup");
     }
 
-    console.log("Auth signup successful, user ID:", data.user.id);
-
-    // Important: With the trigger function in place, the profile will be created automatically
-    // We don't need to manually create a profile, but we'll wait a moment to ensure it's created
-    // Then return the user
-
-    // Optional: Wait a moment and verify profile was created
-    setTimeout(async () => {
-      try {
-        const { data: profileCheck } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user!.id)
-          .maybeSingle();
-          
-        if (!profileCheck) {
-          console.log("Profile not created automatically by trigger, creating manually");
-          
-          // Fallback: Create profile manually if trigger failed
-          const profileData = {
-            id: data.user!.id,
-            name,
-            student_id: studentId,
-            major,
-            batch,
-            email,
-            student_id_photo: studentIdPhoto,
-            approval_status: 'pending',
-            bio: '',
-            online: false,
-            interests: [],
-            availability: ''
-          };
-          
-          await supabase.from('profiles').insert([profileData]);
-        }
-      } catch (verifyError) {
-        console.error("Error verifying profile creation:", verifyError);
-      }
-    }, 1000);
-
-    console.log("Registration process completed successfully");
-    return data.user;
-
-  } catch (error: any) {
-    console.error("Registration failed:", error);
-    throw error;
-  }
-};
-
-export const loginUser = async (identifier: string, password: string) => {
-  try {
-    console.log("Attempting login with identifier:", identifier);
-    
-    // Clean up the identifier (remove whitespace)
-    const cleanIdentifier = identifier.trim();
-    
-    // Check if the identifier is an email (contains @ symbol)
-    const isEmail = cleanIdentifier.includes('@');
-    
-    let user;
-    
-    try {
-      // Wrap the Supabase calls in a try/catch to handle network errors better
-      if (isEmail) {
-        // Login with email directly
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanIdentifier,
-          password: password,
+    // Upload student ID photo if provided
+    if (studentIdPhoto) {
+      const filePath = `student-id-photos/${data.user.id}-${new Date().getTime()}`;
+      const { error: uploadError } = await supabase.storage
+        .from("student-id-photos")
+        .upload(filePath, dataURLtoBlob(studentIdPhoto), {
+          contentType: "image/png", // Adjust content type as needed
+          upsert: false,
         });
 
-        if (error) {
-          console.error("Login with email error:", error);
-          throw error;
-        }
-
-        if (!data.user) {
-          throw new Error("No user returned from login");
-        }
-        
-        user = data.user;
-      } else {
-        // Login with student ID - first find the email associated with this student ID
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('student_id', cleanIdentifier)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error("Profile fetch error:", profileError);
-          throw profileError;
-        }
-
-        if (!profileData || !profileData.email) {
-          throw new Error("No user found with this Student ID");
-        }
-
-        // Now login with the retrieved email
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: profileData.email,
-          password: password,
-        });
-
-        if (error) {
-          console.error("Login error after student ID lookup:", error);
-          throw error;
-        }
-
-        if (!data.user) {
-          throw new Error("No user returned from login");
-        }
-        
-        user = data.user;
+      if (uploadError) {
+        console.error("Error uploading student ID photo:", uploadError);
+        throw new Error("Error uploading student ID photo.");
       }
 
-      console.log("Login successful, fetching profile");
+      // Get public URL for the uploaded photo
+      const { data: photoData } = supabase.storage
+        .from("student-id-photos")
+        .getPublicUrl(filePath);
 
-      // Fetch the user's profile to check approval status
-      const { data: profileData, error: profileError } = await supabase
+      // Create user profile in 'profiles' table
+      const { error: profileError } = await supabase
         .from('profiles')
-        .select('approval_status')
-        .eq('id', user.id)
-        .maybeSingle();
+        .insert([
+          {
+            id: data.user.id,
+            email: email,
+            name: name,
+            student_id: studentId,
+            major: major,
+            batch: batch,
+            student_id_photo: photoData.publicUrl,
+            approval_status: 'pending',
+          },
+        ]);
 
       if (profileError) {
-        console.error("Profile fetch error:", profileError);
-        throw profileError;
+        console.error("Profile creation error:", profileError);
+        throw new Error("Failed to create profile.");
       }
+    } else {
+      // Create user profile in 'profiles' table without student ID photo
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: data.user.id,
+            email: email,
+            name: name,
+            student_id: studentId,
+            major: major,
+            batch: batch,
+            approval_status: 'pending',
+          },
+        ]);
 
-      if (!profileData) {
-        console.error("Profile not found for user:", user.id);
-        throw new Error('User profile not found');
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        throw new Error("Failed to create profile.");
       }
-
-      // For now, skip the approval check to allow admin logins without confirmation
-      // if (profileData.approval_status !== 'approved') {
-      //   console.log("Account not approved:", profileData.approval_status);
-      //   // Log the user out if their account is not approved
-      //   await supabase.auth.signOut();
-      //   throw new Error('Your account has not been approved yet.');
-      // }
-
-      return user;
-    } catch (fetchError: any) {
-      // Improved network error detection and messaging
-      console.error("Login process failed:", fetchError);
-      
-      if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
-        throw new Error('Network connection error. Please check your internet connection and try again.');
-      } else if (fetchError.message?.includes('Network')) {
-        throw new Error('Network connection error. Please check your internet connection and try again.');
-      } else if (fetchError.error_description) {
-        throw new Error(fetchError.error_description);
-      } else if (fetchError.message) {
-        throw new Error(fetchError.message);
-      }
-      
-      throw fetchError;
     }
+
+    console.log("User registered successfully. Verification email sent.");
   } catch (error: any) {
-    console.error("Login process failed:", error);
+    console.error("User registration failed:", error);
     throw error;
   }
 };
 
-export const logoutUser = async () => {
+// Helper function to convert data URL to Blob
+function dataURLtoBlob(dataURL: string): Blob {
+  const parts = dataURL.split(';base64,');
+  const contentType = parts[0].split(':')[1];
+  const raw = window.atob(parts[1]);
+  const rawLength = raw.length;
+  const uInt8Array = new Uint8Array(rawLength);
+
+  for (let i = 0; i < rawLength; ++i) {
+    uInt8Array[i] = raw.charCodeAt(i);
+  }
+
+  return new Blob([uInt8Array], { type: contentType });
+}
+
+export const loginUser = async (identifier: string, password: string): Promise<void> => {
   try {
-    console.log("Logging out user");
+    console.log("Attempting to log in user with identifier:", identifier);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: identifier,
+      password: password,
+    });
+
+    if (error) {
+      console.error("Supabase signin error:", error);
+      throw new Error(error.message || "Login failed");
+    }
+
+    if (!data.user) {
+      throw new Error("User not found after login");
+    }
+
+    // Fetch user profile to check approval status
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('approval_status')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      throw new Error("Error fetching profile.");
+    }
+
+    if (profileData?.approval_status !== 'approved') {
+      console.warn("User is not approved:", data.user.id);
+      await logoutUser(); // Sign out the user
+      throw new Error("Your account is awaiting admin approval.");
+    }
+
+    console.log("User logged in successfully:", data.user.id);
+  } catch (error: any) {
+    console.error("User login failed:", error);
+    throw error;
+  }
+};
+
+export const logoutUser = async (): Promise<void> => {
+  try {
+    console.log("Attempting to log out user");
+
     const { error } = await supabase.auth.signOut();
+
     if (error) {
-      console.error("Logout error:", error);
-      throw error;
+      console.error("Supabase signout error:", error);
+      throw new Error(error.message || "Logout failed");
     }
-    return true;
+
+    console.log("User logged out successfully");
   } catch (error: any) {
-    console.error("Logout failed:", error.message);
+    console.error("User logout failed:", error);
     throw error;
   }
 };
 
-export const updatePassword = async (newPassword: string) => {
+export const deleteAccount = async (userId: string): Promise<void> => {
   try {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (error) {
-      console.error("Password update error:", error);
-      throw error;
+    console.log("Deleting user account:", userId);
+    
+    // First, delete the user's profile data
+    const { error: profileDeleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    
+    if (profileDeleteError) {
+      console.error("Error deleting profile:", profileDeleteError);
+      throw new Error("Failed to delete account. Please try again later.");
     }
-
-    return true;
-  } catch (error: any) {
-    console.error("Password update failed:", error.message);
-    throw error;
-  }
-};
-
-export const resetPassword = async (email: string) => {
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
-
-    if (error) {
-      console.error("Password reset request error:", error);
-      throw error;
+    
+    // Then delete the auth user
+    const { error: userDeleteError } = await supabase.auth.admin.deleteUser(userId);
+    
+    if (userDeleteError) {
+      console.error("Error deleting user:", userDeleteError);
+      throw new Error("Failed to delete account. Please try again later.");
     }
-
-    return true;
+    
+    console.log("Account successfully deleted");
   } catch (error: any) {
-    console.error("Password reset request failed:", error.message);
+    console.error("Error in deleteAccount:", error);
+    
+    // Improve error handling with network detection
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error("Network error. Please check your internet connection and try again.");
+    }
+    
     throw error;
   }
 };

@@ -1,108 +1,89 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor } from "lucide-react";
 
 const ThemeSettings = () => {
-  const { toast } = useToast();
   const { theme, updateTheme } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState(theme || "light");
+  const { toast } = useToast();
+  const [loading, setLoading] = React.useState<string | null>(null);
 
-  useEffect(() => {
-    setSelectedTheme(theme || "light");
-  }, [theme]);
-
-  const handleThemeChange = async () => {
-    setLoading(true);
+  const handleThemeChange = async (newTheme: string) => {
+    if (!updateTheme) return;
     
+    setLoading(newTheme);
     try {
-      if (updateTheme) {
-        await updateTheme(selectedTheme);
-        
-        toast({
-          title: "Theme updated",
-          description: `Theme has been changed to ${selectedTheme} mode.`,
-        });
-      }
+      await updateTheme(newTheme);
+      toast({
+        title: "Theme updated",
+        description: `Theme changed to ${newTheme} mode.`,
+      });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Update failed",
-        description: "There was an error updating your theme.",
+        title: "Theme update failed",
+        description: "There was a problem updating your theme preference.",
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
-  };
-
-  const handleRadioChange = (value: string) => {
-    // Use a safer approach for event handling that doesn't get confused by event pooling
-    const newValue = value; // Create a local copy of the value
-    
-    // Use setTimeout to handle the state change outside of the current event flow
-    setTimeout(() => {
-      setSelectedTheme(newValue);
-    }, 0);
   };
 
   return (
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-6">
-          <h3 className="text-lg font-medium mb-4">Appearance Settings</h3>
+          <h3 className="text-lg font-medium mb-4 flex items-center">
+            <Sun className="mr-2 h-5 w-5 text-sfu-red" /> Appearance
+          </h3>
           
-          <RadioGroup 
-            value={selectedTheme} 
-            onValueChange={handleRadioChange}
-            className="space-y-4"
-          >
-            <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-              <RadioGroupItem value="light" id="light" />
-              <Label htmlFor="light" className="flex items-center cursor-pointer">
-                <Sun className="h-5 w-5 mr-3 text-amber-500" />
-                <div>
-                  <p className="font-medium">Light Mode</p>
-                  <p className="text-sm text-gray-500">Use light theme</p>
-                </div>
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-              <RadioGroupItem value="dark" id="dark" />
-              <Label htmlFor="dark" className="flex items-center cursor-pointer">
-                <Moon className="h-5 w-5 mr-3 text-indigo-600" />
-                <div>
-                  <p className="font-medium">Dark Mode</p>
-                  <p className="text-sm text-gray-500">Use dark theme</p>
-                </div>
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-              <RadioGroupItem value="system" id="system" />
-              <Label htmlFor="system" className="flex items-center cursor-pointer">
-                <Monitor className="h-5 w-5 mr-3 text-gray-500" />
-                <div>
-                  <p className="font-medium">System Default</p>
-                  <p className="text-sm text-gray-500">Follow system theme settings</p>
-                </div>
-              </Label>
-            </div>
-          </RadioGroup>
+          <p className="text-sm text-gray-500 mb-4">
+            Choose how SFU Connect looks for you. Select a theme preference.
+          </p>
           
-          <Button 
-            className="w-full mt-6" 
-            onClick={handleThemeChange}
-            disabled={loading || selectedTheme === theme}
-          >
-            {loading ? "Saving..." : "Apply Theme"}
-          </Button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              variant={theme === "light" ? "default" : "outline"}
+              className={`flex flex-col items-center justify-center h-24 ${
+                theme === "light" ? "border-2 border-primary" : ""
+              }`}
+              onClick={() => handleThemeChange("light")}
+              disabled={loading !== null}
+            >
+              <Sun className="h-8 w-8 mb-2" />
+              <span>Light</span>
+              {loading === "light" && <span className="text-xs mt-1">Saving...</span>}
+            </Button>
+            
+            <Button
+              variant={theme === "dark" ? "default" : "outline"}
+              className={`flex flex-col items-center justify-center h-24 ${
+                theme === "dark" ? "border-2 border-primary" : ""
+              }`}
+              onClick={() => handleThemeChange("dark")}
+              disabled={loading !== null}
+            >
+              <Moon className="h-8 w-8 mb-2" />
+              <span>Dark</span>
+              {loading === "dark" && <span className="text-xs mt-1">Saving...</span>}
+            </Button>
+            
+            <Button
+              variant={theme === "system" ? "default" : "outline"}
+              className={`flex flex-col items-center justify-center h-24 ${
+                theme === "system" ? "border-2 border-primary" : ""
+              }`}
+              onClick={() => handleThemeChange("system")}
+              disabled={loading !== null}
+            >
+              <Monitor className="h-8 w-8 mb-2" />
+              <span>System</span>
+              {loading === "system" && <span className="text-xs mt-1">Saving...</span>}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
