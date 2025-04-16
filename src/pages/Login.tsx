@@ -25,11 +25,13 @@ export default function Login() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>();
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     setConnectionError(null);
+    setLoginError(null);
     
     try {
       await login(data.identifier, data.password);
@@ -46,6 +48,7 @@ export default function Login() {
         setConnectionError('Unable to connect to the authentication service. Please check your internet connection and try again.');
         errorMessage = 'Connection error';
       } else if (error.message) {
+        setLoginError(error.message);
         errorMessage = error.message;
       }
       
@@ -76,6 +79,13 @@ export default function Login() {
                 <WifiOff className="h-4 w-4" />
                 <AlertTitle>Connection Error</AlertTitle>
                 <AlertDescription>{connectionError}</AlertDescription>
+              </Alert>
+            )}
+            
+            {loginError && (
+              <Alert variant="destructive">
+                <AlertTitle>Login Error</AlertTitle>
+                <AlertDescription>{loginError}</AlertDescription>
               </Alert>
             )}
             

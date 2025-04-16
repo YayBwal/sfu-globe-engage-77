@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { checkUserExists } from './profileService';
 
@@ -134,66 +133,60 @@ export const loginUser = async (identifier: string, password: string): Promise<v
     // Try to determine if identifier is an email or student ID
     const isEmail = identifier.includes('@');
     
-    // First attempt: Try with the provided identifier as is (works for email)
-    let { data, error } = await supabase.auth.signInWithPassword({
-      email: identifier,
-      password: password,
-    });
+    if (isEmail) {
+      // If it looks like an email, try direct login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password: password,
+      });
 
-    // If the first attempt fails and the identifier doesn't look like an email,
-    // try looking up the user by student_id in the profiles table
-    if (error && !isEmail) {
-      console.log("First login attempt failed, trying to find user by student ID:", identifier);
-      
-      // Look up the email associated with this student ID
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('student_id', identifier)
-        .single();
-      
-      if (profileError || !profileData) {
-        console.error("Failed to find user with student ID:", identifier);
-        throw new Error("Invalid login credentials");
+      if (error) {
+        console.error("Email login failed:", error.message);
+        throw new Error(error.message || "Login failed");
+      }
+
+      if (!data.user) {
+        throw new Error("User not found after login");
       }
       
-      // Try logging in with the found email
-      const response = await supabase.auth.signInWithPassword({
-        email: profileData.email,
+      console.log("User logged in successfully with email:", data.user.id);
+      return;
+    } 
+    else {
+      // For student ID login, we need a different approach
+      // Instead of using the REST API directly (which causes CORS issues),
+      // use the Supabase client which handles CORS correctly
+      
+      console.log("Attempting login with student ID:", identifier);
+      
+      // Use RPC function to avoid CORS issues with direct table access
+      const { data: userData, error: userError } = await supabase.rpc('get_user_by_student_id', {
+        p_student_id: identifier
+      });
+      
+      if (userError || !userData || !userData.email) {
+        console.error("Failed to find user with student ID:", identifier, userError);
+        throw new Error("Invalid student ID or password");
+      }
+      
+      // Now login with the email we found
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: userData.email,
         password: password,
       });
       
-      data = response.data;
-      error = response.error;
+      if (error) {
+        console.error("Student ID login failed:", error.message);
+        throw new Error(error.message || "Login failed");
+      }
+
+      if (!data.user) {
+        throw new Error("User not found after login");
+      }
+      
+      console.log("User logged in successfully with student ID:", data.user.id);
+      return;
     }
-
-    if (error) {
-      console.error("Supabase signin error:", error);
-      throw new Error(error.message || "Login failed");
-    }
-
-    if (!data.user) {
-      throw new Error("User not found after login");
-    }
-
-    // Fetch user profile to check approval status
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('approval_status')
-      .eq('id', data.user.id)
-      .single();
-
-    // For now, we'll bypass the approval check for testing purposes
-    // Normally we'd have this check:
-    /*
-    if (profileData?.approval_status !== 'approved') {
-      console.warn("User is not approved:", data.user.id);
-      await logoutUser(); // Sign out the user
-      throw new Error("Your account is awaiting admin approval.");
-    }
-    */
-
-    console.log("User logged in successfully:", data.user.id);
   } catch (error: any) {
     console.error("User login failed:", error);
     
