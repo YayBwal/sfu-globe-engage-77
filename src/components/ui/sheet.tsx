@@ -57,19 +57,44 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
 >(({ side = "right", className, children, ...props }, ref) => {
-  // Only run cleanup when component unmounts, not when it renders
+  // Only run cleanup when explicitly closed, not on component unmount
+  // This prevents issues with modals closing unexpectedly
   useEffect(() => {
+    const handleStateChange = (event: CustomEvent) => {
+      // Only run cleanup when the sheet is actually closed by user interaction
+      if (event.detail.state === "closed" && event.detail.type === "radix-sheet") {
+        // Using a short delay to ensure correct timing
+        setTimeout(() => {
+          // Check if all modals are actually closed before running cleanup
+          const activeOverlays = document.querySelectorAll('[data-state="open"]');
+          if (activeOverlays.length === 0) {
+            console.log("No active overlays found, running cleanup");
+            cleanupModals();
+          } else {
+            console.log("Active overlays still exist, skipping cleanup");
+          }
+        }, 300); // Short delay to ensure animations complete
+      }
+    };
+    
+    // Listen for our custom sheet state change event
+    document.addEventListener("sheetStateChange", handleStateChange as EventListener);
+    
     return () => {
-      // Using setTimeout to ensure this runs after the component unmounts
-      setTimeout(() => {
-        // Only run cleanup if this sheet is actually closed
-        const activeOverlays = document.querySelectorAll('[data-state="open"]');
-        if (activeOverlays.length === 0) {
-          cleanupModals();
-        }
-      }, 500); // Allow time for animations to complete
+      document.removeEventListener("sheetStateChange", handleStateChange as EventListener);
     };
   }, []);
+  
+  // Handle state changes to dispatch events when sheet closes
+  const handleOpenChange = (open: boolean) => {
+    const event = new CustomEvent("sheetStateChange", {
+      detail: {
+        state: open ? "open" : "closed",
+        type: "radix-sheet"
+      }
+    });
+    document.dispatchEvent(event);
+  };
   
   return (
     <SheetPortal>
@@ -77,6 +102,7 @@ const SheetContent = React.forwardRef<
       <SheetPrimitive.Content
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
+        onOpenChange={handleOpenChange}
         {...props}
       >
         {children}

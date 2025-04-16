@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { checkUserExists } from './profileService';
 
@@ -150,6 +149,30 @@ export const loginUser = async (identifier: string, password: string): Promise<v
         throw new Error("User not found after login");
       }
       
+      // After successful auth login, check if user is approved
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('approval_status')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError) {
+        console.error("Error fetching profile status:", profileError);
+        throw new Error("Error verifying account status");
+      }
+      
+      if (profileData.approval_status === 'rejected') {
+        // Sign out the user immediately if they're rejected
+        await supabase.auth.signOut();
+        throw new Error("Your account has been rejected by an administrator");
+      }
+      
+      if (profileData.approval_status === 'pending') {
+        // Sign out the user immediately if they're still pending
+        await supabase.auth.signOut();
+        throw new Error("Your account is pending approval by an administrator");
+      }
+      
       console.log("User logged in successfully with email:", data.user.id);
       return;
     } 
@@ -160,13 +183,22 @@ export const loginUser = async (identifier: string, password: string): Promise<v
       // Use a custom query to find a user with this student ID
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('email')
+        .select('email, approval_status')
         .eq('student_id', identifier)
         .single();
       
       if (profileError || !profileData) {
         console.error("Failed to find user with student ID:", identifier, profileError);
         throw new Error("Invalid student ID or password");
+      }
+      
+      // Check approval status before attempting login
+      if (profileData.approval_status === 'rejected') {
+        throw new Error("Your account has been rejected by an administrator");
+      }
+      
+      if (profileData.approval_status === 'pending') {
+        throw new Error("Your account is pending approval by an administrator");
       }
       
       const userEmail = profileData.email;

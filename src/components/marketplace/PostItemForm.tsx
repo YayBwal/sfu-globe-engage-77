@@ -1,42 +1,15 @@
 
 import React, { useState, useRef } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Camera, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-
-const CATEGORIES = [
-  "Books",
-  "Electronics",
-  "Notes",
-  "Furniture",
-  "Clothing",
-  "Services",
-  "Other"
-];
-
-const CONDITIONS = [
-  "New",
-  "Like New",
-  "Good",
-  "Used",
-  "Worn"
-];
-
-const CURRENCIES = [
-  "MMK",
-  "USD",
-  "SGD",
-  "EUR",
-  "GBP"
-];
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface PostItemFormProps {
   isOpen: boolean;
@@ -44,45 +17,56 @@ interface PostItemFormProps {
   onItemPosted: (item: any) => void;
 }
 
-const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPosted }) => {
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+const PostItemForm = ({ isOpen, onClose, onItemPosted }: PostItemFormProps) => {
+  const { user, profile } = useAuth();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [category, setCategory] = useState("");
+  const [condition, setCondition] = useState("");
+  const [currency, setCurrency] = useState("MMK");
+  const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    price: "",
-    currency: "MMK",
-    category: "",
-    condition: "",
-    contact: "",
-    seller_id: user?.id || "",
-    seller_name: user?.user_metadata?.name || ""
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // Ensure user is logged in and approved
+  if (!user || !profile || profile.approval_status !== 'approved') {
+    return (
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent>
+          <SheetHeader className="mb-6">
+            <SheetTitle>Post an Item</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 w-full">
+              <p className="text-amber-800">
+                {!user ? 
+                  "Please log in to post items to the marketplace." : 
+                  profile?.approval_status === 'pending' ? 
+                    "Your account is pending approval. You'll be able to post items once an administrator approves your account." : 
+                    "Your account has been rejected. You cannot post items to the marketplace."
+                }
+              </p>
+            </div>
+            <Button 
+              onClick={onClose} 
+              className="mt-4"
+              variant="outline"
+            >
+              Close
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setImageFile(file);
+      setImage(file);
+      
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -92,8 +76,8 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
     }
   };
 
-  const removeImage = () => {
-    setImageFile(null);
+  const handleClearImage = () => {
+    setImage(null);
     setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -102,304 +86,279 @@ const PostItemForm: React.FC<PostItemFormProps> = ({ isOpen, onClose, onItemPost
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.price || !formData.category) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsLoading(true);
     
     try {
-      let imageUrl = null;
+      setLoading(true);
       
-      // Upload image if provided
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('marketplace-images')
-          .upload(fileName, imageFile);
-          
-        if (uploadError) throw uploadError;
+      if (!user) {
+        toast({
+          title: "Authentication Error",
+          description: "You must be logged in to post items",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate form
+      if (!title || !price || !category) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill out all required fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Upload image if there is one
+      let imageUrl = null;
+      if (image) {
+        // Create a unique file path
+        const filePath = `marketplace/${user.id}/${Date.now()}-${image.name}`;
         
-        // Get public URL for the uploaded image
+        // Upload to storage
+        const { error: uploadError, data } = await supabase.storage
+          .from('marketplace')
+          .upload(filePath, image, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (uploadError) {
+          throw uploadError;
+        }
+        
+        // Get public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('marketplace-images')
-          .getPublicUrl(fileName);
+          .from('marketplace')
+          .getPublicUrl(filePath);
           
         imageUrl = publicUrl;
       }
       
-      // Create new marketplace item
-      const newItem = {
-        title: formData.title,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        currency: formData.currency,
-        category: formData.category,
-        condition: formData.condition,
-        image_url: imageUrl,
-        seller_id: formData.seller_id,
-        seller_name: formData.seller_name,
-        contact: formData.contact,
-      };
-      
-      // Add to database
-      const { data, error } = await supabase
+      // Insert item into database
+      const { data: item, error } = await supabase
         .from('marketplace_items')
-        .insert(newItem)
+        .insert({
+          title,
+          description,
+          price: parseFloat(price),
+          category,
+          condition,
+          currency,
+          image_url: imageUrl,
+          seller_id: user.id,
+          seller_name: profile?.name || "Unknown",
+          status: 'pending', // All items start as pending
+          is_available: true
+        })
         .select()
         .single();
-        
-      if (error) throw error;
       
-      // Success!
-      toast({
-        title: "Item posted successfully!",
-        description: "Your item is now listed in the marketplace."
-      });
+      if (error) {
+        throw error;
+      }
       
-      // Pass the new item back to parent component
-      onItemPosted(data);
-      
-      // Reset form
-      setFormData({
-        title: "",
-        description: "",
-        price: "",
-        currency: "MMK",
-        category: "",
-        condition: "",
-        contact: "",
-        seller_id: user?.id || "",
-        seller_name: user?.user_metadata?.name || ""
-      });
-      setImageFile(null);
+      // Clear form
+      setTitle("");
+      setDescription("");
+      setPrice("");
+      setCategory("");
+      setCondition("");
+      setCurrency("MMK");
+      setImage(null);
       setImagePreview(null);
       
-      // Close dialog
+      // Close the dialog
       onClose();
-    } catch (error) {
+      
+      // Notify parent component
+      onItemPosted(item);
+      
+    } catch (error: any) {
       console.error("Error posting item:", error);
       toast({
-        title: "Error posting item",
-        description: "There was an error posting your item. Please try again.",
+        title: "Error",
+        description: error.message || "There was an error posting your item",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Post an Item for Sale</DialogTitle>
-          <DialogDescription>
-            List your item on the student marketplace for others to purchase
-          </DialogDescription>
-        </DialogHeader>
-        
-        <ScrollArea className="max-h-[calc(85vh-140px)] pr-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-4 py-2">
-              {/* Product Image */}
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="image">Product Image</Label>
-                <div className="flex items-center gap-2">
-                  {imagePreview ? (
-                    <div className="relative w-full">
-                      <img 
-                        src={imagePreview} 
-                        alt="Product preview" 
-                        className="w-full h-48 object-contain border rounded-md" 
-                      />
-                      <Button 
-                        type="button" 
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-1 right-1 p-1 rounded-full bg-black/30 hover:bg-black/50"
-                        onClick={removeImage}
-                      >
-                        <X className="h-4 w-4 text-white" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div 
-                      className="w-full h-36 border-2 border-dashed rounded-md flex flex-col items-center justify-center cursor-pointer"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Camera className="w-8 h-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">Click to upload an image</p>
-                    </div>
-                  )}
-                  <input 
-                    ref={fileInputRef}
-                    type="file"
-                    id="image"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
-                </div>
-              </div>
-              
-              {/* Product Name */}
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="title" className="text-md">
-                  Product Name <span className="text-red-500">*</span>
-                </Label>
-                <Input 
-                  type="text"
-                  id="title"
-                  name="title"
-                  placeholder="Enter product name"
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              {/* Description */}
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="description" className="text-md">Description</Label>
-                <Textarea 
-                  id="description"
-                  name="description"
-                  placeholder="Describe your product (condition, features, etc.)"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                />
-              </div>
-              
-              {/* Price and Currency */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="price" className="text-md">
-                    Price <span className="text-red-500">*</span>
-                  </Label>
-                  <Input 
-                    type="number"
-                    id="price"
-                    name="price"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={handleChange}
-                    min="0"
-                    required
-                  />
-                </div>
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="currency" className="text-md">Currency</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(value) => handleSelectChange("currency", value)}
-                  >
-                    <SelectTrigger id="currency">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Category and Condition */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="category" className="text-md">
-                    Category <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => handleSelectChange("category", value)}
-                  >
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="condition" className="text-md">Condition</Label>
-                  <Select
-                    value={formData.condition}
-                    onValueChange={(value) => handleSelectChange("condition", value)}
-                  >
-                    <SelectTrigger id="condition">
-                      <SelectValue placeholder="Select condition" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONDITIONS.map((condition) => (
-                        <SelectItem key={condition} value={condition}>
-                          {condition}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Seller Info */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="seller_name" className="text-md">Seller Name</Label>
-                  <Input 
-                    type="text"
-                    id="seller_name"
-                    name="seller_name"
-                    placeholder="Your name"
-                    value={formData.seller_name}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="grid items-center gap-1.5">
-                  <Label htmlFor="contact" className="text-md">Contact Information</Label>
-                  <Input 
-                    type="text"
-                    id="contact"
-                    name="contact"
-                    placeholder="Phone number or email"
-                    value={formData.contact}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <SheetTitle>Post an Item</SheetTitle>
+          <SheetDescription>
+            Fill out the details below to post a new item to the marketplace.
+          </SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-right">
+              Title <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Item name"
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your item"
+              rows={3}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="price" className="text-right">
+                Price <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="price"
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0"
+                required
+              />
             </div>
-          </form>
-        </ScrollArea>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            onClick={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? "Posting..." : "Post Item"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MMK">MMK</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="category" className="text-right">
+              Category <span className="text-red-500">*</span>
+            </Label>
+            <Select value={category} onValueChange={setCategory} required>
+              <SelectTrigger id="category">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Books">Books</SelectItem>
+                <SelectItem value="Electronics">Electronics</SelectItem>
+                <SelectItem value="Notes">Notes</SelectItem>
+                <SelectItem value="Furniture">Furniture</SelectItem>
+                <SelectItem value="Clothing">Clothing</SelectItem>
+                <SelectItem value="Services">Services</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="condition">Condition</Label>
+            <Select value={condition} onValueChange={setCondition}>
+              <SelectTrigger id="condition">
+                <SelectValue placeholder="Select condition (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="New">New</SelectItem>
+                <SelectItem value="Like New">Like New</SelectItem>
+                <SelectItem value="Good">Good</SelectItem>
+                <SelectItem value="Fair">Fair</SelectItem>
+                <SelectItem value="Poor">Poor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Item Image (Optional)</Label>
+            <div className="border-2 border-dashed rounded-md p-4 text-center">
+              {imagePreview ? (
+                <div className="space-y-2">
+                  <img 
+                    src={imagePreview} 
+                    alt="Item preview" 
+                    className="h-40 mx-auto object-contain"
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearImage}
+                  >
+                    Remove Image
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex flex-col items-center justify-center py-2">
+                    <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                    <p className="text-gray-500">Click to upload or drag and drop</p>
+                    <p className="text-xs text-gray-400">PNG, JPG or WEBP (max 5MB)</p>
+                  </div>
+                  <Input
+                    ref={fileInputRef}
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Select Image
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
+            <p className="text-sm text-amber-700">
+              Your item will be reviewed by an administrator before being published to the marketplace.
+            </p>
+          </div>
+          
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Post Item
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 };
 
