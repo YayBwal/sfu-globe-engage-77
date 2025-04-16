@@ -57,13 +57,17 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
 >(({ side = "right", className, children, ...props }, ref) => {
-  // Clean up any lingering overlays when this component unmounts
+  // Only run cleanup when component unmounts, not when it renders
   useEffect(() => {
     return () => {
       // Using setTimeout to ensure this runs after the component unmounts
       setTimeout(() => {
-        cleanupModals();
-      }, 300); // Allow time for animations to complete
+        // Only run cleanup if this sheet is actually closed
+        const activeOverlays = document.querySelectorAll('[data-state="open"]');
+        if (activeOverlays.length === 0) {
+          cleanupModals();
+        }
+      }, 500); // Allow time for animations to complete
     };
   }, []);
   
