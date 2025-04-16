@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import { 
-  Image, Smile, MapPin, X, FileVideo
+  Image, Smile, MapPin, X, FileVideo, AlertCircle
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureBucketExists } from "@/utils/storageSetup";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CreatePostFormProps {
   onPostCreated: () => void;
@@ -23,6 +25,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +84,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
       return;
     }
     
+    setError(null);
     try {
       setIsSubmitting(true);
       
@@ -146,6 +150,13 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
       
     } catch (error) {
       console.error("Error creating post:", error);
+      
+      if (error instanceof Error) {
+        setError(error.message || "Failed to create post. Please try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create post. Please try again.",
@@ -172,7 +183,16 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
               className="w-full resize-none border-none focus-visible:ring-0 p-0 min-h-[80px]"
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
+              disabled={isSubmitting}
             />
+            
+            {error && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             
             {/* Media preview */}
             {mediaPreview && (
@@ -180,6 +200,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
                 <button 
                   className="absolute top-2 right-2 bg-gray-900/70 text-white rounded-full p-1"
                   onClick={handleRemoveMedia}
+                  disabled={isSubmitting}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -211,6 +232,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
             className="hidden"
             accept="image/*"
             onChange={(e) => handleFileChange(e, 'image')}
+            disabled={isSubmitting}
           />
           <input
             type="file"
@@ -218,6 +240,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
             className="hidden"
             accept="video/*"
             onChange={(e) => handleFileChange(e, 'video')}
+            disabled={isSubmitting}
           />
           
           {/* Media buttons */}
@@ -226,6 +249,7 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
             size="sm" 
             className="text-gray-500"
             onClick={() => fileInputRef.current?.click()}
+            disabled={isSubmitting}
           >
             <Image className="h-4 w-4 mr-1" /> Photo
           </Button>
@@ -234,13 +258,24 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({ onPostCreated })
             size="sm" 
             className="text-gray-500"
             onClick={() => videoInputRef.current?.click()}
+            disabled={isSubmitting}
           >
             <FileVideo className="h-4 w-4 mr-1" /> Video
           </Button>
-          <Button variant="ghost" size="sm" className="text-gray-500">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-gray-500"
+            disabled={isSubmitting}
+          >
             <Smile className="h-4 w-4 mr-1" /> Feeling
           </Button>
-          <Button variant="ghost" size="sm" className="text-gray-500">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-gray-500"
+            disabled={isSubmitting}
+          >
             <MapPin className="h-4 w-4 mr-1" /> Location
           </Button>
         </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +30,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface CreateSessionDialogProps {
   open: boolean;
@@ -65,6 +66,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
   const [formStep, setFormStep] = useState(1);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [generatedAccessCode, setGeneratedAccessCode] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
   
   const form = useForm<SessionFormValues>({
     defaultValues: {
@@ -130,6 +132,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
     
     try {
       setIsSubmitting(true);
+      setError(null);
       
       // Combine date and time for start date
       const dateTime = new Date(values.date);
@@ -157,11 +160,15 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
       };
       
       // Insert into database
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('study_sessions')
         .insert(sessionData);
         
-      if (error) throw error;
+      if (insertError) {
+        console.error("Error creating study session:", insertError);
+        setError(insertError.message || "Failed to create study session. Please try again.");
+        throw insertError;
+      }
 
       setFormSubmitted(true);
       
@@ -170,6 +177,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
         form.reset();
         setFormStep(1);
         setFormSubmitted(false);
+        setError(null);
 
         // Call the onSessionCreated callback to refresh the sessions list
         if (onSessionCreated) {
@@ -185,9 +193,21 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
       
     } catch (error) {
       console.error("Error creating study session:", error);
+      
+      // Keep the form open so the user can try again or make changes
+      setFormSubmitted(false);
+      
+      // Show error in UI
+      if (error instanceof Error) {
+        setError(error.message || "Failed to create study session. Please try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+      
+      // Show toast for immediate feedback
       toast({
         title: "Error",
-        description: "Failed to create study session",
+        description: "Failed to create study session. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -215,7 +235,18 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!isSubmitting) {
+        onOpenChange(newOpen);
+        if (!newOpen) {
+          // Reset form state when dialog closes
+          form.reset();
+          setFormStep(1);
+          setFormSubmitted(false);
+          setError(null);
+        }
+      }
+    }}>
       <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden rounded-xl">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-gray-800">
@@ -223,6 +254,16 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
             {formSubmitted ? "Success!" : "Create Study Session"}
           </DialogTitle>
         </DialogHeader>
+        
+        {error && (
+          <div className="px-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
         
         <AnimatePresence mode="wait">
           {formSubmitted ? (
@@ -269,8 +310,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
                   exit="exit"
                   className="px-6 py-4 space-y-4"
                 >
-                  {formStep === 1 && (
-                    <>
+                  <>
                       <FormField
                         control={form.control}
                         name="subject"
@@ -515,9 +555,8 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
                         />
                       )}
                     </>
-                  )}
                   
-                  {formStep === 2 && (
+                  
                     <>
                       <FormField
                         control={form.control}
@@ -644,7 +683,7 @@ const CreateSessionDialog: React.FC<CreateSessionDialogProps> = ({
                         )}
                       />
                     </>
-                  )}
+                  
                 </motion.div>
                 
                 <DialogFooter className="p-6 bg-gray-50 border-t flex justify-between">
