@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { checkUserExists } from './profileService';
 
@@ -154,30 +155,35 @@ export const loginUser = async (identifier: string, password: string): Promise<v
     } 
     else {
       // For student ID login, we need a different approach
-      // Instead of using the REST API directly (which causes CORS issues),
-      // use the Supabase client which handles CORS correctly
-      
       console.log("Attempting login with student ID:", identifier);
       
-      // Use RPC function to avoid CORS issues with direct table access
-      const { data: userData, error: userError } = await supabase.rpc('get_user_by_student_id', {
-        p_student_id: identifier
-      });
+      // Use a custom query to find a user with this student ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('student_id', identifier)
+        .single();
       
-      if (userError || !userData || !userData.email) {
-        console.error("Failed to find user with student ID:", identifier, userError);
+      if (profileError || !profileData) {
+        console.error("Failed to find user with student ID:", identifier, profileError);
         throw new Error("Invalid student ID or password");
+      }
+      
+      const userEmail = profileData.email;
+      
+      if (!userEmail) {
+        throw new Error("No email found for this student ID");
       }
       
       // Now login with the email we found
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: userData.email,
+        email: userEmail,
         password: password,
       });
       
       if (error) {
         console.error("Student ID login failed:", error.message);
-        throw new Error(error.message || "Login failed");
+        throw new Error("Invalid student ID or password");
       }
 
       if (!data.user) {

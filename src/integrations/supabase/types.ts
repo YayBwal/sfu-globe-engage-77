@@ -1151,6 +1151,12 @@ export type Database = {
           level: string
         }[]
       }
+      get_user_by_student_id: {
+        Args: { p_student_id: string }
+        Returns: {
+          email: string
+        }[]
+      }
       get_user_combined_score: {
         Args: { user_id: string }
         Returns: number

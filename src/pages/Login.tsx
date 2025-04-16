@@ -47,6 +47,9 @@ export default function Login() {
           error.message?.includes('Unable to connect')) {
         setConnectionError('Unable to connect to the authentication service. Please check your internet connection and try again.');
         errorMessage = 'Connection error';
+      } else if (error.message?.includes('Invalid student ID')) {
+        setLoginError('Invalid student ID or password. Please verify your credentials and try again.');
+        errorMessage = 'Invalid credentials';
       } else if (error.message) {
         setLoginError(error.message);
         errorMessage = error.message;
