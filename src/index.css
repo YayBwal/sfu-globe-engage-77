@@ -54,8 +54,29 @@
   * {
     @apply border-border;
   }
+  
   body {
     @apply bg-background text-foreground;
+  }
+
+  .dark body {
+    @apply bg-gray-950;
+    background-image: radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 20%),
+                      radial-gradient(circle at 0% 100%, rgba(239, 68, 68, 0.1) 0%, transparent 20%);
+  }
+  
+  /* Dark mode card styling */
+  .dark .card {
+    @apply bg-gray-900 border-gray-800 shadow-subtle-dark;
+  }
+
+  /* Dark mode button styling */
+  .dark .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white;
+  }
+  
+  .dark .btn-secondary {
+    @apply bg-gray-700 hover:bg-gray-800 text-white;
   }
 }
 
@@ -80,6 +101,10 @@
   .nav-link::after {
     @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-red-600 transform transition-transform duration-300 ease-in-out;
     transform-origin: bottom right;
+  }
+  
+  .dark .nav-link::after {
+    @apply bg-blue-500;
   }
   
   .nav-link:hover::after {
@@ -115,6 +140,10 @@
            opacity-0 transform scale-x-0 transition-all duration-300;
   }
   
+  .dark .tab-indicator {
+    @apply bg-blue-500;
+  }
+  
   .tab-indicator-active {
     @apply opacity-100 scale-x-100;
     transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
@@ -129,16 +158,6 @@
     @apply opacity-50 scale-x-75;
   }
   
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
   /* Mobile menu animation */
   .nav-slide-in {
     animation: navSlideIn 0.3s ease-out forwards;
@@ -149,18 +168,65 @@
     @apply fixed top-0 left-0 w-full h-full bg-white z-50;
   }
   
+  .dark .mobile-menu {
+    @apply bg-gray-900;
+  }
+  
   .mobile-menu-header {
     @apply flex items-center justify-between p-4 border-b border-gray-200 bg-white;
   }
   
+  .dark .mobile-menu-header {
+    @apply border-gray-800 bg-gray-900;
+  }
+  
   .mobile-menu-content {
     @apply p-4 bg-white;
+  }
+  
+  .dark .mobile-menu-content {
+    @apply bg-gray-900;
+  }
+
+  /* Dark mode specific styles */
+  .dark .card-content {
+    @apply bg-gray-800 border-gray-700;
+  }
+  
+  .dark .input-dark {
+    @apply bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
+  }
+  
+  .dark .btn-dark-outline {
+    @apply border border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors;
+  }
+
+  .dark .glass-card {
+    @apply bg-gray-900/80 backdrop-blur-lg border border-gray-800/50;
+  }
+  
+  .dark .neo-glow {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    @apply border-blue-500/30;
+  }
+
+  /* Dark mode theme switcher styles */
+  .dark .theme-option {
+    @apply bg-gray-800 border border-gray-700 hover:border-blue-500 transition-all;
+  }
+  
+  .dark .theme-option.active {
+    @apply border-blue-500 bg-gray-700 shadow-sm shadow-blue-500/30;
   }
 }
 
 @layer utilities {
   .text-gradient-red {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-700;
+  }
+  
+  .dark .text-gradient-primary {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600;
   }
   
   .animate-float {
@@ -197,9 +263,34 @@
     text-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
   }
   
+  .dark .nav-glow {
+    text-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+  
+  .dark .nav-glow:hover {
+    text-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  }
+  
   /* Smooth tab transitions */
   .tab-indicator {
     @apply transition-all duration-300 ease-in-out transform;
     will-change: transform, opacity;
+  }
+  
+  /* Dark mode specific utilities */
+  .dark-gradient-bg {
+    background: linear-gradient(to bottom right, #1a1c23, #0f1117);
+  }
+  
+  .dark-glass {
+    @apply bg-gray-900/80 backdrop-blur-md border border-gray-800/50;
+  }
+  
+  .dark-hover-glow:hover {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  }
+  
+  .active-tab-dark {
+    @apply relative border-b-2 border-blue-500;
   }
 }

@@ -48,28 +48,28 @@ const AccountSettings = () => {
   ];
 
   return (
-    <div className="p-4 max-h-[80vh] overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-6">Account Settings</h2>
+    <div className="p-4 max-h-[80vh] overflow-y-auto dark:bg-gray-900">
+      <h2 className="text-xl font-semibold mb-6 dark:text-gray-200">Account Settings</h2>
       
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar Navigation */}
         <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-gray-50 rounded-lg p-2">
+          <div className="bg-gray-50 dark:bg-gray-800/70 rounded-lg p-2">
             <ul className="space-y-1">
               {tabs.map((tab) => (
                 <li key={tab.id}>
                   <button
                     onClick={() => handleTabChange(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-md transition-all duration-200 ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-md transition-all duration-300 ${
                       activeTab === tab.id
                         ? tab.danger
-                          ? "bg-red-50 text-red-600 font-medium"
-                          : "bg-white shadow-sm text-sfu-red font-medium"
-                        : "hover:bg-white/80"
+                          ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium"
+                          : "bg-white dark:bg-gray-700 shadow-sm dark:shadow-gray-950 text-sfu-red dark:text-blue-400 font-medium"
+                        : "hover:bg-white/80 dark:hover:bg-gray-700/50 dark:text-gray-300"
                     }`}
                     type="button"
                   >
-                    <span className={activeTab === tab.id && !tab.danger ? "text-sfu-red" : ""}>
+                    <span className={`${activeTab === tab.id && !tab.danger ? "text-sfu-red dark:text-blue-400" : "dark:text-gray-400"}`}>
                       {tab.icon}
                     </span>
                     <span>{tab.label}</span>
@@ -82,7 +82,7 @@ const AccountSettings = () => {
         
         {/* Content Area */}
         <div className="flex-1">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800/70 rounded-lg p-6 shadow-sm dark:shadow-gray-950/20 border border-gray-100 dark:border-gray-700/50">
             {tabs.find(tab => tab.id === activeTab)?.component}
           </div>
         </div>
