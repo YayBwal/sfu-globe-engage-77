@@ -81,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getProfile();
   }, [user, getProfile]);
 
-  // Memoize admin status check to prevent re-renders
   const checkAdminStatus = useCallback(async () => {
     try {
       if (!user) return;
@@ -198,23 +197,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add theme preference handling
-  const [theme, setTheme] = useState<string>(profile?.theme_preference || 'light');
+  // Enhanced theme preference handling with local storage persistence
+  const [theme, setTheme] = useState<string>(() => {
+    // First check localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) return savedTheme;
+    
+    // Then check profile preference
+    if (profile?.theme_preference) return profile.theme_preference;
+    
+    // Finally use system preference or default to light
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    return 'light';
+  });
 
+  // Apply theme when component mounts or theme changes
   useEffect(() => {
-    if (profile?.theme_preference) {
+    // Update document classes based on theme
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    
+    // Save theme to localStorage for persistence
+    localStorage.setItem('theme', theme);
+    
+    // If user is logged in, sync with profile when different
+    if (user && profile && profile.theme_preference !== theme) {
+      updateUserProfile(user.id, { theme_preference: theme })
+        .catch(error => console.error("Failed to update theme preference:", error));
+    }
+  }, [theme, user, profile]);
+
+  // Update theme state when profile loads/changes
+  useEffect(() => {
+    if (profile?.theme_preference && profile.theme_preference !== theme) {
       setTheme(profile.theme_preference);
     }
   }, [profile]);
 
   const updateTheme = async (newTheme: string) => {
     try {
-      if (!user) {
-        throw new Error("No user logged in");
+      setTheme(newTheme); // Update state immediately for better UX
+      
+      // Save to localStorage
+      localStorage.setItem('theme', newTheme);
+      
+      // Update in profile if user is logged in
+      if (user) {
+        await updateUserProfile(user.id, { theme_preference: newTheme });
       }
-
-      await updateUserProfile(user.id, { theme_preference: newTheme });
-      setTheme(newTheme);
     } catch (error) {
       console.error("Theme update failed:", error);
       throw error;
@@ -243,7 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading: loading || sessionLoading,
     isAuthenticated,
     isAdmin,
-    register: registerUser,
+    register,
     login,
     logout,
     updateProfile,
