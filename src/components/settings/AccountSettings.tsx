@@ -24,12 +24,10 @@ const AccountSettings = () => {
   useEffect(() => {
     // Fix any lingering overlays when component mounts
     cleanupModals();
-    fixSheetOverlays();
     
     // Also clean up when component unmounts
     return () => {
       cleanupModals();
-      fixSheetOverlays();
     };
   }, []);
 

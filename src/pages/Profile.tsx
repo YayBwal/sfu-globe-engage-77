@@ -1,14 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import Layout from '@/components/layout/Layout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AccountSettings from '@/components/settings/AccountSettings';
-import { Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import Layout from "@/components/layout/Layout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, UserCog, Image as ImageIcon } from "lucide-react";
+import AccountSettings from "@/components/settings/AccountSettings";
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Profile() {
   const { user, profile, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState<string>("account");
 
   if (loading) {
     return (
@@ -35,11 +37,30 @@ export default function Profile() {
   return (
     <Layout>
       <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-8 text-center md:text-left">My Profile</h1>
+        {/* Profile Header with Cover Photo and Avatar */}
+        <ProfileHeader profile={profile} />
         
-        {/* Profile content */}
-        <div className="w-full">
-          <AccountSettings />
+        {/* Main Content Area */}
+        <div className="mt-6">
+          <Card className="border-gray-200">
+            <CardContent className="p-0">
+              <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full border-b rounded-none justify-start bg-gray-50 p-0">
+                  <TabsTrigger 
+                    value="account" 
+                    className="data-[state=active]:bg-white rounded-b-none border-b-2 data-[state=active]:border-b-sfu-red data-[state=active]:shadow-none py-3"
+                  >
+                    <UserCog className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="account" className="p-0 border-none">
+                  <AccountSettings />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>

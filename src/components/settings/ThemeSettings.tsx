@@ -17,6 +17,14 @@ const ThemeSettings = () => {
     setLoading(newTheme);
     try {
       await updateTheme(newTheme);
+      
+      // Apply theme immediately for better user experience
+      document.documentElement.classList.toggle('dark', newTheme === 'dark');
+      if (newTheme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', prefersDark);
+      }
+      
       toast({
         title: "Theme updated",
         description: `Theme changed to ${newTheme} mode.`,

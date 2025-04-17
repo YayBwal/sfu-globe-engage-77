@@ -80,3 +80,12 @@ export const registerModalClosed = (id: string) => {
   
   console.log(`Modal registered as closed: ${id}. Total open: ${openModals.size}`);
 };
+
+/**
+ * Fixes any sheet or dialog overlays that might be stuck
+ */
+export const fixSheetOverlays = () => {
+  console.log("Found sheet/dialog overlays to fix:", document.querySelectorAll('[role="presentation"]').length);
+  // This is just a wrapper for cleanupModals to maintain backwards compatibility
+  cleanupModals();
+};
