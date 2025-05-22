@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { QrCode, Clock, X, RefreshCw, MapPin, Copy, CheckCircle } from 'lucide-react';
+import { X, RefreshCw, Copy, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAttendance } from '@/contexts/AttendanceContext';
-import { Slider } from '@/components/ui/slider';
-import { motion, AnimatePresence } from 'framer-motion';
+import { generateQRCode } from './ApiService';
+import QRCode from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 
 interface QRCodeDisplayProps {
@@ -13,330 +12,140 @@ interface QRCodeDisplayProps {
 }
 
 const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ sessionId, onClose }) => {
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
-  const [loading, setLoading] = useState(false);
-  const [locationRadius, setLocationRadius] = useState(50); // Default radius: 50 meters
-  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [copied, setCopied] = useState(false);
-  const { generateQRCode, updateSessionLocation } = useAttendance();
+  const [qrToken, setQrToken] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    generateNewQRCode();
-
-    // Get current location if available
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-        }
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!qrCode) return;
-
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [qrCode]);
-
-  useEffect(() => {
-    if (currentLocation) {
-      updateSessionLocation(sessionId, currentLocation.lat, currentLocation.lng, locationRadius);
-    }
-  }, [currentLocation, locationRadius, sessionId, updateSessionLocation]);
-
-  const generateNewQRCode = async () => {
-    setLoading(true);
+  const generateToken = async () => {
+    setIsLoading(true);
     try {
-      const code = await generateQRCode(sessionId);
-      setQrCode(code);
-      setTimeLeft(300); // Reset timer to 5 minutes
-      
-      // Update location constraints if available
-      if (currentLocation) {
-        await updateSessionLocation(
-          sessionId, 
-          currentLocation.lat, 
-          currentLocation.lng, 
-          locationRadius
-        );
-      }
+      const response = await generateQRCode(sessionId);
+      setQrToken(response.token);
+      setExpiresAt(new Date(response.expiresAt));
+      toast({
+        title: "QR Code Generated",
+        description: "New attendance QR code has been generated",
+      });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate QR code",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const copyQRCode = () => {
-    if (qrCode) {
-      navigator.clipboard.writeText(qrCode);
-      setCopied(true);
+  useEffect(() => {
+    generateToken();
+    
+    // Cleanup on unmount
+    return () => {
+      clearInterval(timerInterval);
+    };
+  }, [sessionId]);
+
+  // Update timer every second
+  const timerInterval = setInterval(() => {
+    if (expiresAt) {
+      const now = new Date();
+      const diff = expiresAt.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        clearInterval(timerInterval);
+      } else {
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
+      }
+    }
+  }, 1000);
+
+  const copyToClipboard = () => {
+    if (qrToken) {
+      navigator.clipboard.writeText(qrToken);
+      setIsCopied(true);
       toast({
-        title: "Code copied",
-        description: "QR code has been copied to clipboard",
+        title: "Copied",
+        description: "Token copied to clipboard",
       });
       
-      // Reset the copied state after 2 seconds
+      // Reset copied state after 2 seconds
       setTimeout(() => {
-        setCopied(false);
+        setIsCopied(false);
       }, 2000);
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Function to generate QR code SVG (this is just a placeholder)
-  const renderQRCode = (data: string) => {
-    // Get today's date for the QR code generation
-    const today = new Date();
-    const dateString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-    
-    // Append date to QR data to make it change day by day
-    const qrDataWithDate = `${data}-${dateString}`;
-    
-    return (
-      <motion.div 
-        className="flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <motion.img 
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrDataWithDate)}`} 
-          alt="QR Code"
-          className="w-64 h-64 border-2 border-gray-200 rounded-lg"
-          whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        />
-        <motion.div 
-          className="mt-2 text-gray-500 text-sm flex items-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Clock className="w-4 h-4 mr-1 text-orange-500" />
-          Code expires in: {formatTime(timeLeft)}
-        </motion.div>
-      </motion.div>
-    );
-  };
-
-  // Animation variants for the modal
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      transition: { 
-        type: "spring",
-        damping: 25,
-        stiffness: 500
-      }
-    },
-    exit: { 
-      opacity: 0, 
-      scale: 0.8,
-      transition: { 
-        duration: 0.2 
-      }
-    }
-  };
-
-  // Animation variants for content inside modal
-  const contentVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { 
-        delay: 0.1,
-        duration: 0.4
-      }
-    }
-  };
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-        <motion.div 
-          className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
-          variants={modalVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-        >
-          <motion.div 
-            className="flex justify-between items-center mb-4"
-            variants={contentVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <h2 className="text-xl font-bold">Today's Attendance Code</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold dark:text-white">Attendance QR Code</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} className="dark:text-gray-300">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="flex flex-col items-center">
+          {qrToken ? (
+            <div className="bg-white p-4 rounded-lg mb-4">
+              <QRCode 
+                value={qrToken} 
+                size={220}
+                level="H"
+                renderAs="svg"
+              />
+            </div>
+          ) : (
+            <div className="w-[220px] h-[220px] bg-gray-200 dark:bg-gray-700 rounded-lg mb-4 flex items-center justify-center">
+              <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+            </div>
+          )}
+
+          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Expires in:</span>
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{timeLeft}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mb-4 w-full">
             <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onClose}
-              className="rounded-full hover:bg-red-100 hover:text-red-500 transition-colors"
+              variant="outline" 
+              className="flex-1 dark:border-gray-700 dark:text-gray-300"
+              onClick={copyToClipboard}
+              disabled={!qrToken}
             >
-              <X className="h-5 w-5" />
-            </Button>
-          </motion.div>
-
-          <motion.div 
-            className="flex flex-col items-center justify-center"
-            variants={contentVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <AnimatePresence mode="wait">
-              {loading ? (
-                <motion.div 
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="w-64 h-64 border-2 border-gray-200 rounded-lg flex items-center justify-center"
-                >
-                  <motion.div 
-                    className="text-gray-400"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  >
-                    <RefreshCw className="h-16 w-16" />
-                  </motion.div>
-                </motion.div>
-              ) : qrCode ? (
-                <motion.div
-                  key="qrcode"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  {renderQRCode(qrCode)}
-                </motion.div>
+              {isCopied ? (
+                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
               ) : (
-                <motion.div 
-                  key="error"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-center text-gray-500 w-64 h-64 border-2 border-gray-200 rounded-lg flex flex-col items-center justify-center"
-                >
-                  <p>Failed to generate QR code</p>
-                  <Button onClick={generateNewQRCode} className="mt-2" size="sm">
-                    Retry
-                  </Button>
-                </motion.div>
+                <Copy className="h-4 w-4 mr-2" />
               )}
-            </AnimatePresence>
-
-            <motion.div 
-              className="w-full flex justify-center mt-4 mb-6 gap-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              {isCopied ? 'Copied' : 'Copy Token'}
+            </Button>
+            <Button 
+              className="flex-1 bg-sfu-red dark:bg-blue-600 hover:bg-sfu-red/90 dark:hover:bg-blue-700"
+              onClick={generateToken}
+              disabled={isLoading}
             >
-              <Button 
-                variant="outline"
-                onClick={copyQRCode}
-                className="flex items-center gap-2 group hover:border-blue-500 transition-all"
-                disabled={!qrCode || copied}
-              >
-                {copied ? (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4 group-hover:text-blue-500" />
-                )}
-                {copied ? "Copied!" : "Copy"}
-              </Button>
-              <Button 
-                onClick={generateNewQRCode}
-                className="flex items-center gap-2 bg-sfu-red hover:bg-sfu-red/90 transition-all"
-                disabled={loading}
-              >
-                <motion.span
-                  animate={loading ? { rotate: 360 } : {}}
-                  transition={loading ? { duration: 2, repeat: Infinity, ease: "linear" } : {}}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </motion.span>
-                Refresh
-              </Button>
-            </motion.div>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
 
-            {/* Location settings */}
-            {currentLocation && (
-              <motion.div 
-                className="w-full mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.4 }}
-              >
-                <div className="flex items-center mb-2 text-sm font-medium text-gray-700">
-                  <MapPin className="h-4 w-4 mr-2 text-sfu-red" />
-                  <span>Location Validation</span>
-                </div>
-                
-                <div className="mb-1 flex justify-between text-xs text-gray-500">
-                  <span>Distance Required: {locationRadius} meters</span>
-                  <span>{locationRadius === 0 ? 'Disabled' : 'Enabled'}</span>
-                </div>
-                
-                <Slider
-                  value={[locationRadius]}
-                  min={0}
-                  max={200}
-                  step={10}
-                  onValueChange={(value) => setLocationRadius(value[0])}
-                  className="my-2"
-                />
-                
-                <motion.p 
-                  className="text-xs text-gray-500 mt-1"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
-                >
-                  {locationRadius === 0 
-                    ? 'Location validation is disabled. Students can scan from anywhere.' 
-                    : `Students must be within ${locationRadius} meters of this location to mark attendance.`}
-                </motion.p>
-              </motion.div>
-            )}
-
-            <motion.p 
-              className="text-sm text-gray-500 text-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              Students must scan this code in class to mark attendance
-            </motion.p>
-          </motion.div>
-        </motion.div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+            Students must scan this QR code to mark their attendance for this session.
+          </p>
+        </div>
       </div>
-    </AnimatePresence>
+    </div>
   );
 };
 
