@@ -127,7 +127,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ sessionId, onSuccess, onClose }) 
         console.error('Error marking attendance:', error);
         toast({
           title: "Error",
-          description: error.response?.data?.error || "Failed to mark attendance",
+          description: error.message || "Failed to mark attendance",
           variant: "destructive",
         });
         // Reset to allow trying again
