@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -505,31 +504,18 @@ const Attendance = () => {
                 
                 {todaySessions.length > 0 ? (
                   <div className="text-center">
-                    <div className="border-2 border-gray-200 rounded-lg p-4 mb-4">
-                      <QrCode className="h-40 w-40 mx-auto mb-2" />
-                      <div className="text-sm text-gray-500">
-                        Code expires in: 4:56
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-center gap-2 mb-4">
-                      <Button variant="outline">
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
-                      <Button 
-                        className="bg-sfu-red hover:bg-sfu-red/90"
-                        onClick={() => {
-                          if (todaySessions[0]) {
-                            setSelectedSession(todaySessions[0].id);
-                            setShowQRCode(true);
-                          }
-                        }}
-                      >
-                        <Redo className="h-4 w-4 mr-1" />
-                        Generate QR
-                      </Button>
-                    </div>
+                    <Button 
+                      className="bg-sfu-red hover:bg-sfu-red/90 w-full py-6 mb-4"
+                      onClick={() => {
+                        if (todaySessions[0]) {
+                          setSelectedSession(todaySessions[0].id);
+                          setShowQRCode(true);
+                        }
+                      }}
+                    >
+                      <QrCode className="h-5 w-5 mr-2" />
+                      Generate QR Code
+                    </Button>
                     
                     <div className="flex items-center justify-center mb-4">
                       <Switch 
