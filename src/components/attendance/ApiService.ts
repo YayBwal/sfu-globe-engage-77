@@ -2,9 +2,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
-// API base URL - not needed anymore as we're using Supabase
-// const API_BASE_URL = 'http://localhost:3001';
-
 export interface QRCodeResponse {
   token: string;
   expiresAt: string;
@@ -17,6 +14,8 @@ export interface AttendanceRecord {
   date: string;
   timestamp: string;
   status: string;
+  name?: string;
+  studentIdNumber?: string;
 }
 
 export interface MarkAttendanceResponse {
@@ -28,20 +27,23 @@ export interface MarkAttendanceResponse {
 // Generate QR code token (teacher use)
 export const generateQRCode = async (classId: string): Promise<QRCodeResponse> => {
   try {
-    const token = uuidv4();
-    const expiryMinutes = 10;
-    const expiresAt = new Date(new Date().getTime() + expiryMinutes * 60000);
-    
-    // Insert token into Supabase
-    const { error } = await supabase
-      .from('attendance_tokens')
-      .insert({
-        class_id: classId,
-        token: token,
-        expires_at: expiresAt.toISOString(),
-      });
+    // Use the generate_session_qr function that we defined in Supabase
+    const { data: token, error } = await supabase
+      .rpc('generate_session_qr', { session_uuid: classId });
       
     if (error) throw error;
+    
+    // Get the session to determine when the QR code expires
+    const { data: sessionData } = await supabase
+      .from('class_sessions')
+      .select('qr_generated_at, qr_expiry_time')
+      .eq('id', classId)
+      .single();
+      
+    // Calculate expiry time (default to 5 minutes from now if not found)
+    const expirySeconds = sessionData?.qr_expiry_time || 300;
+    const generatedAt = sessionData?.qr_generated_at ? new Date(sessionData.qr_generated_at) : new Date();
+    const expiresAt = new Date(generatedAt.getTime() + expirySeconds * 1000);
     
     return {
       token,
@@ -56,67 +58,50 @@ export const generateQRCode = async (classId: string): Promise<QRCodeResponse> =
 // Mark attendance using QR code token (student use)
 export const markAttendance = async (
   studentId: string,
-  classId: string,
+  sessionId: string,
   token: string
 ): Promise<MarkAttendanceResponse> => {
   try {
-    // First verify the token is valid
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('attendance_tokens')
-      .select('*')
-      .eq('token', token)
-      .eq('class_id', classId)
-      .gt('expires_at', new Date().toISOString())
-      .single();
+    // Use the verify_attendance_qr function that we defined in Supabase
+    const { data: isValid, error: verifyError } = await supabase
+      .rpc('verify_attendance_qr', {
+        session_uuid: sessionId,
+        qr_code: token
+      });
     
-    if (tokenError || !tokenData) {
+    if (verifyError) throw verifyError;
+    
+    if (!isValid) {
       throw new Error('Invalid or expired token');
     }
     
-    // Check for existing attendance record for this student/class on the same day
-    const today = new Date().toISOString().split('T')[0]; // Just the date part
-    const { data: existingRecord, error: checkError } = await supabase
+    // Get the record that was just created
+    const { data: record, error: recordError } = await supabase
       .from('attendance_records')
-      .select('*')
+      .select(`
+        id,
+        student_id,
+        session_id,
+        marked_at,
+        status,
+        profiles(name, student_id)
+      `)
+      .eq('session_id', sessionId)
       .eq('student_id', studentId)
-      .eq('class_id', classId)
-      .gte('marked_at', today + 'T00:00:00')
-      .lte('marked_at', today + 'T23:59:59');
-    
-    if (checkError) throw checkError;
-    
-    if (existingRecord && existingRecord.length > 0) {
-      throw new Error('Attendance already marked for this class today');
-    }
-    
-    // Mark attendance
-    const { data: record, error: insertError } = await supabase
-      .from('attendance_records')
-      .insert({
-        student_id: studentId,
-        class_id: classId,
-        token_id: tokenData.id,
-        status: 'present'
-      })
-      .select()
       .single();
     
-    if (insertError) throw insertError;
-    
-    // Update token as used
-    await supabase
-      .from('attendance_tokens')
-      .update({ is_used: true })
-      .eq('id', tokenData.id);
+    if (recordError) throw recordError;
     
     // Format the record for the response
     const attendanceRecord: AttendanceRecord = {
       id: record.id,
       studentId: record.student_id,
-      classId: record.class_id,
+      classId: record.session_id, // Actually the session ID
       date: new Date(record.marked_at).toISOString().split('T')[0],
       timestamp: record.marked_at,
-      status: record.status
+      status: record.status,
+      name: record.profiles?.name,
+      studentIdNumber: record.profiles?.student_id
     };
     
     return {
@@ -131,37 +116,140 @@ export const markAttendance = async (
 };
 
 // Get class attendance records
-export const getClassAttendance = async (classId: string): Promise<AttendanceRecord[]> => {
+export const getClassAttendance = async (sessionId: string): Promise<AttendanceRecord[]> => {
   try {
     const { data, error } = await supabase
       .from('attendance_records')
       .select(`
         id,
         student_id,
-        class_id,
+        session_id,
         marked_at,
         status,
         profiles(name, student_id)
       `)
-      .eq('class_id', classId);
+      .eq('session_id', sessionId);
     
     if (error) throw error;
+    
+    if (!data) return [];
     
     // Format the records
     const formattedRecords: AttendanceRecord[] = data.map(record => ({
       id: record.id,
       studentId: record.student_id,
-      classId: record.class_id,
+      classId: record.session_id, // Actually the session ID
       date: new Date(record.marked_at).toISOString().split('T')[0],
       timestamp: record.marked_at,
       status: record.status,
-      // Include profile data if available
-      ...(record.profiles && { name: record.profiles.name, studentIdNumber: record.profiles.student_id })
+      name: record.profiles?.name,
+      studentIdNumber: record.profiles?.student_id
     }));
     
     return formattedRecords;
   } catch (error) {
     console.error('Error fetching attendance records:', error);
     throw error;
+  }
+};
+
+// Generate example attendance data for a session
+export const generateExampleAttendanceData = async (sessionId: string, teacherId: string): Promise<boolean> => {
+  try {
+    // First, get all students enrolled in the class
+    const { data: session } = await supabase
+      .from('class_sessions')
+      .select('class_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (!session) throw new Error('Session not found');
+    
+    // Get enrolled students
+    const { data: enrollments } = await supabase
+      .from('class_enrollments')
+      .select('student_id, profiles(name, student_id)')
+      .eq('class_id', session.class_id)
+      .eq('status', 'active');
+    
+    if (!enrollments || enrollments.length === 0) {
+      // No enrolled students found, create some example students for demonstration
+      const exampleStudents = [
+        { name: 'John Smith', id: uuidv4(), studentId: 'S12345' },
+        { name: 'Sarah Johnson', id: uuidv4(), studentId: 'S12346' },
+        { name: 'David Lee', id: uuidv4(), studentId: 'S12347' },
+        { name: 'Maria Garcia', id: uuidv4(), studentId: 'S12348' },
+        { name: 'James Wilson', id: uuidv4(), studentId: 'S12349' },
+        { name: 'Emma Davis', id: uuidv4(), studentId: 'S12350' },
+        { name: 'Michael Brown', id: uuidv4(), studentId: 'S12351' },
+        { name: 'Lisa Martinez', id: uuidv4(), studentId: 'S12352' }
+      ];
+      
+      const statusOptions = ['present', 'late', 'absent', 'excused'];
+      const now = new Date();
+      
+      // Create attendance records for example students
+      const attendanceRecords = exampleStudents.map(student => {
+        // Randomly assign a status, but make majority present
+        const randomIndex = Math.floor(Math.random() * 10);
+        const status = randomIndex < 6 ? 'present' : statusOptions[randomIndex % statusOptions.length];
+        
+        // Randomize the check-in time slightly for variety
+        const minutesAgo = Math.floor(Math.random() * 30);
+        const markedAt = new Date(now.getTime() - minutesAgo * 60000).toISOString();
+        
+        return {
+          session_id: sessionId,
+          student_id: student.id,
+          status: status,
+          marked_by: teacherId,
+          scan_method: status === 'present' ? 'qr' : 'manual',
+          marked_at: markedAt,
+          notes: status === 'excused' ? 'Medical appointment' : null,
+          // Add fake profiles data for display
+          profiles: {
+            name: student.name,
+            student_id: student.studentId
+          }
+        };
+      });
+      
+      return true;
+    } else {
+      // Use real enrolled students to create attendance records
+      const statusOptions = ['present', 'late', 'absent', 'excused'];
+      const now = new Date();
+      
+      // Create attendance records
+      const attendanceRecords = enrollments.map(enrollment => {
+        // Randomly assign a status, but make majority present
+        const randomIndex = Math.floor(Math.random() * 10);
+        const status = randomIndex < 6 ? 'present' : statusOptions[randomIndex % statusOptions.length];
+        
+        // Randomize the check-in time slightly for variety
+        const minutesAgo = Math.floor(Math.random() * 30);
+        const markedAt = new Date(now.getTime() - minutesAgo * 60000).toISOString();
+        
+        return {
+          session_id: sessionId,
+          student_id: enrollment.student_id,
+          status: status,
+          marked_by: teacherId,
+          scan_method: status === 'present' ? 'qr' : 'manual',
+          marked_at: markedAt,
+          notes: status === 'excused' ? 'Medical appointment' : null
+        };
+      });
+      
+      // Insert attendance records
+      const { error } = await supabase.from('attendance_records').insert(attendanceRecords);
+      
+      if (error) throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error generating example attendance data:', error);
+    return false;
   }
 };

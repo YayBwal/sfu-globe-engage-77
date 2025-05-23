@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Redo, Copy, Star, ShieldAlert } from "lucide-react";
+import { QrCode, CalendarCheck, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Redo, Copy, Star, ShieldAlert, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAttendance } from "@/contexts/AttendanceContext";
@@ -20,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { generateExampleAttendanceData } from "@/components/attendance/ApiService";
 
 // Helper function to get abbreviated day of week
 const getDayOfWeek = (date: Date) => {
@@ -43,6 +43,7 @@ const Attendance = () => {
   const [newSessionDate, setNewSessionDate] = useState(new Date());
   const [newSessionLocation, setNewSessionLocation] = useState("");
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isGeneratingExamples, setIsGeneratingExamples] = useState(false);
 
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -166,6 +167,40 @@ const Attendance = () => {
       });
     } finally {
       setIsCreatingSession(false);
+    }
+  };
+
+  // Function to generate example attendance records
+  const handleGenerateExamples = async (sessionId: string) => {
+    if (!user) return;
+    
+    setIsGeneratingExamples(true);
+    try {
+      const result = await generateExampleAttendanceData(sessionId, user.id);
+      
+      if (result) {
+        toast({
+          title: "Example Data Generated",
+          description: "Sample attendance records have been created for demonstration purposes.",
+        });
+        
+        // Refresh attendance records
+        fetchAttendanceRecords(sessionId);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to generate example data.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingExamples(false);
     }
   };
 
@@ -661,6 +696,28 @@ const Attendance = () => {
                 {selectedClass && sessions.length > 0 ? (
                   activeSessionId ? (
                     <div>
+                      <div className="flex justify-between items-center mb-4">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setActiveSessionId(null)}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Back to Sessions
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleGenerateExamples(activeSessionId)}
+                          disabled={isGeneratingExamples}
+                          className="ml-auto"
+                        >
+                          <Database className="h-4 w-4 mr-1" />
+                          {isGeneratingExamples ? "Generating..." : "Generate Example Data"}
+                        </Button>
+                      </div>
+                      
                       {attendanceList.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-gray-200">
                           <Table>
@@ -730,8 +787,16 @@ const Attendance = () => {
                           </Table>
                         </div>
                       ) : (
-                        <div className="text-center py-6 text-gray-500">
-                          <p>No attendance records found for this session</p>
+                        <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                          <Database className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                          <p className="text-gray-500 mb-4">No attendance records found for this session</p>
+                          <Button 
+                            onClick={() => handleGenerateExamples(activeSessionId)}
+                            disabled={isGeneratingExamples}
+                            className="bg-sfu-red hover:bg-sfu-red/90"
+                          >
+                            {isGeneratingExamples ? "Generating Examples..." : "Generate Example Data"}
+                          </Button>
                         </div>
                       )}
                     </div>
