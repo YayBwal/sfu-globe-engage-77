@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -38,6 +39,10 @@ const Attendance = () => {
   const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
   const [passcode, setPasscode] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
+  const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
+  const [newSessionDate, setNewSessionDate] = useState(new Date());
+  const [newSessionLocation, setNewSessionLocation] = useState("");
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -107,6 +112,60 @@ const Attendance = () => {
         description: "The passcode you entered is incorrect",
         variant: "destructive",
       });
+    }
+  };
+
+  // Function to handle creating a new session
+  const handleCreateSession = async () => {
+    if (!selectedClass) {
+      toast({
+        title: "Error",
+        description: "Please select a class first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingSession(true);
+    
+    try {
+      // Format the date
+      const formattedDate = newSessionDate.toISOString();
+      
+      // Insert new session into the database
+      const { data, error } = await supabase
+        .from('class_sessions')
+        .insert({
+          class_id: selectedClass,
+          date: formattedDate,
+          location: newSessionLocation || null,
+          status: 'scheduled'
+        })
+        .select();
+      
+      if (error) throw error;
+      
+      // Success!
+      toast({
+        title: "Session Created",
+        description: "New class session has been created successfully",
+      });
+      
+      // Refresh sessions list
+      fetchSessions(selectedClass);
+      
+      // Close dialog and reset fields
+      setShowCreateSessionDialog(false);
+      setNewSessionDate(new Date());
+      setNewSessionLocation("");
+    } catch (error: any) {
+      toast({
+        title: "Error Creating Session",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingSession(false);
     }
   };
 
@@ -551,6 +610,7 @@ const Attendance = () => {
                     <Button 
                       className="bg-sfu-red hover:bg-sfu-red/90"
                       disabled={!selectedClass}
+                      onClick={() => setShowCreateSessionDialog(true)}
                     >
                       Create Session
                     </Button>
@@ -839,6 +899,54 @@ const Attendance = () => {
               className="bg-sfu-red hover:bg-sfu-red/90"
             >
               Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Create Session Dialog */}
+      <Dialog open={showCreateSessionDialog} onOpenChange={setShowCreateSessionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Session</DialogTitle>
+            <DialogDescription>
+              Schedule a new attendance session for your class
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col space-y-4 py-4">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="session-date">Date and Time</Label>
+              <Input 
+                id="session-date" 
+                type="datetime-local" 
+                value={newSessionDate.toISOString().slice(0, 16)}
+                onChange={(e) => setNewSessionDate(new Date(e.target.value))}
+              />
+            </div>
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="session-location">Location (Optional)</Label>
+              <Input 
+                id="session-location" 
+                type="text" 
+                placeholder="Enter location" 
+                value={newSessionLocation}
+                onChange={(e) => setNewSessionLocation(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowCreateSessionDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateSession}
+              className="bg-sfu-red hover:bg-sfu-red/90"
+              disabled={isCreatingSession}
+            >
+              {isCreatingSession ? "Creating..." : "Create Session"}
             </Button>
           </DialogFooter>
         </DialogContent>
