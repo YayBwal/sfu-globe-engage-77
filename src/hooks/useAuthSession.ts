@@ -9,43 +9,48 @@ export const useAuthSession = () => {
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
 
-  // Memoize session update function to prevent unnecessary re-renders
+  // Optimize session update function
   const updateSession = useCallback((newSession: Session | null) => {
     const newUser = newSession?.user ?? null;
     
-    // Only update if values have changed to prevent unnecessary re-renders
-    if (
-      JSON.stringify(newUser) !== JSON.stringify(user) || 
-      JSON.stringify(newSession) !== JSON.stringify(session)
-    ) {
-      setUser(newUser);
-      setSession(newSession);
-      setLoading(false);
-      
-      // Log for debugging
-      if (newUser) {
-        console.log("Auth state updated: User logged in", newUser.email);
-      } else {
-        console.log("Auth state updated: No user");
+    setUser(prevUser => {
+      if (JSON.stringify(prevUser) === JSON.stringify(newUser)) {
+        return prevUser;
       }
+      return newUser;
+    });
+    
+    setSession(prevSession => {
+      if (JSON.stringify(prevSession) === JSON.stringify(newSession)) {
+        return prevSession;
+      }
+      return newSession;
+    });
+    
+    setLoading(false);
+    
+    // Simplified logging
+    if (newUser && !user) {
+      console.log("User logged in:", newUser.email);
+    } else if (!newUser && user) {
+      console.log("User logged out");
     }
-  }, [user, session]);
+  }, [user]);
 
   useEffect(() => {
     let isSubscribed = true;
-    console.log("Setting up auth session listener");
     
-    // Set up the auth state listener first
+    // Set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
         if (isSubscribed) {
           updateSession(currentSession);
-          setConnectionError(null); // Clear any connection error on successful auth state change
+          setConnectionError(null);
         }
       }
     );
 
-    // Then check for existing session
+    // Check for existing session
     supabase.auth.getSession()
       .then(({ data: { session: currentSession } }) => {
         if (isSubscribed) {
@@ -55,23 +60,12 @@ export const useAuthSession = () => {
       .catch((error) => {
         console.error("Error getting session:", error);
         if (isSubscribed) {
-          // Improved error handling for network issues
-          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            setConnectionError(new Error('Unable to connect to authentication service. Please check your internet connection.'));
-            console.error("Network connection error detected:", error);
-          } else if (error instanceof Error) {
-            setConnectionError(error);
-            console.error("Authentication error:", error.message);
-          } else {
-            setConnectionError(new Error('An unknown error occurred during authentication.'));
-            console.error("Unknown authentication error:", error);
-          }
+          setConnectionError(error instanceof Error ? error : new Error('Authentication error'));
           setLoading(false);
         }
       });
 
     return () => {
-      console.log("Cleaning up auth session listener");
       isSubscribed = false;
       subscription.unsubscribe();
     };

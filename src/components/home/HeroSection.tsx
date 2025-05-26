@@ -1,31 +1,46 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { ArrowRight } from 'lucide-react';
 
 const HeroSection: React.FC = () => {
   const parallaxRef = useRef<HTMLDivElement>(null);
   
+  const handleScroll = useCallback(() => {
+    if (!parallaxRef.current) return;
+    const scrollPos = window.scrollY;
+    const translateY = scrollPos * 0.3;
+    const opacity = Math.max(0, 1 - scrollPos * 0.002);
+    
+    parallaxRef.current.style.transform = `translateY(${translateY}px)`;
+    parallaxRef.current.style.opacity = `${opacity}`;
+  }, []);
+  
   useEffect(() => {
-    const handleScroll = () => {
-      if (!parallaxRef.current) return;
-      const scrollPos = window.scrollY;
-      parallaxRef.current.style.transform = `translateY(${scrollPos * 0.3}px)`;
-      parallaxRef.current.style.opacity = `${1 - scrollPos * 0.002}`;
+    let ticking = false;
+    
+    const optimizedHandleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    window.addEventListener('scroll', optimizedHandleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', optimizedHandleScroll);
+  }, [handleScroll]);
 
   return (
     <section className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center pt-20 pb-10 px-4">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-white to-sfu-lightgray -z-10"></div>
       
-      {/* Decorative elements */}
-      <div className="absolute top-1/4 left-10 w-64 h-64 rounded-full bg-sfu-red/5 animate-float"></div>
-      <div className="absolute bottom-1/4 right-10 w-40 h-40 rounded-full bg-sfu-red/10 animate-float" style={{ animationDelay: '1s' }}></div>
-      <div className="absolute top-1/3 right-1/4 w-20 h-20 rounded-full bg-sfu-red/5 animate-float" style={{ animationDelay: '2s' }}></div>
+      {/* Simplified decorative elements */}
+      <div className="absolute top-1/4 left-10 w-64 h-64 rounded-full bg-sfu-red/5"></div>
+      <div className="absolute bottom-1/4 right-10 w-40 h-40 rounded-full bg-sfu-red/10"></div>
+      <div className="absolute top-1/3 right-1/4 w-20 h-20 rounded-full bg-sfu-red/5"></div>
       
       <div className="max-w-5xl mx-auto text-center relative z-10" ref={parallaxRef}>
         <div className="inline-block mb-6">
