@@ -11,6 +11,7 @@ import { Loader2, Eye, EyeOff, WifiOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { PasswordInput } from '@/components/ui/password-input';
+import GuestLoginForm from '@/components/guest/GuestLoginForm';
 
 type LoginFormValues = {
   identifier: string;
@@ -26,6 +27,7 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showGuestForm, setShowGuestForm] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>();
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -64,6 +66,24 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
+
+  if (showGuestForm) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+        <div className="space-y-4">
+          <GuestLoginForm />
+          <div className="text-center">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowGuestForm(false)}
+            >
+              Back to Login
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
@@ -127,7 +147,7 @@ export default function Login() {
             </div>
           </CardContent>
           
-          <CardFooter className="flex flex-col">
+          <CardFooter className="flex flex-col space-y-4">
             <Button 
               type="submit" 
               className="w-full" 
@@ -143,7 +163,16 @@ export default function Login() {
               )}
             </Button>
             
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowGuestForm(true)}
+            >
+              Continue as Guest
+            </Button>
+            
+            <p className="text-center text-sm text-gray-600">
               Don't have an account?{' '}
               <Link to="/register" className="font-medium text-blue-600 hover:underline">
                 Sign up

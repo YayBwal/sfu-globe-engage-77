@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContextType, UserProfile } from '@/types/auth';
@@ -6,11 +7,13 @@ import { fetchUserProfile, updateUserProfile } from '@/services/profileService';
 import { registerUser, loginUser, logoutUser, deleteAccount } from '@/services/authService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useGuest } from '@/contexts/GuestContext';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading: sessionLoading, connectionError } = useAuthSession();
+  const { guestProfile, clearGuestProfile } = useGuest();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,9 +34,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Memoize profile fetching to prevent unnecessary re-renders
   const getProfile = useCallback(async () => {
     if (!user) {
-      setProfile(null);
-      setIsAuthenticated(false);
-      setIsAdmin(false);
+      // Check if we have a guest profile
+      if (guestProfile) {
+        const guestUserProfile: UserProfile = {
+          id: guestProfile.id,
+          name: guestProfile.name,
+          student_id: 'GUEST',
+          major: 'Guest User',
+          batch: 'N/A',
+          email: guestProfile.email || 'guest@example.com',
+          online: true,
+          bio: 'Guest user',
+          interests: [],
+          availability: '',
+          profilePic: null,
+          coverPic: null,
+          profile_pic: null,
+          cover_pic: null,
+          student_id_photo: null,
+          approval_status: 'approved',
+          phone: null,
+          theme_preference: 'light',
+        };
+        setProfile(guestUserProfile);
+        setIsAuthenticated(true);
+        setIsAdmin(false);
+      } else {
+        setProfile(null);
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      }
       setLoading(false);
       return;
     }
@@ -74,12 +104,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [user, profile]);
+  }, [user, profile, guestProfile]);
 
   useEffect(() => {
     setLoading(true);
     getProfile();
-  }, [user, getProfile]);
+  }, [user, getProfile, guestProfile]);
 
   const checkAdminStatus = useCallback(async () => {
     try {
@@ -114,6 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     setLoading(true);
     try {
+      // Clear guest profile when registering
+      clearGuestProfile();
+      
       await registerUser(email, password, name, studentId, major, batch, studentIdPhoto);
       // After successful registration, navigate to login
       navigate('/login');
@@ -135,6 +168,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (identifier: string, password: string) => {
     setLoading(true);
     try {
+      // Clear guest profile when logging in
+      clearGuestProfile();
+      
       await loginUser(identifier, password);
       
       // Navigate to home directly since loginUser already checks approval status
@@ -162,7 +198,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setLoading(true);
     try {
-      await logoutUser();
+      if (guestProfile) {
+        // If guest, just clear guest profile
+        clearGuestProfile();
+      } else {
+        // If authenticated user, logout from Supabase
+        await logoutUser();
+      }
+      
       // The user state will be updated by the auth state listener
       setProfile(null);
       setIsAuthenticated(false);
@@ -240,8 +283,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Save to localStorage
       localStorage.setItem('theme', newTheme);
       
-      // Update in profile if user is logged in
-      if (user) {
+      // Update in profile if user is logged in (not guest)
+      if (user && profile) {
         await updateUserProfile(user.id, { theme_preference: newTheme });
       }
     } catch (error) {

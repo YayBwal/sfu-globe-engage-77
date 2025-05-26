@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGuest } from '@/contexts/GuestContext';
 import { UserProfile } from '@/types/auth';
 import { TypedSupabaseClient } from '@/types/supabaseCustom';
 
@@ -21,6 +22,21 @@ const FindFriendSection = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { user } = useAuth();
+  const { isGuest } = useGuest();
+
+  // Don't show for guest users
+  if (isGuest) {
+    return (
+      <Card className="mb-5">
+        <CardContent className="p-6">
+          <div className="text-center space-y-2">
+            <p className="text-gray-500">Friend features are not available for guest users</p>
+            <p className="text-sm text-gray-400">Please register or sign in to connect with friends</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !user) return;

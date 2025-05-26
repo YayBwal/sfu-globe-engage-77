@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
+import { useGuest } from '@/contexts/GuestContext';
 import { createNotification } from '@/utils/notificationHelpers';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,8 +28,18 @@ const MessageModal: React.FC<MessageModalProps> = ({ isOpen, onClose, recipient 
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isGuest } = useGuest();
 
   const handleSendMessage = async () => {
+    if (isGuest) {
+      toast({
+        title: "Feature Not Available",
+        description: "Messaging is not available for guest users. Please register or sign in to send messages.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!message.trim() || !recipient || !user) {
       return;
     }
@@ -82,21 +93,30 @@ const MessageModal: React.FC<MessageModalProps> = ({ isOpen, onClose, recipient 
           <DialogTitle>Send message to {recipient?.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Textarea
-            placeholder="Type your message here..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="min-h-[120px]"
-          />
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
-              onClick={handleSendMessage} 
-              disabled={!message.trim() || isSending}
-            >
-              {isSending ? "Sending..." : "Send Message"}
-            </Button>
-          </div>
+          {isGuest ? (
+            <div className="text-center py-4 space-y-2">
+              <p className="text-gray-500">Messaging is not available for guest users</p>
+              <p className="text-sm text-gray-400">Please register or sign in to send messages</p>
+            </div>
+          ) : (
+            <>
+              <Textarea
+                placeholder="Type your message here..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="min-h-[120px]"
+              />
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={onClose}>Cancel</Button>
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!message.trim() || isSending}
+                >
+                  {isSending ? "Sending..." : "Send Message"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

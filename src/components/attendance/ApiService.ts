@@ -84,7 +84,7 @@ export const markAttendance = async (
         session_id,
         marked_at,
         status,
-        profiles(name, student_id)
+        profiles!attendance_records_student_id_fkey(name, student_id)
       `)
       .eq('session_id', sessionId)
       .eq('student_id', studentId)
@@ -96,7 +96,7 @@ export const markAttendance = async (
     const attendanceRecord: AttendanceRecord = {
       id: record.id,
       studentId: record.student_id,
-      classId: record.session_id, // Actually the session ID
+      classId: record.session_id,
       date: new Date(record.marked_at).toISOString().split('T')[0],
       timestamp: record.marked_at,
       status: record.status,
@@ -126,7 +126,7 @@ export const getClassAttendance = async (sessionId: string): Promise<AttendanceR
         session_id,
         marked_at,
         status,
-        profiles(name, student_id)
+        profiles!attendance_records_student_id_fkey(name, student_id)
       `)
       .eq('session_id', sessionId);
     
@@ -138,7 +138,7 @@ export const getClassAttendance = async (sessionId: string): Promise<AttendanceR
     const formattedRecords: AttendanceRecord[] = data.map(record => ({
       id: record.id,
       studentId: record.student_id,
-      classId: record.session_id, // Actually the session ID
+      classId: record.session_id,
       date: new Date(record.marked_at).toISOString().split('T')[0],
       timestamp: record.marked_at,
       status: record.status,
@@ -168,7 +168,7 @@ export const generateExampleAttendanceData = async (sessionId: string, teacherId
     // Get enrolled students
     const { data: enrollments } = await supabase
       .from('class_enrollments')
-      .select('student_id, profiles(name, student_id)')
+      .select('student_id, profiles!class_enrollments_student_id_fkey(name, student_id)')
       .eq('class_id', session.class_id)
       .eq('status', 'active');
     

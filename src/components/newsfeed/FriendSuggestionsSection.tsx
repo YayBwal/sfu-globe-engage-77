@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGuest } from "@/contexts/GuestContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SuggestedFriend {
@@ -17,10 +18,16 @@ interface SuggestedFriend {
 
 export const FriendSuggestionsSection = () => {
   const { user } = useAuth();
+  const { isGuest } = useGuest();
   const { toast } = useToast();
   const [suggestions, setSuggestions] = useState<SuggestedFriend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingRequests, setPendingRequests] = useState<Record<string, boolean>>({});
+
+  // Don't show for guest users
+  if (isGuest) {
+    return null;
+  }
 
   // Fetch friend suggestions
   useEffect(() => {

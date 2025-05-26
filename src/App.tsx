@@ -1,83 +1,196 @@
 
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from "@/components/ui/toaster";
-import Index from '@/pages/Index';
-import Study from '@/pages/Study';
-import Clubs from '@/pages/Clubs';
-import Attendance from '@/pages/Attendance';
-import NotFound from '@/pages/NotFound';
-import Register from '@/pages/Register';
-import Login from '@/pages/Login';
-import UpdatePassword from '@/pages/UpdatePassword';
-import Profile from '@/pages/Profile';
-import Marketplace from '@/pages/Marketplace';
-import Newsfeed from '@/pages/Newsfeed';
-import Friends from '@/pages/Friends';
-import GamingHub from '@/pages/gaming/GamingHub';
-import QuizHub from '@/pages/gaming/QuizHub';
-import GamesHub from '@/pages/gaming/GamesHub';
-import Leaderboard from '@/pages/gaming/Leaderboard';
-import { ClubProvider } from '@/contexts/ClubContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { GuestProvider } from '@/contexts/GuestContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { AttendanceProvider } from '@/contexts/AttendanceContext';
-import { usePresence } from '@/hooks/usePresence';
-import { ChatBubble } from '@/components/ai-chat/ChatBubble';
+import { ClubProvider } from '@/contexts/ClubContext';
+import { Toaster } from '@/components/ui/toaster';
+import Layout from '@/components/layout/Layout';
+import Index from '@/pages/Index';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Profile from '@/pages/Profile';
+import Newsfeed from '@/pages/Newsfeed';
+import Study from '@/pages/Study';
+import Clubs from '@/pages/Clubs';
+import Marketplace from '@/pages/Marketplace';
+import Friends from '@/pages/Friends';
+import Attendance from '@/pages/Attendance';
 import AdminReview from '@/pages/AdminReview';
+import Leaderboard from '@/pages/Leaderboard';
+import GamingHub from '@/pages/gaming/GamingHub';
+import GamesHub from '@/pages/gaming/GamesHub';
+import QuizHub from '@/pages/gaming/QuizHub';
+import GameLeaderboard from '@/pages/gaming/Leaderboard';
+import NotFound from '@/pages/NotFound';
+import UpdatePassword from '@/pages/UpdatePassword';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGuest } from '@/contexts/GuestContext';
 
-// Presence wrapper component to use the hook with the router
-const PresenceWrapper = ({ children }: { children: React.ReactNode }) => {
-  usePresence();
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+  const { isGuest } = useGuest();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && !isGuest) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <>{children}</>;
-};
+}
+
+function AuthRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+  const { isGuest } = useGuest();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated || isGuest) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppContent() {
+  return (
+    <Routes>
+      <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+      <Route path="/register" element={<AuthRoute><Register /></AuthRoute>} />
+      <Route path="/update-password" element={<UpdatePassword />} />
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout>
+            <Index />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Layout>
+            <Profile />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/newsfeed" element={
+        <ProtectedRoute>
+          <Layout>
+            <Newsfeed />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/study" element={
+        <ProtectedRoute>
+          <Layout>
+            <Study />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/clubs" element={
+        <ProtectedRoute>
+          <Layout>
+            <Clubs />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/marketplace" element={
+        <ProtectedRoute>
+          <Layout>
+            <Marketplace />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/friends" element={
+        <ProtectedRoute>
+          <Layout>
+            <Friends />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/attendance" element={
+        <ProtectedRoute>
+          <Layout>
+            <Attendance />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/review" element={
+        <ProtectedRoute>
+          <Layout>
+            <AdminReview />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/leaderboard" element={
+        <ProtectedRoute>
+          <Layout>
+            <Leaderboard />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/gaming" element={
+        <ProtectedRoute>
+          <Layout>
+            <GamingHub />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/gaming/games" element={
+        <ProtectedRoute>
+          <Layout>
+            <GamesHub />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/gaming/quiz" element={
+        <ProtectedRoute>
+          <Layout>
+            <QuizHub />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/gaming/leaderboard" element={
+        <ProtectedRoute>
+          <Layout>
+            <GameLeaderboard />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 function App() {
-  // Initialize Supabase storage on app load
-  useEffect(() => {
-    // Import lazily to avoid import cycles
-    import('@/utils/storageSetup').then(({ initializeStorage }) => {
-      initializeStorage();
-    });
-  }, []);
-  
   return (
-    <NotificationProvider>
-      <ClubProvider>
-        <AttendanceProvider>
-          <PresenceWrapper>
-            <div className="app">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/study" element={<Study />} />
-                <Route path="/clubs/*" element={<Clubs />} />
-                <Route path="/attendance" element={<Attendance />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/update-password" element={<UpdatePassword />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/marketplace" element={<Marketplace />} />
-                <Route path="/newsfeed" element={<Newsfeed />} />
-                <Route path="/friends" element={<Friends />} />
-                <Route path="/admin/review" element={<AdminReview />} />
-                
-                {/* Gaming Hub Routes */}
-                <Route path="/gaming" element={<GamingHub />} />
-                <Route path="/gaming/quiz" element={<QuizHub />} />
-                <Route path="/gaming/quiz/:id" element={<QuizHub />} />
-                <Route path="/gaming/games" element={<GamesHub />} />
-                <Route path="/gaming/games/:id" element={<GamesHub />} />
-                <Route path="/gaming/leaderboard" element={<Leaderboard />} />
-                
-                <Route path="/not-found" element={<NotFound />} />
-                <Route path="*" element={<Navigate to="/not-found" replace />} />
-              </Routes>
-              <Toaster />
-              <ChatBubble />
-            </div>
-          </PresenceWrapper>
-        </AttendanceProvider>
-      </ClubProvider>
-    </NotificationProvider>
+    <Router>
+      <GuestProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <AttendanceProvider>
+              <ClubProvider>
+                <AppContent />
+                <Toaster />
+              </ClubProvider>
+            </AttendanceProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </GuestProvider>
+    </Router>
   );
 }
 

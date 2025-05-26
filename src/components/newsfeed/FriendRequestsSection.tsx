@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGuest } from "@/contexts/GuestContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface FriendRequest {
@@ -19,9 +20,15 @@ interface FriendRequest {
 
 export const FriendRequestsSection = () => {
   const { user } = useAuth();
+  const { isGuest } = useGuest();
   const { toast } = useToast();
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Don't show for guest users
+  if (isGuest) {
+    return null;
+  }
 
   // Fetch friend requests
   useEffect(() => {
